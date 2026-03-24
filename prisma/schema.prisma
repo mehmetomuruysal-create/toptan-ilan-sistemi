@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ... User, Listing, Pool modelleri aynen kalacak ...
+
+model User {
+  id           Int           @id @default(autoincrement())
+  adSoyad      String
+  email        String        @unique
+  rol          String        @default("alici") // 'alici' veya 'satici'
+  guvenPuani   Int           @default(100)
+  ilanlar      Listing[]
+  katilimlar   Participant[]
+}
+
+model Listing {
+  id             Int      @id @default(autoincrement())
+  baslik         String
+  perakendeFiyat Float
+  toptanFiyat    Float
+  hedefSayi      Int
+  saticiId       Int
+  satici         User     @relation(fields: [saticiId], references: [id])
+  havuzlar       Pool[]
+}
+
+model Pool {
+  id             Int           @id @default(autoincrement())
+  ilanId         Int
+  ilan           Listing       @relation(fields: [ilanId], references: [id])
+  mevcutKatilim  Int           @default(0)
+  bitisTarihi    DateTime
+  durum          String        @default("bekliyor") // 'bekliyor', 'tamamlandi', 'iptal'
+  katilimcilar   Participant[]
+}
+
+model Participant {
+  id           Int      @id @default(autoincrement())
+  kullaniciId  Int
+  kullanici    User     @relation(fields: [kullaniciId], references: [id])
+  havuzId      Int
+  havuz        Pool     @relation(fields: [havuzId], references: [id])
+  talepMiktari Int
+  odemeDurumu  String   @default("bekliyor") // 'bekliyor', 'onaylandi'
+}
