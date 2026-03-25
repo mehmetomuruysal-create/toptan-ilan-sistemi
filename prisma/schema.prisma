@@ -11,6 +11,7 @@ model User {
   id           Int           @id @default(autoincrement())
   adSoyad      String
   email        String        @unique
+  sifre        String
   rol          String        @default("alici")
   guvenPuani   Int           @default(100)
   ilanlar      Listing[]
@@ -18,32 +19,45 @@ model User {
 }
 
 model Listing {
-  id             Int      @id @default(autoincrement())
-  baslik         String
-  perakendeFiyat Float
-  toptanFiyat    Float
-  hedefSayi      Int
-  saticiId       Int
-  satici         User     @relation(fields: [saticiId], references: [id])
-  havuzlar       Pool[]
+  id                Int      @id @default(autoincrement())
+  baslik            String
+  aciklama          String?
+  urunUrl           String?
+  kategori          String   @default("diger")
+  perakendeFiyat    Float
+  toptanFiyat       Float
+  hedefSayi         Int
+  hedefKitle        String   @default("hepsi")
+  minMiktarBireysel Int      @default(1)
+  minMiktarKobi     Int      @default(5)
+  minMiktarKurumsal Int      @default(20)
+  bitisTarihi       DateTime
+  teslimatYontemi   String   @default("kargo")
+  indirimOrani      Int      @default(10)
+  depozitoOrani     Int      @default(30)
+  durum             String   @default("aktif")
+  saticiId          Int
+  satici            User     @relation(fields: [saticiId], references: [id])
+  havuzlar          Pool[]
+  olusturmaTarihi   DateTime @default(now())
 }
 
 model Pool {
-  id             Int           @id @default(autoincrement())
-  ilanId         Int
-  ilan           Listing       @relation(fields: [ilanId], references: [id])
-  mevcutKatilim  Int           @default(0)
-  bitisTarihi    DateTime
-  durum          String        @default("bekliyor")
-  katilimcilar   Participant[]
+  id            Int           @id @default(autoincrement())
+  ilanId        Int
+  ilan          Listing       @relation(fields: [ilanId], references: [id])
+  mevcutKatilim Int           @default(0)
+  bitisTarihi   DateTime
+  durum         String        @default("bekliyor")
+  katilimcilar  Participant[]
 }
 
 model Participant {
-  id           Int      @id @default(autoincrement())
+  id           Int    @id @default(autoincrement())
   kullaniciId  Int
-  kullanici    User     @relation(fields: [kullaniciId], references: [id])
+  kullanici    User   @relation(fields: [kullaniciId], references: [id])
   havuzId      Int
-  havuz        Pool     @relation(fields: [havuzId], references: [id])
+  havuz        Pool   @relation(fields: [havuzId], references: [id])
   talepMiktari Int
-  odemeDurumu  String   @default("bekliyor")
+  odemeDurumu  String @default("bekliyor")
 }
