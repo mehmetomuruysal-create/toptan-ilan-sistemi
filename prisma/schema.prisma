@@ -8,14 +8,22 @@ datasource db {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  adSoyad      String
-  email        String        @unique
-  sifre        String
-  rol          String        @default("alici")
-  guvenPuani   Int           @default(100)
-  ilanlar      Listing[]
-  katilimlar   Participant[]
+  id                Int           @id @default(autoincrement())
+  adSoyad           String
+  email             String        @unique
+  telefon           String?       @unique
+  sifre             String
+  rol               String        @default("alici")
+  klasman           String        @default("bireysel")
+  sirketAdi         String?
+  vergiNo           String?
+  guvenPuani        Int           @default(100)
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  epostaOnaylandi   Boolean       @default(false)
+  olusturmaTarihi   DateTime      @default(now())
+  ilanlar           Listing[]
+  katilimlar        Participant[]
 }
 
 model Listing {
