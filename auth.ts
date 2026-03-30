@@ -19,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null
 
-        // E-posta onay kontrolü GEÇİCİ OLARAK KAPALI (test için)
+        // E-posta onay kontrolü GEÇİCİ OLARAK KAPALI
         // if (!user.epostaOnaylandi) {
         //   throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
         // }
@@ -36,7 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
-          isAdmin: user.isAdmin,   // ✅ Admin paneli için eklendi
+          isAdmin: user.isAdmin ?? false, // null/undefined ise false
         }
       }
     })
@@ -49,14 +49,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.rol = (user as any).rol
-        token.isAdmin = (user as any).isAdmin   // ✅ JWT'ye ekle
+        token.isAdmin = (user as any).isAdmin ?? false
       }
       return token
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).rol = token.rol
-        (session.user as any).isAdmin = token.isAdmin   // ✅ Session'a ekle
+        (session.user as any).rol = token.rol ?? "ALICI"
+        (session.user as any).isAdmin = token.isAdmin ?? false
       }
       return session
     }
