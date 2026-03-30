@@ -15,7 +15,7 @@ enum HesapTuru {
 model User {
   id                Int           @id @default(autoincrement())
   ad                String
-  soyad             String        // Soru işareti (?) kalktı, artık ZORUNLU
+  soyad             String
   email             String        @unique
   ulkeKodu          String        @default("+90")
   telefon           String?       @unique
@@ -31,17 +31,21 @@ model User {
   teslimatAdresi    String?
   guvenPuani        Int           @default(100)
   
+  // Admin yetkisi
+  isAdmin           Boolean       @default(false)   // ✅ YENİ ALAN
+  
   // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
   resetTokenExpiry  DateTime?
   epostaOnaylandi   Boolean       @default(false)
-  emailVerifyToken  String?       // YENİ: E-posta onaylama kodu
+  emailVerifyToken  String?
   
   createdAt         DateTime      @default(now())
   
   ilanlar           Listing[]
   katilimlar        Participant[]
 }
+
 model Listing {
   id                Int      @id @default(autoincrement())
   baslik            String
