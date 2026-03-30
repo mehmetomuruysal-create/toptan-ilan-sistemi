@@ -13,4 +13,3 @@ export const env = envSchema.parse({
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
 })
-RESEND_API_KEY=re_VKYdqb5g_8G5PLn7ShAUVBNMjoDeBBhyC

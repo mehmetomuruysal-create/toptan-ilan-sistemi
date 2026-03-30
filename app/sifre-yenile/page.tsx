@@ -1,12 +1,13 @@
 "use client"
-import { useState } from "react"
+import { Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { resetPassword } from "@/app/actions/password-actions"
+import { useState } from "react"
 
-export default function SifreYenilePage() {
+function SifreYenileForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const token = searchParams.get("token") // URL'deki güvenli kodu al
+  const token = searchParams.get("token")
 
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -64,5 +65,13 @@ export default function SifreYenilePage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function SifreYenilePage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <SifreYenileForm />
+    </Suspense>
   )
 }
