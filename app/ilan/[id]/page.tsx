@@ -74,26 +74,21 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
               </div>
             </div>
 
-            {/* Tedarikçi */}
+            {/* Tedarikçi (DÜZELTİLMİŞ) */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="font-bold text-gray-800 mb-3">Tedarikçi Bilgisi</h2>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
+                  {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
                 </div>
                 <div>
-                <div className="flex items-center gap-3">
-  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-    {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
-  </div>
-  <div>
-    <p className="font-medium text-gray-800">{ilan.satici.ad} {ilan.satici.soyad}</p>
-    <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
-  </div>
-  <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-    ✓ Onaylı
-  </span>
-</div>
+                  <p className="font-medium text-gray-800">{ilan.satici.ad} {ilan.satici.soyad}</p>
+                  <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
+                </div>
+                <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
+                  ✓ Onaylı
+                </span>
+              </div>
             </div>
           </div>
 
