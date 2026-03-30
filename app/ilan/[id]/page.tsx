@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 
-export default async function IlanDetayPage({ params }: { params: { id: string } }) {
+export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const ilan = await prisma.listing.findUnique({
-    where: { id: parseInt(params.id) },
+    where: { id: parseInt(id) },
     include: { satici: true }
   })
 
