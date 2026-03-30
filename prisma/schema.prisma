@@ -7,25 +7,41 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum HesapTuru {
+  ALICI
+  SATICI
+}
+
 model User {
   id                Int           @id @default(autoincrement())
-  adSoyad           String
+  ad                String
+  soyad             String        // Soru işareti (?) kalktı, artık ZORUNLU
   email             String        @unique
+  ulkeKodu          String        @default("+90")
   telefon           String?       @unique
-  sifre             String
-  rol               String        @default("alici")
-  klasman           String        @default("bireysel")
-  sirketAdi         String?
+  password          String
+  cinsiyet          String?       
+  kampanyaOnay      Boolean       @default(false)
+  hesapTuru         HesapTuru     @default(ALICI)
+  onayliTedarikci   Boolean       @default(false)
+  firmaAdi          String?
   vergiNo           String?
+  vergiDairesi      String?
+  adres             String?
+  teslimatAdresi    String?
   guvenPuani        Int           @default(100)
+  
+  // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
   resetTokenExpiry  DateTime?
   epostaOnaylandi   Boolean       @default(false)
-  olusturmaTarihi   DateTime      @default(now())
+  emailVerifyToken  String?       // YENİ: E-posta onaylama kodu
+  
+  createdAt         DateTime      @default(now())
+  
   ilanlar           Listing[]
   katilimlar        Participant[]
 }
-
 model Listing {
   id                Int      @id @default(autoincrement())
   baslik            String

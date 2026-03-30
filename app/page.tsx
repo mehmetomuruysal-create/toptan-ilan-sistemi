@@ -1,7 +1,7 @@
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
-
+import AuthButtons from "./components/AuthButtons"
 export default async function Home() {
   const session = await auth()
   const ilanlar = await prisma.listing.findMany({
@@ -38,17 +38,7 @@ export default async function Home() {
                 </form>
               </>
             ) : (
-              <>
-                <Link href="/giris" className="text-sm text-gray-600 hover:text-blue-600">
-                  Giriş Yap
-                </Link>
-                <Link
-                  href="/kayit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-                >
-                  Kayıt Ol
-                </Link>
-              </>
+              <AuthButtons />
             )}
           </div>
         </div>

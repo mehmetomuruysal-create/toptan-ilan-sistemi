@@ -1,13 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #171717;
 }
 
 body {
-  background-color: white !important;
-  color: black !important;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
 }

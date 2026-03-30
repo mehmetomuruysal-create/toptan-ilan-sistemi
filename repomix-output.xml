@@ -1,0 +1,1869 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  api/
+    auth/
+      [...nextauth]/
+        route.ts
+    ilan-ekle/
+      route.ts
+    kayit/
+      route.ts
+  components/
+    LoginModal.tsx
+  giris/
+    page.tsx
+  ilan/
+    [id]/
+      page.tsx
+  ilan-ekle/
+    page.tsx
+  kayit/
+    page.tsx
+  favicon.ico
+  globals.css
+  layout.tsx
+  page.tsx
+lib/
+  env.ts
+  prisma.ts
+  validators.ts
+prisma/
+  migrations/
+    20260323185334_init/
+      migration.sql
+    20260326221000_mingax_professional_registration/
+      migration.sql
+    migration_lock.toml
+  dev.db
+  schema.prisma
+public/
+  file.svg
+  globe.svg
+  next.svg
+  vercel.svg
+  window.svg
+tests/
+  validators.test.ts
+types/
+  next-auth.d.ts
+.gitignore
+AGENTS.md
+auth.ts
+CLAUDE.md
+dev.db
+eslint.config.mjs
+next
+next.config.ts
+package.json
+postcss.config.mjs
+README.md
+toptan-ilan-sistemi@0.1.0
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app/components/LoginModal.tsx">
+'use client';
+
+import { useState } from "react";
+import LoginModal from "@/app/components/LoginModal";
+
+export default function Home() {
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
+  return (
+    <main>
+      {/* Mevcut Header/Navbar içindeki Giriş Yap butonu */}
+      <button 
+        onClick={() => setIsLoginOpen(true)}
+        className="px-6 py-2 border-2 border-black rounded-full font-bold hover:bg-black hover:text-white transition-all"
+      >
+        Giriş Yap
+      </button>
+
+      {/* Modal Bileşeni */}
+      <LoginModal 
+        isOpen={isLoginOpen} 
+        onClose={() => setIsLoginOpen(false)} 
+      />
+
+      {/* Sayfanın geri kalan içeriği... */}
+    </main>
+  );
+}
+</file>
+
+<file path="lib/env.ts">
+import { z } from "zod"
+
+const envSchema = z.object({
+  DATABASE_URL: z.string().min(1, "DATABASE_URL zorunludur"),
+  NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET zorunludur"),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
+})
+
+export const env = envSchema.parse({
+  DATABASE_URL: process.env.DATABASE_URL,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+})
+</file>
+
+<file path="lib/validators.ts">
+import { z } from "zod"
+
+export const kayitSchema = z.object({
+  adSoyad: z.string().trim().min(2, "Ad soyad zorunlu"),
+  email: z.string().email("Geçerli bir e-posta girin"),
+  telefon: z.string().trim().min(10, "Telefon zorunlu"),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalı"),
+  hesapTuru: z.enum(["ALICI", "SATICI"]),
+  firmaAdi: z.string().trim().optional(),
+  vergiNo: z.string().trim().optional(),
+  vergiDairesi: z.string().trim().optional(),
+  adres: z.string().trim().optional(),
+  teslimatAdresi: z.string().trim().optional(),
+  kvkkOnay: z.literal(true, { error: "KVKK onayı zorunludur" }),
+}).superRefine((data, ctx) => {
+  if (data.hesapTuru === "SATICI") {
+    if (!data.firmaAdi) {
+      ctx.addIssue({ code: "custom", path: ["firmaAdi"], message: "Firma adı zorunludur" })
+    }
+    if (!data.vergiNo || !/^\d{10}$/.test(data.vergiNo)) {
+      ctx.addIssue({ code: "custom", path: ["vergiNo"], message: "Vergi no 10 haneli olmalı" })
+    }
+    if (!data.vergiDairesi) {
+      ctx.addIssue({ code: "custom", path: ["vergiDairesi"], message: "Vergi dairesi zorunludur" })
+    }
+    if (!data.adres) {
+      ctx.addIssue({ code: "custom", path: ["adres"], message: "Firma adresi zorunludur" })
+    }
+  }
+})
+
+export const ilanEkleSchema = z.object({
+  baslik: z.string().trim().min(2),
+  aciklama: z.string().optional(),
+  urunUrl: z.string().url().optional().or(z.literal("")),
+  kategori: z.string().default("diger"),
+  perakendeFiyat: z.number().positive(),
+  toptanFiyat: z.number().positive(),
+  hedefSayi: z.number().int().positive(),
+  hedefKitle: z.enum(["hepsi", "bireysel", "kobi", "kurumsal"]).default("hepsi"),
+  minMiktarBireysel: z.number().int().positive().default(1),
+  minMiktarKobi: z.number().int().positive().default(5),
+  minMiktarKurumsal: z.number().int().positive().default(20),
+  bitisTarihi: z.string().min(1),
+  teslimatYontemi: z.enum(["kargo", "merkezi", "depo"]).default("kargo"),
+  indirimOrani: z.number().int().min(0).max(100).default(10),
+  depozitoOrani: z.number().int().min(0).max(100).default(30),
+}).refine((data) => data.toptanFiyat < data.perakendeFiyat, {
+  message: "Toptan fiyat perakende fiyattan düşük olmalı",
+  path: ["toptanFiyat"],
+})
+</file>
+
+<file path="prisma/migrations/20260326221000_mingax_professional_registration/migration.sql">
+-- CreateEnum
+CREATE TYPE "HesapTuru" AS ENUM ('ALICI', 'SATICI');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" SERIAL NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "adSoyad" TEXT NOT NULL,
+    "telefon" TEXT NOT NULL,
+    "hesapTuru" "HesapTuru" NOT NULL,
+    "onayliTedarikci" BOOLEAN NOT NULL DEFAULT false,
+    "firmaAdi" TEXT,
+    "vergiNo" TEXT,
+    "vergiDairesi" TEXT,
+    "adres" TEXT,
+    "teslimatAdresi" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "guvenPuani" INTEGER NOT NULL DEFAULT 100,
+    "resetToken" TEXT,
+    "resetTokenExpiry" TIMESTAMP(3),
+    "epostaOnaylandi" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Listing" (
+    "id" SERIAL NOT NULL,
+    "baslik" TEXT NOT NULL,
+    "aciklama" TEXT,
+    "urunUrl" TEXT,
+    "kategori" TEXT NOT NULL DEFAULT 'diger',
+    "perakendeFiyat" DOUBLE PRECISION NOT NULL,
+    "toptanFiyat" DOUBLE PRECISION NOT NULL,
+    "hedefSayi" INTEGER NOT NULL,
+    "hedefKitle" TEXT NOT NULL DEFAULT 'hepsi',
+    "minMiktarBireysel" INTEGER NOT NULL DEFAULT 1,
+    "minMiktarKobi" INTEGER NOT NULL DEFAULT 5,
+    "minMiktarKurumsal" INTEGER NOT NULL DEFAULT 20,
+    "bitisTarihi" TIMESTAMP(3) NOT NULL,
+    "teslimatYontemi" TEXT NOT NULL DEFAULT 'kargo',
+    "indirimOrani" INTEGER NOT NULL DEFAULT 10,
+    "depozitoOrani" INTEGER NOT NULL DEFAULT 30,
+    "durum" TEXT NOT NULL DEFAULT 'aktif',
+    "saticiId" INTEGER NOT NULL,
+    "olusturmaTarihi" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Listing_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Pool" (
+    "id" SERIAL NOT NULL,
+    "ilanId" INTEGER NOT NULL,
+    "mevcutKatilim" INTEGER NOT NULL DEFAULT 0,
+    "bitisTarihi" TIMESTAMP(3) NOT NULL,
+    "durum" TEXT NOT NULL DEFAULT 'bekliyor',
+
+    CONSTRAINT "Pool_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Participant" (
+    "id" SERIAL NOT NULL,
+    "kullaniciId" INTEGER NOT NULL,
+    "havuzId" INTEGER NOT NULL,
+    "talepMiktari" INTEGER NOT NULL,
+    "odemeDurumu" TEXT NOT NULL DEFAULT 'bekliyor',
+
+    CONSTRAINT "Participant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- AddForeignKey
+ALTER TABLE "Listing" ADD CONSTRAINT "Listing_saticiId_fkey" FOREIGN KEY ("saticiId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Pool" ADD CONSTRAINT "Pool_ilanId_fkey" FOREIGN KEY ("ilanId") REFERENCES "Listing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Participant" ADD CONSTRAINT "Participant_kullaniciId_fkey" FOREIGN KEY ("kullaniciId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Participant" ADD CONSTRAINT "Participant_havuzId_fkey" FOREIGN KEY ("havuzId") REFERENCES "Pool"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+</file>
+
+<file path="tests/validators.test.ts">
+import { describe, expect, it } from "vitest"
+import { ilanEkleSchema, kayitSchema } from "../lib/validators"
+
+describe("kayitSchema", () => {
+  it("gecerli kayit verisini kabul eder", () => {
+    const result = kayitSchema.safeParse({
+      adSoyad: "Mehmet Yilmaz",
+      email: "mehmet@example.com",
+      telefon: "5551112233",
+      password: "12345678",
+      hesapTuru: "ALICI",
+      kvkkOnay: true,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it("gecersiz e-posta verisini reddeder", () => {
+    const result = kayitSchema.safeParse({
+      adSoyad: "Mehmet Yilmaz",
+      email: "gecersiz-email",
+      telefon: "5551112233",
+      password: "12345678",
+      hesapTuru: "ALICI",
+      kvkkOnay: true,
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe("ilanEkleSchema", () => {
+  it("toptan fiyat perakendeden dusukse gecerlidir", () => {
+    const result = ilanEkleSchema.safeParse({
+      baslik: "Ornek urun",
+      aciklama: "Detay",
+      urunUrl: "https://example.com/urun",
+      kategori: "diger",
+      perakendeFiyat: 1000,
+      toptanFiyat: 800,
+      hedefSayi: 50,
+      hedefKitle: "hepsi",
+      minMiktarBireysel: 1,
+      minMiktarKobi: 5,
+      minMiktarKurumsal: 20,
+      bitisTarihi: "2026-12-31",
+      teslimatYontemi: "kargo",
+      indirimOrani: 20,
+      depozitoOrani: 30,
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it("toptan fiyat perakendeden yuksekse gecersizdir", () => {
+    const result = ilanEkleSchema.safeParse({
+      baslik: "Ornek urun",
+      perakendeFiyat: 100,
+      toptanFiyat: 120,
+      hedefSayi: 10,
+      bitisTarihi: "2026-12-31",
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+</file>
+
+<file path="types/next-auth.d.ts">
+import "next-auth"
+import "next-auth/jwt"
+
+type AppRole = "ALICI" | "SATICI"
+
+declare module "next-auth" {
+  interface User {
+    rol: AppRole
+  }
+
+  interface Session {
+    user: {
+      rol: AppRole
+    } & Session["user"]
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    rol?: AppRole
+  }
+}
+</file>
+
+<file path="app/api/auth/[...nextauth]/route.ts">
+import { handlers } from "@/auth"
+export const { GET, POST } = handlers
+</file>
+
+<file path="app/api/ilan-ekle/route.ts">
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
+
+export async function POST(req: Request) {
+  const session = await auth()
+
+  if (!session || (session.user as any)?.rol !== "satici") {
+    return NextResponse.json({ hata: "Yetkisiz erişim" }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const {
+    baslik, aciklama, urunUrl, kategori,
+    perakendeFiyat, toptanFiyat, hedefSayi,
+    hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
+    bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani
+  } = body
+
+  if (!baslik || !perakendeFiyat || !toptanFiyat || !hedefSayi || !bitisTarihi) {
+    return NextResponse.json({ hata: "Zorunlu alanlar eksik" }, { status: 400 })
+  }
+
+  if (toptanFiyat >= perakendeFiyat) {
+    return NextResponse.json({ hata: "Toptan fiyat perakende fiyattan düşük olmalı" }, { status: 400 })
+  }
+
+  const kullanici = await prisma.user.findUnique({
+    where: { email: session.user!.email! }
+  })
+
+  if (!kullanici) {
+    return NextResponse.json({ hata: "Kullanıcı bulunamadı" }, { status: 404 })
+  }
+
+  const ilan = await prisma.listing.create({
+    data: {
+      baslik, aciklama, urunUrl, kategori,
+      perakendeFiyat, toptanFiyat, hedefSayi,
+      hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
+      bitisTarihi: new Date(bitisTarihi),
+      teslimatYontemi, indirimOrani, depozitoOrani,
+      saticiId: kullanici.id,
+    }
+  })
+
+  return NextResponse.json({ mesaj: "İlan eklendi", ilan }, { status: 201 })
+}
+</file>
+
+<file path="app/api/kayit/route.ts">
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
+
+export async function POST(req: Request) {
+  const { adSoyad, email, sifre, rol } = await req.json()
+
+  if (!adSoyad || !email || !sifre) {
+    return NextResponse.json({ hata: "Tüm alanlar zorunlu" }, { status: 400 })
+  }
+
+  const mevcutKullanici = await prisma.user.findUnique({ where: { email } })
+  if (mevcutKullanici) {
+    return NextResponse.json({ hata: "Bu email zaten kayıtlı" }, { status: 400 })
+  }
+
+  const hashedSifre = await bcrypt.hash(sifre, 10)
+
+  await prisma.user.create({
+    data: { adSoyad, email, sifre: hashedSifre, rol }
+  })
+
+  return NextResponse.json({ mesaj: "Kayıt başarılı" }, { status: 201 })
+}
+</file>
+
+<file path="app/giris/page.tsx">
+"use client"
+import { signIn } from "next-auth/react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+
+export default function GirisPage() {
+  const [email, setEmail] = useState("")
+  const [sifre, setSifre] = useState("")
+  const [hata, setHata] = useState("")
+  const router = useRouter()
+
+  async function handleGiris(e: React.FormEvent) {
+    e.preventDefault()
+    const sonuc = await signIn("credentials", {
+      email,
+      password: sifre,
+      redirect: false,
+    })
+    if (sonuc?.error) {
+      setHata("Email veya şifre hatalı")
+    } else {
+      router.push("/")
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Giriş Yap</h1>
+        {hata && <p className="text-red-500 mb-4">{hata}</p>}
+        <form onSubmit={handleGiris} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+            <input
+              type="password"
+              value={sifre}
+              onChange={e => setSifre(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+          >
+            Giriş Yap
+          </button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Hesabın yok mu?{" "}
+          <a href="/kayit" className="text-blue-600 hover:underline">Kayıt Ol</a>
+        </p>
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/ilan/[id]/page.tsx">
+import { prisma } from "@/lib/prisma"
+import { notFound } from "next/navigation"
+import Link from "next/link"
+
+export default async function IlanDetayPage({ params }: { params: { id: string } }) {
+  const ilan = await prisma.listing.findUnique({
+    where: { id: parseInt(params.id) },
+    include: { satici: true }
+  })
+
+  if (!ilan) notFound()
+
+  const indirimYuzde = Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)
+  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <Link href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</Link>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Sol Kolon */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <span className="text-sm text-blue-600 font-medium">{ilan.kategori}</span>
+                  <h1 className="text-2xl font-bold text-gray-800 mt-1">{ilan.baslik}</h1>
+                </div>
+                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
+                  %{indirimYuzde} indirim
+                </span>
+              </div>
+
+              {ilan.aciklama && (
+                <p className="text-gray-600 mb-4">{ilan.aciklama}</p>
+              )}
+
+              {/* Hedef Kitle */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  👤 Bireysel min. {ilan.minMiktarBireysel} adet
+                </span>
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  🏪 KOBİ min. {ilan.minMiktarKobi} adet
+                </span>
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  🏢 Kurumsal min. {ilan.minMiktarKurumsal} adet
+                </span>
+              </div>
+
+              {/* Teslimat */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">🚚 Teslimat Yöntemi</p>
+                <p className="text-sm text-gray-600">
+                  {ilan.teslimatYontemi === "kargo" && "Her adrese ayrı kargo"}
+                  {ilan.teslimatYontemi === "merkezi" && "Merkezi teslim noktası"}
+                  {ilan.teslimatYontemi === "depo" && "Alıcı depoya teslim"}
+                </p>
+              </div>
+
+              {/* 24 Saat İade */}
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                <span className="text-green-600">🔄</span>
+                <span className="text-sm text-green-700 font-medium">
+                  24 Saat İade Garantisi — Tedarikçi iptali veya teslimat gerçekleşmezse tam iade
+                </span>
+              </div>
+            </div>
+
+            {/* Tedarikçi */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="font-bold text-gray-800 mb-3">Tedarikçi Bilgisi</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                  {ilan.satici.adSoyad[0]}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">{ilan.satici.adSoyad}</p>
+                  <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
+                </div>
+                <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
+                  ✓ Onaylı
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm border p-6 sticky top-4">
+              <div className="bg-gray-900 rounded-lg p-4 mb-4 text-center">
+                <p className="text-gray-400 text-sm line-through">₺{ilan.perakendeFiyat}</p>
+                <p className="text-3xl font-bold text-yellow-400">₺{ilan.toptanFiyat}</p>
+                <p className="text-green-400 text-sm mt-1">%{indirimYuzde} tasarruf</p>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Hedef</span>
+                  <span className="font-medium">{ilan.hedefSayi} adet</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Kalan Süre</span>
+                  <span className={`font-medium ${kalanGun <= 1 ? "text-red-500" : kalanGun <= 3 ? "text-orange-500" : "text-gray-800"}`}>
+                    {kalanGun} gün
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Depozito</span>
+                  <span className="font-medium text-orange-600">%{ilan.depozitoOrani}</span>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <p className="text-xs text-orange-700">
+                  ⚠️ Katılım için toplam bedelin <strong>%{ilan.depozitoOrani}</strong>'i depozito olarak alınır. Vazgeçilirse iade edilmez.
+                </p>
+              </div>
+
+              <Link
+                href="/giris"
+                className="block w-full text-center bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Katıl — %{ilan.depozitoOrani} Depozito
+              </Link>
+
+              <div className="mt-3 text-center text-xs text-gray-400">
+                🔒 Ödeme Escrow hesabında güvende
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+</file>
+
+<file path="app/ilan-ekle/page.tsx">
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+
+const KATEGORILER = [
+  { value: "elektronik", label: "💻 Elektronik & Bilişim" },
+  { value: "temizlik", label: "🧴 Temizlik & Hijyen" },
+  { value: "ofis", label: "🖨 Ofis Malzemeleri" },
+  { value: "hammadde", label: "🏭 Hammadde & Sanayi" },
+  { value: "endustri", label: "🛠 Endüstriyel Ekipman" },
+  { value: "ambalaj", label: "📦 Ambalaj & Lojistik" },
+  { value: "spor", label: "🏋️ Spor & Yaşam" },
+  { value: "gida", label: "🍽 Gıda & İçecek" },
+  { value: "insaat", label: "🏗 İnşaat & Yapı" },
+  { value: "saglik", label: "🏥 Sağlık & Medikal" },
+  { value: "diger", label: "📦 Diğer" },
+]
+
+export default function IlanEklePage() {
+  const router = useRouter()
+  const [adim, setAdim] = useState(1)
+  const [hata, setHata] = useState("")
+  const [yukleniyor, setYukleniyor] = useState(false)
+
+  const [form, setForm] = useState({
+    // Adım 1
+    urunUrl: "",
+    baslik: "",
+    aciklama: "",
+    kategori: "diger",
+    perakendeFiyat: "",
+    toptanFiyat: "",
+    // Adım 2
+    hedefKitle: "hepsi",
+    minMiktarBireysel: "1",
+    minMiktarKobi: "5",
+    minMiktarKurumsal: "20",
+    hedefSayi: "",
+    bitisTarihi: "",
+    teslimatYontemi: "kargo",
+    indirimOrani: "15",
+    // Adım 3
+    depozitoOrani: "30",
+    sozlesmeOnay: false,
+    vazgecmeOnay: false,
+  })
+
+  function guncelle(alan: string, deger: string | boolean) {
+    setForm(prev => ({ ...prev, [alan]: deger }))
+  }
+
+  async function handleSubmit() {
+    setYukleniyor(true)
+    setHata("")
+    const res = await fetch("/api/ilan-ekle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...form,
+        perakendeFiyat: parseFloat(form.perakendeFiyat),
+        toptanFiyat: parseFloat(form.toptanFiyat),
+        hedefSayi: parseInt(form.hedefSayi),
+        minMiktarBireysel: parseInt(form.minMiktarBireysel),
+        minMiktarKobi: parseInt(form.minMiktarKobi),
+        minMiktarKurumsal: parseInt(form.minMiktarKurumsal),
+        indirimOrani: parseInt(form.indirimOrani),
+        depozitoOrani: parseInt(form.depozitoOrani),
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setHata(data.hata || "Bir hata oluştu")
+      setYukleniyor(false)
+    } else {
+      router.push("/")
+    }
+  }
+
+  const indirimYuzde = form.perakendeFiyat && form.toptanFiyat
+    ? Math.round((1 - parseFloat(form.toptanFiyat) / parseFloat(form.perakendeFiyat)) * 100)
+    : 0
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+          <a href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</a>
+          <span className="text-sm text-gray-500">Adım {adim} / 4</span>
+        </div>
+      </nav>
+
+      {/* Progress Bar */}
+      <div className="bg-white border-b">
+        <div className="max-w-3xl mx-auto px-4 py-3">
+          <div className="flex gap-2">
+            {["Ürün Bilgisi", "İhale Koşulları", "Depozito", "Önizleme"].map((label, i) => (
+              <div key={i} className="flex-1">
+                <div className={`h-2 rounded-full ${i + 1 <= adim ? "bg-blue-600" : "bg-gray-200"}`} />
+                <p className={`text-xs mt-1 text-center ${i + 1 === adim ? "text-blue-600 font-medium" : "text-gray-400"}`}>
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-3xl mx-auto px-4 py-8">
+        {hata && <p className="text-red-500 mb-4 bg-red-50 p-3 rounded-lg">{hata}</p>}
+
+        {/* ── ADIM 1: ÜRÜN BİLGİSİ ── */}
+        {adim === 1 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
+            <h2 className="text-xl font-bold text-gray-800">📦 Ürün Bilgisi</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ürün URL'si <span className="text-gray-400">(opsiyonel)</span>
+              </label>
+              <input
+                type="url"
+                value={form.urunUrl}
+                onChange={e => guncelle("urunUrl", e.target.value)}
+                placeholder="https://www.trendyol.com/urun/..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Ürün linkini girin, bilgiler otomatik doldurulacak (yakında)</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                İlan Başlığı <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.baslik}
+                onChange={e => guncelle("baslik", e.target.value)}
+                placeholder="Örn: Organik Zeytinyağı 5L Teneke"
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+              <select
+                value={form.kategori}
+                onChange={e => guncelle("kategori", e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {KATEGORILER.map(k => (
+                  <option key={k.value} value={k.value}>{k.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ürün Açıklaması</label>
+              <textarea
+                value={form.aciklama}
+                onChange={e => guncelle("aciklama", e.target.value)}
+                placeholder="Ürün hakkında detaylı bilgi verin..."
+                rows={4}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">{form.aciklama.length} / 1000 karakter</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Perakende Fiyat (₺) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={form.perakendeFiyat}
+                  onChange={e => guncelle("perakendeFiyat", e.target.value)}
+                  placeholder="250"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Toptan Fiyat (₺) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={form.toptanFiyat}
+                  onChange={e => guncelle("toptanFiyat", e.target.value)}
+                  placeholder="180"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {indirimYuzde > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm font-medium">
+                ✅ %{indirimYuzde} indirim — Alıcılar bu fiyatla alacak
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                if (!form.baslik || !form.perakendeFiyat || !form.toptanFiyat) {
+                  setHata("Başlık ve fiyat alanları zorunludur")
+                  return
+                }
+                if (parseFloat(form.toptanFiyat) >= parseFloat(form.perakendeFiyat)) {
+                  setHata("Toptan fiyat perakende fiyattan düşük olmalı")
+                  return
+                }
+                setHata("")
+                setAdim(2)
+              }}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            >
+              Devam Et →
+            </button>
+          </div>
+        )}
+
+        {/* ── ADIM 2: İHALE KOŞULLARI ── */}
+        {adim === 2 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
+            <h2 className="text-xl font-bold text-gray-800">⚙️ İhale Koşulları</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Hedef Katılımcı Kitlesi</label>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { value: "hepsi", label: "🌐 Hepsi" },
+                  { value: "bireysel", label: "👤 Bireysel" },
+                  { value: "kobi", label: "🏪 KOBİ" },
+                  { value: "kurumsal", label: "🏢 Kurumsal" },
+                ].map(k => (
+                  <button
+                    key={k.value}
+                    type="button"
+                    onClick={() => guncelle("hedefKitle", k.value)}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium transition ${
+                      form.hedefKitle === k.value
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
+                  >
+                    {k.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Sipariş Miktarları</label>
+              <div className="space-y-3">
+                {[
+                  { key: "minMiktarBireysel", label: "👤 Bireysel" },
+                  { key: "minMiktarKobi", label: "🏪 KOBİ / Esnaf" },
+                  { key: "minMiktarKurumsal", label: "🏢 Kurumsal" },
+                ].map(item => (
+                  <div key={item.key} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-600 w-36">{item.label}</span>
+                    <input
+                      type="number"
+                      value={form[item.key as keyof typeof form] as string}
+                      onChange={e => guncelle(item.key, e.target.value)}
+                      min="1"
+                      className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-400">adet</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Hedef Toplam Adet <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={form.hedefSayi}
+                  onChange={e => guncelle("hedefSayi", e.target.value)}
+                  placeholder="50"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bitiş Tarihi <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.bitisTarihi}
+                  onChange={e => guncelle("bitisTarihi", e.target.value)}
+                  min={new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teslimat Yöntemi</label>
+              <select
+                value={form.teslimatYontemi}
+                onChange={e => guncelle("teslimatYontemi", e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="kargo">🏠 Her adrese ayrı kargo</option>
+                <option value="merkezi">📍 Merkezi teslim noktası</option>
+                <option value="depo">🏭 Alıcı depoya teslim</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Hedef İndirim Oranı: %{form.indirimOrani}
+              </label>
+              <input
+                type="range"
+                min="5"
+                max="40"
+                value={form.indirimOrani}
+                onChange={e => guncelle("indirimOrani", e.target.value)}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>%5</span><span>%40</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAdim(1)}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
+              >
+                ← Geri
+              </button>
+              <button
+                onClick={() => {
+                  if (!form.hedefSayi || !form.bitisTarihi) {
+                    setHata("Hedef adet ve bitiş tarihi zorunludur")
+                    return
+                  }
+                  setHata("")
+                  setAdim(3)
+                }}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Devam Et →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ADIM 3: DEPOZİTO ── */}
+        {adim === 3 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
+            <h2 className="text-xl font-bold text-gray-800">💰 Depozito & Koşullar</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Depozito Oranı: %{form.depozitoOrani}
+              </label>
+              <input
+                type="range"
+                min="10"
+                max="50"
+                value={form.depozitoOrani}
+                onChange={e => guncelle("depozitoOrani", e.target.value)}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>%10</span><span>%50</span>
+              </div>
+            </div>
+
+            {form.toptanFiyat && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <p className="font-medium text-gray-700">📊 Örnek Hesaplama</p>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Toptan fiyat</span>
+                  <span className="font-medium">₺{form.toptanFiyat}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Katılım anında ödenecek</span>
+                  <span className="font-medium text-orange-600">
+                    ₺{(parseFloat(form.toptanFiyat) * parseInt(form.depozitoOrani) / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">İhale kapandığında kalan</span>
+                  <span className="font-medium">
+                    ₺{(parseFloat(form.toptanFiyat) * (1 - parseInt(form.depozitoOrani) / 100)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.vazgecmeOnay}
+                  onChange={e => guncelle("vazgecmeOnay", e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="text-sm text-orange-800">
+                  <strong>Vazgeçme Politikası:</strong> Katılımcı ihaleden çekilirse depozito iade edilmez ve platform güvence fonuna aktarılır. Bu kural ihale sayfasında açıkça belirtilir.
+                </span>
+              </label>
+            </div>
+
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.sozlesmeOnay}
+                  onChange={e => guncelle("sozlesmeOnay", e.target.checked)}
+                  className="mt-1"
+                />
+                <span className="text-sm text-gray-700">
+                  Platform <strong>Şartlar ve Koşullarını</strong> okudum ve kabul ediyorum.
+                </span>
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAdim(2)}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
+              >
+                ← Geri
+              </button>
+              <button
+                onClick={() => {
+                  if (!form.vazgecmeOnay || !form.sozlesmeOnay) {
+                    setHata("Lütfen tüm onay kutularını işaretleyin")
+                    return
+                  }
+                  setHata("")
+                  setAdim(4)
+                }}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Önizleme →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ADIM 4: ÖNİZLEME ── */}
+        {adim === 4 && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">🔍 İlan Önizleme</h2>
+
+              <div className="bg-gray-50 rounded-xl p-5 border">
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="font-bold text-lg text-gray-800">{form.baslik}</h3>
+                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm font-medium">
+                    %{indirimYuzde} indirim
+                  </span>
+                </div>
+                {form.aciklama && <p className="text-gray-500 text-sm mb-3">{form.aciklama}</p>}
+                <div className="flex gap-4 mb-3">
+                  <div>
+                    <p className="text-xs text-gray-400 line-through">₺{form.perakendeFiyat}</p>
+                    <p className="text-2xl font-bold text-blue-600">₺{form.toptanFiyat}</p>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    <p>Hedef: <strong>{form.hedefSayi} adet</strong></p>
+                    <p>Bitiş: <strong>{form.bitisTarihi}</strong></p>
+                    <p>Depozito: <strong>%{form.depozitoOrani}</strong></p>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                    👤 Bireysel min. {form.minMiktarBireysel} adet
+                  </span>
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                    🏪 KOBİ min. {form.minMiktarKobi} adet
+                  </span>
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                    🏢 Kurumsal min. {form.minMiktarKurumsal} adet
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAdim(3)}
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
+              >
+                ← Geri
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={yukleniyor}
+                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
+              >
+                {yukleniyor ? "Yayınlanıyor..." : "🚀 İlanı Yayınla"}
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+</file>
+
+<file path="app/kayit/page.tsx">
+"use client"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+
+export default function KayitPage() {
+  const [form, setForm] = useState({ adSoyad: "", email: "", sifre: "", rol: "alici" })
+  const [hata, setHata] = useState("")
+  const [yukleniyor, setYukleniyor] = useState(false)
+  const router = useRouter()
+
+  async function handleKayit(e: React.FormEvent) {
+    e.preventDefault()
+    setYukleniyor(true)
+    setHata("")
+    const res = await fetch("/api/kayit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      setHata(data.hata || "Bir hata oluştu")
+      setYukleniyor(false)
+    } else {
+      router.push("/giris")
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Kayıt Ol</h1>
+        {hata && <p className="text-red-500 mb-4">{hata}</p>}
+        <form onSubmit={handleKayit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad</label>
+            <input
+              type="text"
+              value={form.adSoyad}
+              onChange={e => setForm({...form, adSoyad: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={form.email}
+              onChange={e => setForm({...form, email: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+            <input
+              type="password"
+              value={form.sifre}
+              onChange={e => setForm({...form, sifre: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Hesap Türü</label>
+            <select
+              value={form.rol}
+              onChange={e => setForm({...form, rol: e.target.value})}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="alici">Alıcı</option>
+              <option value="satici">Satıcı</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            disabled={yukleniyor}
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {yukleniyor ? "Kaydediliyor..." : "Kayıt Ol"}
+          </button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Hesabın var mı?{" "}
+          <a href="/giris" className="text-blue-600 hover:underline">Giriş Yap</a>
+        </p>
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/globals.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background-color: white !important;
+  color: black !important;
+}
+</file>
+
+<file path="app/layout.tsx">
+import "./globals.css";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="tr">
+      <body className="bg-white text-black">
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="prisma/migrations/20260323185334_init/migration.sql">
+-- CreateTable
+CREATE TABLE "User" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "adSoyad" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "rol" TEXT NOT NULL DEFAULT 'alici',
+    "guvenPuani" INTEGER NOT NULL DEFAULT 100
+);
+
+-- CreateTable
+CREATE TABLE "Listing" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "baslik" TEXT NOT NULL,
+    "perakendeFiyat" REAL NOT NULL,
+    "toptanFiyat" REAL NOT NULL,
+    "hedefSayi" INTEGER NOT NULL,
+    "saticiId" INTEGER NOT NULL,
+    CONSTRAINT "Listing_saticiId_fkey" FOREIGN KEY ("saticiId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Pool" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "ilanId" INTEGER NOT NULL,
+    "mevcutKatilim" INTEGER NOT NULL DEFAULT 0,
+    "bitisTarihi" DATETIME NOT NULL,
+    "durum" TEXT NOT NULL DEFAULT 'bekliyor',
+    CONSTRAINT "Pool_ilanId_fkey" FOREIGN KEY ("ilanId") REFERENCES "Listing" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Participant" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "kullaniciId" INTEGER NOT NULL,
+    "havuzId" INTEGER NOT NULL,
+    "talepMiktari" INTEGER NOT NULL,
+    "odemeDurumu" TEXT NOT NULL DEFAULT 'bekliyor',
+    CONSTRAINT "Participant_kullaniciId_fkey" FOREIGN KEY ("kullaniciId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Participant_havuzId_fkey" FOREIGN KEY ("havuzId") REFERENCES "Pool" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+</file>
+
+<file path="prisma/migrations/migration_lock.toml">
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "sqlite"
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/app/generated/prisma
+</file>
+
+<file path="AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+<!-- END:nextjs-agent-rules -->
+</file>
+
+<file path="auth.ts">
+import NextAuth from "next-auth"
+import Credentials from "next-auth/providers/credentials"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Şifre", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null
+        
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string }
+        })
+        
+        if (!user) return null
+        
+        const sifreDoğru = await bcrypt.compare(
+          credentials.password as string,
+          user.sifre
+        )
+        
+        if (!sifreDoğru) return null
+        
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: user.adSoyad,
+          rol: user.rol,
+        }
+      }
+    })
+  ],
+  pages: {
+    signIn: "/giris",
+  },
+  session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) token.rol = (user as any).rol
+      return token
+    },
+    session({ session, token }) {
+      if (session.user) (session.user as any).rol = token.rol
+      return session
+    }
+  }
+})
+</file>
+
+<file path="CLAUDE.md">
+@AGENTS.md
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="next">
+
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default nextConfig;
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="toptan-ilan-sistemi@0.1.0">
+
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="app/page.tsx">
+import { auth, signOut } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import Link from "next/link"
+
+export default async function Home() {
+  const session = await auth()
+  const ilanlar = await prisma.listing.findMany({
+    include: { satici: true }
+  })
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navbar */}
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-blue-600">Toptan İlan</h1>
+          <div className="flex items-center gap-4">
+            {session ? (
+              <>
+                <span className="text-sm text-gray-600">
+                  Hoş geldin, <strong>{session.user?.name}</strong>
+                </span>
+                {(session.user as any)?.rol === "satici" && (
+                  <Link
+                    href="/ilan-ekle"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                  >
+                    + İlan Ekle
+                  </Link>
+                )}
+                <form action={async () => {
+                  "use server"
+                  await signOut({ redirectTo: "/" })
+                }}>
+                  <button className="text-sm text-gray-500 hover:text-red-500">
+                    Çıkış
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link href="/giris" className="text-sm text-gray-600 hover:text-blue-600">
+                  Giriş Yap
+                </Link>
+                <Link
+                  href="/kayit"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                >
+                  Kayıt Ol
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* İçerik */}
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Güncel Fırsatlar</h2>
+        <p className="text-gray-500 mb-6">Birlikte alalım, toptan fiyatına alalım.</p>
+
+        {ilanlar.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-lg">Henüz ilan eklenmemiş.</p>
+            {session && (session.user as any)?.rol === "satici" && (
+              <Link href="/ilan-ekle" className="mt-4 inline-block text-blue-600 hover:underline">
+                İlk ilanı sen ekle →
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ilanlar.map(ilan => (
+              <div key={ilan.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-5">
+                <h3 className="font-bold text-gray-800 text-lg mb-2">{ilan.baslik}</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <p className="text-sm text-gray-400 line-through">₺{ilan.perakendeFiyat}</p>
+                    <p className="text-xl font-bold text-blue-600">₺{ilan.toptanFiyat}</p>
+                  </div>
+                  <div className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-sm font-medium">
+                    %{Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)} indirim
+                  </div>
+                </div>
+                <div className="text-sm text-gray-500 mb-4">
+                  Hedef: <strong>{ilan.hedefSayi} kişi</strong>
+                </div>
+                <Link
+                  href={`/ilan/${ilan.id}`}
+                  className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+                >
+                  İncele & Katıl
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+</file>
+
+<file path="lib/prisma.ts">
+import { PrismaClient } from "@prisma/client"
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+</file>
+
+<file path="package.json">
+{
+  "name": "toptan-ilan-sistemi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.8.0",
+    "next": "16.2.1",
+    "next-auth": "^5.0.0-beta.30",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int           @id @default(autoincrement())
+  adSoyad           String
+  email             String        @unique
+  telefon           String?       @unique
+  sifre             String
+  rol               String        @default("alici")
+  klasman           String        @default("bireysel")
+  sirketAdi         String?
+  vergiNo           String?
+  guvenPuani        Int           @default(100)
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  epostaOnaylandi   Boolean       @default(false)
+  olusturmaTarihi   DateTime      @default(now())
+  ilanlar           Listing[]
+  katilimlar        Participant[]
+}
+
+model Listing {
+  id                Int      @id @default(autoincrement())
+  baslik            String
+  aciklama          String?
+  urunUrl           String?
+  kategori          String   @default("diger")
+  perakendeFiyat    Float
+  toptanFiyat       Float
+  hedefSayi         Int
+  hedefKitle        String   @default("hepsi")
+  minMiktarBireysel Int      @default(1)
+  minMiktarKobi     Int      @default(5)
+  minMiktarKurumsal Int      @default(20)
+  bitisTarihi       DateTime
+  teslimatYontemi   String   @default("kargo")
+  indirimOrani      Int      @default(10)
+  depozitoOrani     Int      @default(30)
+  durum             String   @default("aktif")
+  saticiId          Int
+  satici            User     @relation(fields: [saticiId], references: [id])
+  havuzlar          Pool[]
+  olusturmaTarihi   DateTime @default(now())
+}
+
+model Pool {
+  id            Int           @id @default(autoincrement())
+  ilanId        Int
+  ilan          Listing       @relation(fields: [ilanId], references: [id])
+  mevcutKatilim Int           @default(0)
+  bitisTarihi   DateTime
+  durum         String        @default("bekliyor")
+  katilimcilar  Participant[]
+}
+
+model Participant {
+  id           Int    @id @default(autoincrement())
+  kullaniciId  Int
+  kullanici    User   @relation(fields: [kullaniciId], references: [id])
+  havuzId      Int
+  havuz        Pool   @relation(fields: [havuzId], references: [id])
+  talepMiktari Int
+  odemeDurumu  String @default("bekliyor")
+}
+</file>
+
+</files>

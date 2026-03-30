@@ -7,7 +7,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr">
-      <body className="bg-white text-black">
+      <body className="bg-white text-black" suppressHydrationWarning>
         {children}
       </body>
     </html>
