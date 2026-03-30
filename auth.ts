@@ -11,28 +11,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Şifre", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) return null
 
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string }
-        });
+        })
 
-        if (!user) return null;
+        if (!user) return null
 
         const sifreDogru = await bcrypt.compare(
           credentials.password as string,
           user.password
-        );
+        )
 
-        if (!sifreDogru) return null;
+        if (!sifreDogru) return null
 
         return {
           id: String(user.id),
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
-          isAdmin: user.isAdmin ?? false,
-        };
+          isAdmin: user.isAdmin,
+        }
       }
     })
   ],
@@ -43,17 +43,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.rol = (user as any).rol;
-        token.isAdmin = (user as any).isAdmin ?? false;
+        token.rol = user.rol
+        token.isAdmin = user.isAdmin
       }
-      return token;
+      return token
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).rol = token.rol ?? "ALICI";
-        (session.user as any).isAdmin = token.isAdmin ?? false;
+        session.user.rol = token.rol
+        session.user.isAdmin = token.isAdmin
       }
-      return session;
+      return session
     }
   }
-});
+})
