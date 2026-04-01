@@ -26,14 +26,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!sifreDogru) return null
 
-        console.log("Admin mi?", user.isAdmin) // Geçici log
-
         return {
           id: String(user.id),
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
-          isAdmin: user.isAdmin === true, // kesin boolean
+          isAdmin: !!(user as any).isAdmin, // Tip hatasını önlemek için as any
         }
       }
     })
@@ -54,7 +52,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as any).rol = token.rol
         (session.user as any).isAdmin = token.isAdmin === true
-        console.log("Session isAdmin:", (session.user as any).isAdmin) // Geçici log
       }
       return session
     }
