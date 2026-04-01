@@ -19,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null
 
-        // ✅ E-posta onay kontrolü (AKTİF) – doğru yerde
+        // ✅ E-posta onay kontrolü (AKTİF)
         if (!user.epostaOnaylandi) {
           throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
         }
@@ -55,8 +55,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).rol = token.rol
-        (session.user as any).isAdmin = token.isAdmin === true
+        (session.user as any).rol = token.rol ?? "ALICI"
+        (session.user as any).isAdmin = token.isAdmin ?? false
       }
       return session
     }
