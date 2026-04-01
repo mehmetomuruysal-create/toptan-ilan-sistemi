@@ -1,13 +1,16 @@
 "use client"
 import { signIn } from "next-auth/react"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
 
-export default function GirisPage() {
+function GirisForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const onay = searchParams.get("onay")
   const [email, setEmail] = useState("")
   const [sifre, setSifre] = useState("")
   const [hata, setHata] = useState("")
-  const router = useRouter()
 
   async function handleGiris(e: React.FormEvent) {
     e.preventDefault()
@@ -27,6 +30,13 @@ export default function GirisPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Giriş Yap</h1>
+
+        {onay === "basarili" && (
+          <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+            ✅ E-posta adresiniz başarıyla onaylandı. Şimdi giriş yapabilirsiniz.
+          </div>
+        )}
+
         {hata && <p className="text-red-500 mb-4">{hata}</p>}
         <form onSubmit={handleGiris} className="space-y-4">
           <div>
@@ -60,7 +70,18 @@ export default function GirisPage() {
           Hesabın yok mu?{" "}
           <a href="/kayit" className="text-blue-600 hover:underline">Kayıt Ol</a>
         </p>
+        <div className="text-center mt-2">
+          <a href="/sifre-unuttum" className="text-sm text-gray-500 hover:underline">Şifremi Unuttum</a>
+        </div>
       </div>
     </div>
+  )
+}
+
+export default function GirisPage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <GirisForm />
+    </Suspense>
   )
 }

@@ -19,6 +19,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null
 
+        // ✅ E-posta onay kontrolü (AKTİF) – doğru yerde
+        if (!user.epostaOnaylandi) {
+          throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
+        }
+
         const sifreDogru = await bcrypt.compare(
           credentials.password as string,
           user.password
@@ -31,7 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
-          isAdmin: !!(user as any).isAdmin, // Tip hatasını önlemek için as any
+          isAdmin: !!(user as any).isAdmin,
         }
       }
     })
