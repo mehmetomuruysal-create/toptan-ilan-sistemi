@@ -51,12 +51,11 @@ export async function registerUser(formData: any) {
       }
     })
 
-    // Hoş geldin maili yerine ONAY maili atıyoruz
-    await sendVerificationEmail(newUser.email, newUser.ad, verifyToken)
-    
-    return { success: true }
-  } catch (error) {
-    console.error("Kayıt hatası:", error)
-    return { success: false, error: "Kayıt olurken sistemsel bir hata oluştu." }
-  }
+ // Hoş geldin maili yerine ONAY maili atıyoruz
+try {
+  await sendVerificationEmail(newUser.email, newUser.ad, verifyToken);
+  console.log("✅ Onay maili gönderildi:", newUser.email);
+} catch (mailError) {
+  console.error("❌ Onay maili gönderilemedi:", mailError);
+}
 }
