@@ -89,3 +89,11 @@ export default async function Home() {
     </div>
   )
 }
+import MobileMenu from "./components/MobileMenu";
+
+// ... navbar içinde
+<div className="flex items-center gap-4">
+  {/* Mevcut session/login/logout butonları */}
+  {/* Mobil menüyü ekle: */}
+  <MobileMenu />
+</div>

@@ -1,0 +1,26 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+const rateLimitMap = new Map();
+
+export function middleware(request: NextRequest) {
+  const ip = request.ip ?? '127.0.0.1';
+  const path = request.nextUrl.pathname;
+  const key = `${ip}-${path}`;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 dakika
+  const maxRequests = 30; // maksimum 30 istek
+
+  const timestamps = rateLimitMap.get(key) || [];
+  const recent = timestamps.filter(ts => now - ts < windowMs);
+  if (recent.length >= maxRequests) {
+    return new NextResponse('Too Many Requests', { status: 429 });
+  }
+  recent.push(now);
+  rateLimitMap.set(key, recent);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: '/api/:path*', // Sadece API yollarını koru
+};
