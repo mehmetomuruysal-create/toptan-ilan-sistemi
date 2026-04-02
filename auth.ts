@@ -19,10 +19,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null;
 
-        // E-posta onay kontrolü (AKTİF)
-        if (!user.epostaOnaylandi) {
-          throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.");
-        }
+       // E-posta onay kontrolü (AKTİF)
+if (!user.epostaOnaylandi) {
+  throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.");
+}
 
         const sifreDogru = await bcrypt.compare(
           credentials.password as string,

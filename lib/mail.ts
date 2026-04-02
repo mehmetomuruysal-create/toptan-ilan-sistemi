@@ -20,7 +20,7 @@ export async function sendVerificationEmail(email: string, ad: string, token: st
 
   try {
     const result = await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
+      from: 'Mingax <info@mingax.com>',
       to: email,
       subject: 'Mingax - E-posta Adresinizi Onaylayın',
       html: `<div><h2>Merhaba ${ad},</h2><p>Hesabınızı onaylamak için <a href="${verifyLink}">buraya tıklayın</a>.</p></div>`,
@@ -42,7 +42,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
   try {
     await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
+      from: 'Mingax <info@mingax.com>',
       to: email,
       subject: 'Mingax - Şifre Sıfırlama',
       html: `<div><p>Şifrenizi sıfırlamak için <a href="${resetLink}">tıklayın</a>.</p></div>`,
