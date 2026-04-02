@@ -20,7 +20,7 @@ export async function sendVerificationEmail(email: string, ad: string, token: st
 
   try {
     await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
+      from: 'MMingax <mehmetomuruysal@gmail.com>',
       to: email,
       subject: 'Mingax - E-posta Adresinizi Onaylayın',
       html: `
