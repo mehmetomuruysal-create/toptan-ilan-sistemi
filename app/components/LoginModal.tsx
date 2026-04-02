@@ -97,11 +97,6 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
       {showPassword ? "🙈" : "👁️"}
     </button>
   </div>
-  <div className="flex justify-end mt-2">
-    <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">
-      Şifremi Unuttum
-    </button>
-  </div>
                 {/* Şifremi unuttum artık input'un altında */}
                 <div className="flex justify-end mt-2">
                   <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">Şifremi Unuttum</button>
