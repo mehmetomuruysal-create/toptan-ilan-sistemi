@@ -135,17 +135,47 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   <p className="text-xs text-gray-400 mt-1 ml-1">Başına 0 koymadan 10 haneli giriniz (Örn: 5551234567)</p>
                 </div>
 
-                {/* ŞİFRE ve ŞİFRE TEKRAR */}
-                <div className="relative">
-                  <input type={showPassword ? "text" : "password"} placeholder="Şifre" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
-                  <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} className="absolute right-4 top-3 text-gray-400">👁️</button>
-                </div>
+                {/* Şifre Alanı */}
+<div className="relative">
+  <input
+    type={showPassword ? "text" : "password"}
+    placeholder="Şifre"
+    required
+    minLength={8}
+    className={inputClass}
+    value={form.password}
+    onChange={e => updateForm("password", e.target.value)}
+  />
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+    aria-label="Şifreyi göster/gizle"
+  >
+    {showPassword ? "🙈" : "👁️"}
+  </button>
+</div>
 
-                <div className="relative">
-                  <input type={showConfirmPassword ? "text" : "password"} placeholder="Şifre Tekrar" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
-                  <button type="button" onMouseDown={() => setShowConfirmPassword(true)} onMouseUp={() => setShowConfirmPassword(false)} className="absolute right-4 top-3 text-gray-400">👁️</button>
-                </div>
-
+{/* Şifre Tekrar Alanı */}
+<div className="relative">
+  <input
+    type={showConfirmPassword ? "text" : "password"}
+    placeholder="Şifre Tekrar"
+    required
+    minLength={8}
+    className={inputClass}
+    value={form.confirmPassword}
+    onChange={e => updateForm("confirmPassword", e.target.value)}
+  />
+  <button
+    type="button"
+    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+    aria-label="Şifreyi göster/gizle"
+  >
+    {showConfirmPassword ? "🙈" : "👁️"}
+  </button>
+</div>
                 {/* CİNSİYET (Sadece Alıcılara Göster) */}
                 {form.hesapTuru === "ALICI" && (
                   <div>
