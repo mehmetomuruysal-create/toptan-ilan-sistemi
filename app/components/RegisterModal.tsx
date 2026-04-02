@@ -8,10 +8,11 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false) // YENİ
 
   const [form, setForm] = useState({
     hesapTuru: "ALICI",
-    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "",
+    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "", confirmPassword: "", // YENİ: confirmPassword
     cinsiyet: "", sozlesmeOnay: false, kampanyaOnay: false,
     firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: ""
   })
@@ -32,12 +33,20 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
     e.preventDefault()
     setError("")
 
-    // Telefon 10 Hane Kontrolü (Frontend)
+    // Şifre eşleşme kontrolü
+    if (form.password !== form.confirmPassword) {
+      setError("Şifreler eşleşmiyor! Lütfen aynı şifreyi tekrar girin.")
+      return
+    }
+
+    // Telefon 10 Hane Kontrolü
     if (form.telefon.length !== 10) {
-      return setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
+      setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
+      return
     }
     if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
-      return setError("Vergi Numarası tam olarak 10 haneli olmalıdır.")
+      setError("Vergi Numarası tam olarak 10 haneli olmalıdır.")
+      return
     }
 
     setLoading(true)
@@ -126,14 +135,15 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   <p className="text-xs text-gray-400 mt-1 ml-1">Başına 0 koymadan 10 haneli giriniz (Örn: 5551234567)</p>
                 </div>
 
-                {/* ŞİFRE */}
+                {/* ŞİFRE ve ŞİFRE TEKRAR */}
                 <div className="relative">
                   <input type={showPassword ? "text" : "password"} placeholder="Şifre" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
                   <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} className="absolute right-4 top-3 text-gray-400">👁️</button>
-                  <ul className="text-[11px] text-gray-400 mt-1.5 ml-1 space-y-0.5">
-                    <li>• En az 8 karakter</li>
-                    <li>• En az 1 rakam ve harf içermelidir</li>
-                  </ul>
+                </div>
+
+                <div className="relative">
+                  <input type={showConfirmPassword ? "text" : "password"} placeholder="Şifre Tekrar" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
+                  <button type="button" onMouseDown={() => setShowConfirmPassword(true)} onMouseUp={() => setShowConfirmPassword(false)} className="absolute right-4 top-3 text-gray-400">👁️</button>
                 </div>
 
                 {/* CİNSİYET (Sadece Alıcılara Göster) */}
@@ -175,7 +185,7 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                 </div>
 
                 <button type="submit" disabled={loading || !form.sozlesmeOnay} className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50 mt-2">
-                  {loading ? "Doğrulanıyor..." : "Numaranı Doğrula (Kayıt Ol)"}
+                  {loading ? "Doğrulanıyor..." : "Kayıt Ol"}
                 </button>
               </form>
             )}
