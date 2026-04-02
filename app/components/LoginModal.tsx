@@ -78,11 +78,30 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
             <form onSubmit={handleLogin} className="space-y-5">
               <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
               <div>
-                <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
-                <div className="relative mt-1.5">
-                  <input type={showPassword ? "text" : "password"} placeholder="••••••••" required className={inputClass} value={password} onChange={e => setPassword(e.target.value)} />
-                  <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} className="absolute right-4 top-3.5 text-gray-400">👁️</button>
-                </div>
+  <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
+  <div className="relative mt-1.5">
+    <input
+      type={showPassword ? "text" : "password"}
+      placeholder="••••••••"
+      required
+      className={inputClass}
+      value={password}
+      onChange={e => setPassword(e.target.value)}
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+      aria-label="Şifreyi göster/gizle"
+    >
+      {showPassword ? "🙈" : "👁️"}
+    </button>
+  </div>
+  <div className="flex justify-end mt-2">
+    <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">
+      Şifremi Unuttum
+    </button>
+  </div>
                 {/* Şifremi unuttum artık input'un altında */}
                 <div className="flex justify-end mt-2">
                   <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">Şifremi Unuttum</button>
