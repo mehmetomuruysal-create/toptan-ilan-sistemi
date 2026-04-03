@@ -1,16 +1,36 @@
 "use client"
 import { signIn } from "next-auth/react"
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense } from "react"
 
 function GirisForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const onay = searchParams.get("onay")
+  const autoLoginToken = searchParams.get("autoLoginToken")
+
   const [email, setEmail] = useState("")
   const [sifre, setSifre] = useState("")
   const [hata, setHata] = useState("")
+  const [otomatikGirisYapiliyor, setOtomatikGirisYapiliyor] = useState(false)
+
+  // Otomatik giriş tetikleyicisi
+  useEffect(() => {
+    if (autoLoginToken) {
+      setOtomatikGirisYapiliyor(true)
+      signIn("verify-token", {
+        token: autoLoginToken,
+        redirect: false,
+      }).then((res) => {
+        if (res?.error) {
+          setHata("Otomatik giriş başarısız veya token süresi dolmuş. Lütfen normal giriş yapın.")
+          setOtomatikGirisYapiliyor(false)
+        } else {
+          router.push("/")
+        }
+      })
+    }
+  }, [autoLoginToken, router])
 
   async function handleGiris(e: React.FormEvent) {
     e.preventDefault()
@@ -26,18 +46,29 @@ function GirisForm() {
     }
   }
 
+  // Kullanıcı mailden gelip otomatik giriş yaparken gösterilecek ekran
+  if (otomatikGirisYapiliyor) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-gray-600 font-medium">Hesabınız onaylandı, giriş yapılıyor...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Giriş Yap</h1>
 
-        {onay === "basarili" && (
+        {onay === "basarili" && !hata && (
           <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
             ✅ E-posta adresiniz başarıyla onaylandı. Şimdi giriş yapabilirsiniz.
           </div>
         )}
 
-        {hata && <p className="text-red-500 mb-4">{hata}</p>}
+        {hata && <p className="text-red-500 mb-4 bg-red-50 p-3 rounded">{hata}</p>}
+        
         <form onSubmit={handleGiris} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -80,7 +111,11 @@ function GirisForm() {
 
 export default function GirisPage() {
   return (
-    <Suspense fallback={<div>Yükleniyor...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Yükleniyor...</p>
+      </div>
+    }>
       <GirisForm />
     </Suspense>
   )

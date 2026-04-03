@@ -44,17 +44,27 @@ app/
   actions/
     password-actions.ts
     register.ts
+  admin/
+    ilanlar/
+      page.tsx
+    katilimlar/
+      page.tsx
+    kullanicilar/
+      page.tsx
+    layout.tsx
+    page.tsx
   api/
     auth/
       [...nextauth]/
         route.ts
+      auto-login/
+        route.ts
     ilan-ekle/
-      route.ts
-    kayit/
       route.ts
   components/
     AuthButtons.tsx
     LoginModal.tsx
+    MobileMenu.tsx
     RegisterForm.tsx
     RegisterModal.tsx
     Untitled
@@ -81,18 +91,14 @@ lib/
   prisma.ts
   validators.ts
 prisma/
-  migrations/
-    20260323185334_init/
-      migration.sql
-    20260326221000_mingax_professional_registration/
-      migration.sql
-    migration_lock.toml
   dev.db
   schema.prisma
 public/
   file.svg
   globe.svg
+  manifest.json
   next.svg
+  sw.js
   vercel.svg
   window.svg
 tests/
@@ -105,6 +111,7 @@ auth.ts
 CLAUDE.md
 dev.db
 eslint.config.mjs
+middleware.ts 
 next
 next.config.ts
 package.json
@@ -174,68 +181,214 @@ export async function resetPassword(token: string, yeniSifre: string) {
 }
 </file>
 
-<file path="app/actions/register.ts">
-"use server"
-
+<file path="app/admin/ilanlar/page.tsx">
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-import { sendVerificationEmail } from "@/lib/mail"
-import { HesapTuru } from "@prisma/client"
-import crypto from "crypto" // Onay kodu üretmek için
+import { redirect } from "next/navigation"
+import Link from "next/link"
 
-const ALLOWED_COUNTRY_CODES =["+90", "+1", "+44", "+49"]
+async function changeStatus(id: number, newStatus: string) {
+  "use server"
+  await prisma.listing.update({
+    where: { id },
+    data: { durum: newStatus },
+  })
+  redirect("/admin/ilanlar")
+}
 
-export async function registerUser(formData: any) {
-  try {
-    const { 
-      ad, soyad, email, ulkeKodu, telefon, password, hesapTuru, cinsiyet, kampanyaOnay,
-      firmaAdi, vergiNo, vergiDairesi, adres, teslimatAdresi 
-    } = formData
+export default async function AdminIlanlar() {
+  const ilanlar = await prisma.listing.findMany({
+    include: { satici: true },
+    orderBy: { olusturmaTarihi: "desc" },
+  })
 
-    if (!soyad) return { success: false, error: "Soyad alanı zorunludur." }
-    
-    if (!ALLOWED_COUNTRY_CODES.includes(ulkeKodu)) {
-      return { success: false, error: "Geçersiz ülke kodu seçtiniz." }
-    }
-    
-    if (!/^\d{10}$/.test(telefon)) {
-      return { success: false, error: "Telefon numarası başında sıfır olmadan tam 10 haneli olmalıdır." }
-    }
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">İlan Yönetimi</h1>
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr><th className="px-4 py-2">ID</th><th className="px-4 py-2">Başlık</th><th className="px-4 py-2">Satıcı</th><th className="px-4 py-2">Durum</th><th className="px-4 py-2">İşlem</th></tr>
+          </thead>
+          <tbody>
+            {ilanlar.map((ilan) => (
+              <tr key={ilan.id} className="border-t">
+                <td className="px-4 py-2">{ilan.id}</td>
+                <td className="px-4 py-2"><Link href={`/ilan/${ilan.id}`} className="text-blue-600 hover:underline">{ilan.baslik}</Link></td>
+                <td className="px-4 py-2">{ilan.satici.ad} {ilan.satici.soyad}</td>
+                <td className="px-4 py-2">{ilan.durum}</td>
+                <td className="px-4 py-2">
+                  <form action={changeStatus.bind(null, ilan.id, ilan.durum === "aktif" ? "pasif" : "aktif")}>
+                    <button className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                      {ilan.durum === "aktif" ? "Pasif Yap" : "Aktif Yap"}
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+</file>
 
-    const existingEmail = await prisma.user.findUnique({ where: { email } })
-    if (existingEmail) return { success: false, error: "Bu e-posta adresi zaten kayıtlı." }
+<file path="app/admin/katilimlar/page.tsx">
+import { prisma } from "@/lib/prisma"
 
-    const existingPhone = await prisma.user.findUnique({ where: { telefon } })
-    if (existingPhone) return { success: false, error: "Bu telefon numarası zaten sisteme kayıtlı." }
+export default async function AdminKatilimlar() {
+  const participants = await prisma.participant.findMany({
+    include: {
+      kullanici: true,
+      havuz: { include: { ilan: true } },
+    },
+    orderBy: { id: "desc" },
+  })
 
-    const hashedPassword = await bcrypt.hash(password, 10)
-    
-    // Rastgele ve çok güvenli bir onay kodu (token) üret
-    const verifyToken = crypto.randomBytes(32).toString("hex")
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Katılım Talepleri</h1>
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr><th className="px-4 py-2">İlan Başlığı</th><th className="px-4 py-2">Kullanıcı</th><th className="px-4 py-2">Talep Miktarı</th><th className="px-4 py-2">Ödeme Durumu</th></tr>
+          </thead>
+          <tbody>
+            {participants.map((p) => (
+              <tr key={p.id} className="border-t">
+                <td className="px-4 py-2">{p.havuz.ilan.baslik}</td>
+                <td className="px-4 py-2">{p.kullanici.ad} {p.kullanici.soyad}</td>
+                <td className="px-4 py-2">{p.talepMiktari}</td>
+                <td className="px-4 py-2">{p.odemeDurumu}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+</file>
 
-    const newUser = await prisma.user.create({
-      data: {
-        ad, soyad, email, ulkeKodu, telefon, password: hashedPassword,
-        cinsiyet: hesapTuru === "ALICI" ? cinsiyet : null, // Sadece Alıcıysa cinsiyet kaydet
-        kampanyaOnay, hesapTuru: hesapTuru as HesapTuru,
-        epostaOnaylandi: false, // İlk girişte onaysız!
-        emailVerifyToken: verifyToken, // Kodu veritabanına yaz
-        firmaAdi: hesapTuru === "SATICI" ? firmaAdi : null,
-        vergiNo: hesapTuru === "SATICI" ? vergiNo : null,
-        vergiDairesi: hesapTuru === "SATICI" ? vergiDairesi : null,
-        adres: hesapTuru === "SATICI" ? adres : null,
-        teslimatAdresi: hesapTuru === "ALICI" ? teslimatAdresi : null,
-      }
-    })
+<file path="app/admin/kullanicilar/page.tsx">
+import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
 
-    // Hoş geldin maili yerine ONAY maili atıyoruz
-    await sendVerificationEmail(newUser.email, newUser.ad, verifyToken)
-    
-    return { success: true }
-  } catch (error) {
-    console.error("Kayıt hatası:", error)
-    return { success: false, error: "Kayıt olurken sistemsel bir hata oluştu." }
-  }
+async function toggleAdmin(userId: number, currentStatus: boolean) {
+  "use server"
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isAdmin: !currentStatus },
+  })
+  redirect("/admin/kullanicilar")
+}
+
+async function deleteUser(userId: number) {
+  "use server"
+  await prisma.user.delete({ where: { id: userId } })
+  redirect("/admin/kullanicilar")
+}
+
+export default async function AdminKullanicilar() {
+  const users = await prisma.user.findMany({
+    orderBy: { id: "asc" },
+  })
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Kullanıcı Yönetimi</h1>
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr><th className="px-4 py-2">ID</th><th className="px-4 py-2">Ad Soyad</th><th className="px-4 py-2">E-posta</th><th className="px-4 py-2">Hesap Türü</th><th className="px-4 py-2">Admin</th><th className="px-4 py-2">İşlem</th></tr>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.id} className="border-t">
+                <td className="px-4 py-2">{user.id}</td>
+                <td className="px-4 py-2">{user.ad} {user.soyad}</td>
+                <td className="px-4 py-2">{user.email}</td>
+                <td className="px-4 py-2">{user.hesapTuru}</td>
+                <td className="px-4 py-2">{user.isAdmin ? "✅ Evet" : "❌ Hayır"}</td>
+                <td className="px-4 py-2 space-x-2">
+                  <form action={toggleAdmin.bind(null, user.id, user.isAdmin)} className="inline">
+                    <button className="px-3 py-1 bg-yellow-500 text-white rounded text-sm">
+                      {user.isAdmin ? "Admin Kaldır" : "Admin Yap"}
+                    </button>
+                  </form>
+                  <form action={deleteUser.bind(null, user.id)} className="inline">
+                    <button className="px-3 py-1 bg-red-500 text-white rounded text-sm">Sil</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/admin/page.tsx">
+import { prisma } from "@/lib/prisma"
+
+export default async function AdminDashboard() {
+  const [totalUsers, totalListings, totalParticipants, activeListings] = await Promise.all([
+    prisma.user.count(),
+    prisma.listing.count(),
+    prisma.participant.count(),
+    prisma.listing.count({ where: { durum: "aktif" } }),
+  ])
+
+  const recentListings = await prisma.listing.findMany({
+    take: 5,
+    orderBy: { olusturmaTarihi: "desc" },
+    include: { satici: true },
+  })
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Gösterge Paneli</h1>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-4 rounded shadow">
+          <div className="text-gray-500">Toplam Kullanıcı</div>
+          <div className="text-2xl font-bold">{totalUsers}</div>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <div className="text-gray-500">Toplam İlan</div>
+          <div className="text-2xl font-bold">{totalListings}</div>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <div className="text-gray-500">Toplam Katılım</div>
+          <div className="text-2xl font-bold">{totalParticipants}</div>
+        </div>
+        <div className="bg-white p-4 rounded shadow">
+          <div className="text-gray-500">Aktif İlan</div>
+          <div className="text-2xl font-bold">{activeListings}</div>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-4">Son İlanlar</h2>
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50">
+            <tr><th className="px-4 py-2 text-left">Başlık</th><th className="px-4 py-2 text-left">Satıcı</th><th className="px-4 py-2 text-left">Durum</th><th className="px-4 py-2 text-left">Tarih</th></tr>
+          </thead>
+          <tbody>
+            {recentListings.map((ilan) => (
+              <tr key={ilan.id} className="border-t">
+                <td className="px-4 py-2">{ilan.baslik}</td>
+                <td className="px-4 py-2">{ilan.satici.ad} {ilan.satici.soyad}</td>
+                <td className="px-4 py-2">{ilan.durum}</td>
+                <td className="px-4 py-2">{new Date(ilan.olusturmaTarihi).toLocaleDateString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
 }
 </file>
 
@@ -295,33 +448,6 @@ export async function POST(req: Request) {
 }
 </file>
 
-<file path="app/api/kayit/route.ts">
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs"
-
-export async function POST(req: Request) {
-  const { adSoyad, email, sifre, rol } = await req.json()
-
-  if (!adSoyad || !email || !sifre) {
-    return NextResponse.json({ hata: "Tüm alanlar zorunlu" }, { status: 400 })
-  }
-
-  const mevcutKullanici = await prisma.user.findUnique({ where: { email } })
-  if (mevcutKullanici) {
-    return NextResponse.json({ hata: "Bu email zaten kayıtlı" }, { status: 400 })
-  }
-
-  const hashedSifre = await bcrypt.hash(sifre, 10)
-
-  await prisma.user.create({
-    data: { adSoyad, email, sifre: hashedSifre, rol }
-  })
-
-  return NextResponse.json({ mesaj: "Kayıt başarılı" }, { status: 201 })
-}
-</file>
-
 <file path="app/components/AuthButtons.tsx">
 "use client"
 import { useState } from "react"
@@ -365,132 +491,75 @@ export default function AuthButtons() {
 }
 </file>
 
-<file path="app/components/LoginModal.tsx">
-"use client"
-import { useState, useEffect } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { requestPasswordReset } from "@/app/actions/password-actions"
+<file path="app/components/MobileMenu.tsx">
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 
-export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen: boolean, onClose: () => void, onOpenRegister: () => void }) {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [successMsg, setSuccessMsg] = useState("")
-  const[showPassword, setShowPassword] = useState(false)
-
-  // Görünüm State'i: "login" veya "forgot"
-  const [view, setView] = useState<"login" | "forgot">("login")
-
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden'
-    else {
-      document.body.style.overflow = 'unset'
-      setTimeout(() => { setView("login"); setError(""); setSuccessMsg(""); }, 300)
-    }
-    return () => { document.body.style.overflow = 'unset' }
-  },[isOpen])
-
-  if (!isOpen) return null
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(""); setLoading(true)
-
-    const result = await signIn("credentials", { email, password, redirect: false })
-
-    if (result?.error) {
-      setError("Giriş başarısız. Bilgilerinizi yanlış girmiş veya e-posta adresinizi henüz onaylamamış olabilirsiniz.")
-      setLoading(false)
-    } else {
-      onClose()
-      router.refresh()
-    }
-  }
-
-  const handleForgot = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(""); setSuccessMsg(""); setLoading(true)
-
-    const result = await requestPasswordReset(email)
-    if (result.success) {
-      setSuccessMsg("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.")
-    } else {
-      setError(result.error || "Bir hata oluştu.")
-    }
-    setLoading(false)
-  }
-
-  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+export default function MobileMenu() {
+  const { data: session } = useSession();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
+    <>
+      {/* Hamburger Icon */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 md:hidden"
+        aria-label="Menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
 
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 sm:p-10 animate-in zoom-in-95 duration-200 overflow-hidden">
-        
-        <button onClick={onClose} className="absolute top-6 right-6 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center">✕</button>
-
-        {view === "login" ? (
-          <div className="animate-in slide-in-from-left-4 duration-300">
-            <div className="text-center mb-8">
-              <div className="text-4xl mx-auto mb-4">🔐</div>
-              <h1 className="text-2xl font-extrabold text-gray-900">Tekrar Hoş Geldiniz</h1>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
-              <div>
-                <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
-                <div className="relative mt-1.5">
-                  <input type={showPassword ? "text" : "password"} placeholder="••••••••" required className={inputClass} value={password} onChange={e => setPassword(e.target.value)} />
-                  <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} className="absolute right-4 top-3.5 text-gray-400">👁️</button>
-                </div>
-                {/* Şifremi unuttum artık input'un altında */}
-                <div className="flex justify-end mt-2">
-                  <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">Şifremi Unuttum</button>
-                </div>
-              </div>
-
-              <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50">
-                {loading ? "Bekleyin..." : "GİRİŞ YAP"}
-              </button>
-            </form>
-            <div className="text-center mt-6 text-sm text-gray-600">
-              Hesabınız yok mu? <button onClick={() => { onClose(); onOpenRegister(); }} className="text-blue-600 font-bold hover:underline">Kayıt Olun</button>
-            </div>
+      {/* Mobile Drawer */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 md:hidden">
+          <div className="flex justify-end p-4">
+            <button onClick={() => setIsOpen(false)} className="p-2">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-        ) : (
-          <div className="animate-in slide-in-from-right-4 duration-300">
-            <div className="text-center mb-8">
-              <div className="text-4xl mx-auto mb-4">📬</div>
-              <h1 className="text-2xl font-extrabold text-gray-900">Şifrenizi mi Unuttunuz?</h1>
-              <p className="text-sm text-gray-500 mt-2">E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.</p>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
-            {successMsg && <div className="bg-green-50 text-green-700 p-4 rounded-lg mb-6 text-sm">{successMsg}</div>}
-
-            <form onSubmit={handleForgot} className="space-y-5">
-              <input type="email" placeholder="Kayıtlı E-posta Adresiniz" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
-              
-              <button type="submit" disabled={loading || !!successMsg} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50">
-                {loading ? "Gönderiliyor..." : "Sıfırlama Linki Gönder"}
-              </button>
-            </form>
-            <div className="text-center mt-6">
-              <button onClick={() => setView("login")} className="text-sm text-gray-500 hover:text-gray-900 font-medium">← Giriş Ekranına Dön</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+          <nav className="flex flex-col items-center gap-4 p-8">
+            {session ? (
+              <>
+                <span className="text-lg font-medium">Hoş geldin, {session.user?.name}</span>
+                {(session.user as any)?.rol === "satici" && (
+                  <Link href="/ilan-ekle" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
+                    + İlan Ekle
+                  </Link>
+                )}
+                {(session.user as any)?.isAdmin && (
+                  <Link href="/admin" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-purple-600 text-white rounded-xl">
+                    Admin Panel
+                  </Link>
+                )}
+                <button
+                  onClick={() => signOut()}
+                  className="w-full py-3 bg-red-500 text-white rounded-xl"
+                >
+                  Çıkış Yap
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/giris" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-gray-200 rounded-xl">
+                  Giriş Yap
+                </Link>
+                <Link href="/kayit" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
+                  Kayıt Ol
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
+    </>
+  );
 }
 </file>
 
@@ -644,196 +713,6 @@ export default function RegisterForm() {
           </button>
         </form>
       )}
-    </div>
-  )
-}
-</file>
-
-<file path="app/components/RegisterModal.tsx">
-"use client"
-import { useState, useEffect } from "react"
-import { registerUser } from "@/app/actions/register"
-
-export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const[step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-
-  const [form, setForm] = useState({
-    hesapTuru: "ALICI",
-    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "",
-    cinsiyet: "", sozlesmeOnay: false, kampanyaOnay: false,
-    firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: ""
-  })
-
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = 'unset'
-    return () => { document.body.style.overflow = 'unset' }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const updateForm = (field: string, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    // Telefon 10 Hane Kontrolü (Frontend)
-    if (form.telefon.length !== 10) {
-      return setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
-    }
-    if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
-      return setError("Vergi Numarası tam olarak 10 haneli olmalıdır.")
-    }
-
-    setLoading(true)
-    const result = await registerUser(form)
-    
-    if (result.success) {
-      setSuccess(true)
-      setTimeout(() => { onClose(); setSuccess(false); setStep(1); }, 3000)
-    } else {
-      setError(result.error || "Beklenmeyen bir hata oluştu.")
-      setLoading(false)
-    }
-  }
-
-  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
-
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-300 scrollbar-hide">
-        <button onClick={onClose} className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center transition-colors">✕</button>
-
-        {success ? (
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">✓</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Kayıt Başarılı!</h2>
-            <p className="text-gray-500">Aramıza hoş geldiniz. Şimdi giriş yapabilirsiniz.</p>
-          </div>
-        ) : (
-          <>
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Üye Ol</h1>
-              <p className="text-sm text-gray-500 mt-1">Mingax'a Katıl</p>
-            </div>
-
-            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-5 text-sm">{error}</div>}
-
-            {step === 1 && (
-              <div className="space-y-4">
-                <h2 className="text-sm font-semibold text-gray-400 uppercase text-center mb-2">Hesap Türünüzü Seçin</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => { updateForm("hesapTuru", "ALICI"); setStep(2); }} className="p-6 border-2 border-gray-100 rounded-xl hover:border-blue-500 transition-all bg-white text-center">
-                    <div className="text-3xl mb-2">🛒</div>
-                    <div className="font-bold text-gray-900 text-sm">ALICI OLUYORUM</div>
-                  </button>
-                  <button onClick={() => { updateForm("hesapTuru", "SATICI"); setStep(2); }} className="p-6 border-2 border-gray-100 rounded-xl hover:border-green-500 transition-all bg-white text-center">
-                    <div className="text-3xl mb-2">🏪</div>
-                    <div className="font-bold text-gray-900 text-sm">SATICI OLUYORUM</div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
-                  <span className="font-bold text-gray-800">{form.hesapTuru === "ALICI" ? "🛒 Alıcı Kaydı" : "🏪 Satıcı Kaydı"}</span>
-                  <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline">Tür Değiştir</button>
-                </div>
-
-                {/* AD - SOYAD */}
-                <div className="grid grid-cols-2 gap-3">
-                  <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
-                  <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
-                </div>
-                
-                {/* E-POSTA */}
-                <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
-
-                {/* ÜLKE KODU VE TELEFON */}
-                <div>
-                  <div className="flex gap-3">
-                    <div className="w-1/3">
-                      <select className={`${inputClass} appearance-none cursor-pointer`} value={form.ulkeKodu} onChange={e => updateForm("ulkeKodu", e.target.value)}>
-                        <option value="+90">TR (+90)</option>
-                        <option value="+1">US (+1)</option>
-                        <option value="+44">UK (+44)</option>
-                        <option value="+49">DE (+49)</option>
-                      </select>
-                    </div>
-                    <div className="w-2/3">
-                      <input type="tel" placeholder="Telefon Numarası" required maxLength={10} className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value.replace(/\D/g, ''))} />
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1 ml-1">Başına 0 koymadan 10 haneli giriniz (Örn: 5551234567)</p>
-                </div>
-
-                {/* ŞİFRE */}
-                <div className="relative">
-                  <input type={showPassword ? "text" : "password"} placeholder="Şifre" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
-                  <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} className="absolute right-4 top-3 text-gray-400">👁️</button>
-                  <ul className="text-[11px] text-gray-400 mt-1.5 ml-1 space-y-0.5">
-                    <li>• En az 8 karakter</li>
-                    <li>• En az 1 rakam ve harf içermelidir</li>
-                  </ul>
-                </div>
-
-                {/* CİNSİYET (Sadece Alıcılara Göster) */}
-                {form.hesapTuru === "ALICI" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1.5 ml-1">Cinsiyet (İsteğe Bağlı)</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button type="button" onClick={() => updateForm("cinsiyet", "Kadın")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Kadın" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                        Kadın
-                      </button>
-                      <button type="button" onClick={() => updateForm("cinsiyet", "Erkek")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Erkek" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                        Erkek
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* SATICI ÖZEL BİLGİLER */}
-                {form.hesapTuru === "SATICI" && (
-                  <div className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-100 mt-2">
-                    <input type="text" placeholder="Firma Adı" required className={inputClass} value={form.firmaAdi} onChange={e => updateForm("firmaAdi", e.target.value)} />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input type="text" placeholder="Vergi Dairesi" required className={inputClass} value={form.vergiDairesi} onChange={e => updateForm("vergiDairesi", e.target.value)} />
-                      <input type="text" placeholder="Vergi No (10 Hane)" required maxLength={10} className={inputClass} value={form.vergiNo} onChange={e => updateForm("vergiNo", e.target.value.replace(/\D/g, ''))} />
-                    </div>
-                  </div>
-                )}
-
-                {/* ONAY KUTULARI */}
-                <div className="space-y-3 mt-4">
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" required checked={form.sozlesmeOnay} onChange={e => updateForm("sozlesmeOnay", e.target.checked)} className="mt-1" />
-                    <span className="text-xs text-gray-600"><a href="#" className="underline">Üyelik Sözleşmesi</a> şartlarını okudum ve kabul ediyorum.</span>
-                  </label>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.kampanyaOnay} onChange={e => updateForm("kampanyaOnay", e.target.checked)} className="mt-1" />
-                    <span className="text-xs text-gray-600">Bana özel fırsat ve kampanyalardan haberdar olmak istiyorum.</span>
-                  </label>
-                </div>
-
-                <button type="submit" disabled={loading || !form.sozlesmeOnay} className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50 mt-2">
-                  {loading ? "Doğrulanıyor..." : "Numaranı Doğrula (Kayıt Ol)"}
-                </button>
-              </form>
-            )}
-          </>
-        )}
-      </div>
     </div>
   )
 }
@@ -1018,270 +897,6 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
           </>
         )}
       </div>
-    </div>
-  )
-}
-</file>
-
-<file path="app/eposta-onay/page.tsx">
-import { prisma } from "@/lib/prisma"
-import Link from "next/link"
-
-export default async function EpostaOnayPage({ searchParams }: { searchParams: { token: string } }) {
-  const token = searchParams.token
-
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-red-500">Geçersiz bağlantı.</p></div>
-    )
-  }
-
-  // Veritabanında bu koda sahip kullanıcıyı bul
-  const user = await prisma.user.findFirst({ where: { emailVerifyToken: token } })
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
-          <div className="text-5xl mb-4">❌</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Geçersiz veya Kullanılmış Kod</h1>
-          <p className="text-gray-500 mb-6">Bu onay kodu geçersiz veya daha önce kullanılmış.</p>
-          <Link href="/" className="text-blue-600 font-bold hover:underline">Ana Sayfaya Dön</Link>
-        </div>
-      </div>
-    )
-  }
-
-  // Kullanıcıyı bulduysak ONAYLA ve Kodu Sil
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { epostaOnaylandi: true, emailVerifyToken: null }
-  })
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md border border-green-100">
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">✓</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">E-posta Onaylandı!</h1>
-        <p className="text-gray-500 mb-6">Harika! <b>{user.email}</b> adresi başarıyla doğrulandı. Artık hesabınıza giriş yapabilirsiniz.</p>
-        <Link href="/" className="block w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">
-          SİTEYE GİT VE GİRİŞ YAP
-        </Link>
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="app/giris/page.tsx">
-"use client"
-import { signIn } from "next-auth/react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-
-export default function GirisPage() {
-  const [email, setEmail] = useState("")
-  const [sifre, setSifre] = useState("")
-  const [hata, setHata] = useState("")
-  const router = useRouter()
-
-  async function handleGiris(e: React.FormEvent) {
-    e.preventDefault()
-    const sonuc = await signIn("credentials", {
-      email,
-      password: sifre,
-      redirect: false,
-    })
-    if (sonuc?.error) {
-      setHata("Email veya şifre hatalı")
-    } else {
-      router.push("/")
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">Giriş Yap</h1>
-        {hata && <p className="text-red-500 mb-4">{hata}</p>}
-        <form onSubmit={handleGiris} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-            <input
-              type="password"
-              value={sifre}
-              onChange={e => setSifre(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
-          >
-            Giriş Yap
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Hesabın yok mu?{" "}
-          <a href="/kayit" className="text-blue-600 hover:underline">Kayıt Ol</a>
-        </p>
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="app/ilan/[id]/page.tsx">
-import { prisma } from "@/lib/prisma"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-
-export default async function IlanDetayPage({ params }: { params: { id: string } }) {
-  const ilan = await prisma.listing.findUnique({
-    where: { id: parseInt(params.id) },
-    include: { satici: true }
-  })
-
-  if (!ilan) notFound()
-
-  const indirimYuzde = Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)
-  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <Link href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</Link>
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Sol Kolon */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <span className="text-sm text-blue-600 font-medium">{ilan.kategori}</span>
-                  <h1 className="text-2xl font-bold text-gray-800 mt-1">{ilan.baslik}</h1>
-                </div>
-                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
-                  %{indirimYuzde} indirim
-                </span>
-              </div>
-
-              {ilan.aciklama && (
-                <p className="text-gray-600 mb-4">{ilan.aciklama}</p>
-              )}
-
-              {/* Hedef Kitle */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  👤 Bireysel min. {ilan.minMiktarBireysel} adet
-                </span>
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  🏪 KOBİ min. {ilan.minMiktarKobi} adet
-                </span>
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  🏢 Kurumsal min. {ilan.minMiktarKurumsal} adet
-                </span>
-              </div>
-
-              {/* Teslimat */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">🚚 Teslimat Yöntemi</p>
-                <p className="text-sm text-gray-600">
-                  {ilan.teslimatYontemi === "kargo" && "Her adrese ayrı kargo"}
-                  {ilan.teslimatYontemi === "merkezi" && "Merkezi teslim noktası"}
-                  {ilan.teslimatYontemi === "depo" && "Alıcı depoya teslim"}
-                </p>
-              </div>
-
-              {/* 24 Saat İade */}
-              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-                <span className="text-green-600">🔄</span>
-                <span className="text-sm text-green-700 font-medium">
-                  24 Saat İade Garantisi — Tedarikçi iptali veya teslimat gerçekleşmezse tam iade
-                </span>
-              </div>
-            </div>
-
-            {/* Tedarikçi */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="font-bold text-gray-800 mb-3">Tedarikçi Bilgisi</h2>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                  {ilan.satici.adSoyad[0]}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-800">{ilan.satici.adSoyad}</p>
-                  <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
-                </div>
-                <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                  ✓ Onaylı
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Sağ Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border p-6 sticky top-4">
-              <div className="bg-gray-900 rounded-lg p-4 mb-4 text-center">
-                <p className="text-gray-400 text-sm line-through">₺{ilan.perakendeFiyat}</p>
-                <p className="text-3xl font-bold text-yellow-400">₺{ilan.toptanFiyat}</p>
-                <p className="text-green-400 text-sm mt-1">%{indirimYuzde} tasarruf</p>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Hedef</span>
-                  <span className="font-medium">{ilan.hedefSayi} adet</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Kalan Süre</span>
-                  <span className={`font-medium ${kalanGun <= 1 ? "text-red-500" : kalanGun <= 3 ? "text-orange-500" : "text-gray-800"}`}>
-                    {kalanGun} gün
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Depozito</span>
-                  <span className="font-medium text-orange-600">%{ilan.depozitoOrani}</span>
-                </div>
-              </div>
-
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
-                <p className="text-xs text-orange-700">
-                  ⚠️ Katılım için toplam bedelin <strong>%{ilan.depozitoOrani}</strong>'i depozito olarak alınır. Vazgeçilirse iade edilmez.
-                </p>
-              </div>
-
-              <Link
-                href="/giris"
-                className="block w-full text-center bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Katıl — %{ilan.depozitoOrani} Depozito
-              </Link>
-
-              <div className="mt-3 text-center text-xs text-gray-400">
-                🔒 Ödeme Escrow hesabında güvende
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
   )
 }
@@ -1802,183 +1417,6 @@ export default function IlanEklePage() {
 }
 </file>
 
-<file path="app/sifre-yenile/page.tsx">
-"use client"
-import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
-import { resetPassword } from "@/app/actions/password-actions"
-
-export default function SifreYenilePage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token") // URL'deki güvenli kodu al
-
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState({ type: "", text: "" })
-
-  if (!token) {
-    return <div className="min-h-screen flex items-center justify-center text-red-500">Geçersiz bağlantı.</div>
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setMessage({ type: "", text: "" })
-
-    const result = await resetPassword(token, password)
-
-    if (result.success) {
-      setMessage({ type: "success", text: "Şifreniz başarıyla güncellendi. Yönlendiriliyorsunuz..." })
-      setTimeout(() => router.push("/"), 3000)
-    } else {
-      setMessage({ type: "error", text: result.error || "Hata oluştu." })
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
-        <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">Yeni Şifre Belirle</h1>
-        <p className="text-center text-gray-500 mb-6 text-sm">Lütfen hesabınız için yeni ve güçlü bir şifre belirleyin.</p>
-
-        {message.text && (
-          <div className={`p-4 rounded-lg mb-6 text-sm ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-            {message.text}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input 
-            type="password" 
-            placeholder="Yeni Şifreniz (En az 8 karakter)" 
-            required 
-            minLength={8}
-            className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
-          />
-          <button 
-            type="submit" 
-            disabled={loading || message.type === "success"}
-            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Güncelleniyor..." : "ŞİFREYİ KAYDET"}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-</file>
-
-<file path="lib/env.ts">
-import { z } from "zod"
-
-const envSchema = z.object({
-  DATABASE_URL: z.string().min(1, "DATABASE_URL zorunludur"),
-  NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET zorunludur"),
-  RESEND_API_KEY: z.string().optional(),
-  RESEND_FROM_EMAIL: z.string().optional(),
-})
-
-export const env = envSchema.parse({
-  DATABASE_URL: process.env.DATABASE_URL,
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-  RESEND_API_KEY: process.env.RESEND_API_KEY,
-  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
-})
-RESEND_API_KEY=re_VKYdqb5g_8G5PLn7ShAUVBNMjoDeBBhyC
-</file>
-
-<file path="lib/mail.ts">
-import { Resend } from 'resend';
-
-// Şifreyi almayı dene
-const apiKey = process.env.RESEND_API_KEY;
-
-// Eğer şifre verilmemişse sistemi çökertme, sadece boş bırak
-const resend = apiKey ? new Resend(apiKey) : null;
-
-export async function sendWelcomeEmail(email: string, adSoyad: string) {
-  if (!resend) {
-    console.warn(`⚠️[TEST MODU] API Key eksik olduğu için ${email} adresine Hoş Geldin maili gönderilmedi.`);
-    return;
-  }
-
-  try {
-    await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
-      to: email,
-      subject: 'Mingax\'a Hoş Geldiniz!',
-      html: `<h2>Merhaba ${adSoyad},</h2><p>Mingax profesyonel toptan alışveriş platformuna başarıyla kayıt oldunuz!</p>`,
-    });
-  } catch (error) {
-    console.error("E-posta hatası:", error);
-  }
-}
-
-export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetLink = `http://localhost:3000/sifre-yenile?token=${token}`;
-  
-  if (!resend) {
-    console.warn(`\n=========================================`);
-    console.warn(`⚠️ [TEST MODU] E-posta gönderilemedi (API Key Eksik)`);
-    console.warn(`🔑 SİSTEME GİRİŞ İÇİN ŞİFRE SIFIRLAMA LİNKİNİZ:`);
-    console.warn(`👉 ${resetLink}`);
-    console.warn(`=========================================\n`);
-    return;
-  }
-
-  try {
-    await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
-      to: email,
-      subject: 'Mingax - Şifre Sıfırlama Talebi',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-          <h2 style="color: #111;">Şifre Sıfırlama Talebi</h2>
-          <p>Şifrenizi sıfırlamak için aşağıdaki butona tıklayın:</p>
-          <a href="${resetLink}" style="display:inline-block; margin-top:10px; padding:12px 24px; background-color:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-weight:bold;">Şifremi Yenile</a>
-        </div>
-      `,
-    });
-  } catch (error) {
-    console.error("Şifre sıfırlama maili hatası:", error);
-  }
-}export async function sendVerificationEmail(email: string, ad: string, token: string) {
-  const verifyLink = `http://localhost:3000/eposta-onay?token=${token}`;
-  
-  if (!resend) {
-    console.warn(`\n=========================================`);
-    console.warn(`⚠️ [TEST MODU] E-posta Onay Maili Gönderilemedi`);
-    console.warn(`🔑 HESABI ONAYLAMAK İÇİN TIKLAYIN:`);
-    console.warn(`👉 ${verifyLink}`);
-    console.warn(`=========================================\n`);
-    return;
-  }
-
-  try {
-    await resend.emails.send({
-      from: 'Mingax <onboarding@resend.dev>',
-      to: email,
-      subject: 'Mingax - Lütfen E-posta Adresinizi Onaylayın',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333; padding: 20px;">
-          <h2>Merhaba ${ad},</h2>
-          <p>Mingax'a kayıt olduğunuz için teşekkürler. Hesabınızı aktifleştirmek için lütfen aşağıdaki butona tıklayın:</p>
-          <a href="${verifyLink}" style="display:inline-block; margin-top:15px; padding:12px 24px; background-color:#16a34a; color:#fff; text-decoration:none; border-radius:6px; font-weight:bold;">Hesabımı Onayla</a>
-          <p style="margin-top: 20px; font-size: 12px; color: #666;">Bu işlemi siz yapmadıysanız lütfen bu e-postayı dikkate almayın.</p>
-        </div>
-      `,
-    });
-  } catch (error) {
-    console.error("Onay maili hatası:", error);
-  }
-}
-</file>
-
 <file path="lib/validators.ts">
 import { z } from "zod"
 
@@ -2033,148 +1471,6 @@ export const ilanEkleSchema = z.object({
 })
 </file>
 
-<file path="prisma/migrations/20260323185334_init/migration.sql">
--- CreateTable
-CREATE TABLE "User" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "adSoyad" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "rol" TEXT NOT NULL DEFAULT 'alici',
-    "guvenPuani" INTEGER NOT NULL DEFAULT 100
-);
-
--- CreateTable
-CREATE TABLE "Listing" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "baslik" TEXT NOT NULL,
-    "perakendeFiyat" REAL NOT NULL,
-    "toptanFiyat" REAL NOT NULL,
-    "hedefSayi" INTEGER NOT NULL,
-    "saticiId" INTEGER NOT NULL,
-    CONSTRAINT "Listing_saticiId_fkey" FOREIGN KEY ("saticiId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-
--- CreateTable
-CREATE TABLE "Pool" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "ilanId" INTEGER NOT NULL,
-    "mevcutKatilim" INTEGER NOT NULL DEFAULT 0,
-    "bitisTarihi" DATETIME NOT NULL,
-    "durum" TEXT NOT NULL DEFAULT 'bekliyor',
-    CONSTRAINT "Pool_ilanId_fkey" FOREIGN KEY ("ilanId") REFERENCES "Listing" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-
--- CreateTable
-CREATE TABLE "Participant" (
-    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    "kullaniciId" INTEGER NOT NULL,
-    "havuzId" INTEGER NOT NULL,
-    "talepMiktari" INTEGER NOT NULL,
-    "odemeDurumu" TEXT NOT NULL DEFAULT 'bekliyor',
-    CONSTRAINT "Participant_kullaniciId_fkey" FOREIGN KEY ("kullaniciId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Participant_havuzId_fkey" FOREIGN KEY ("havuzId") REFERENCES "Pool" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-</file>
-
-<file path="prisma/migrations/20260326221000_mingax_professional_registration/migration.sql">
--- CreateEnum
-CREATE TYPE "HesapTuru" AS ENUM ('ALICI', 'SATICI');
-
--- CreateTable
-CREATE TABLE "User" (
-    "id" SERIAL NOT NULL,
-    "email" TEXT NOT NULL,
-    "password" TEXT NOT NULL,
-    "adSoyad" TEXT NOT NULL,
-    "telefon" TEXT NOT NULL,
-    "hesapTuru" "HesapTuru" NOT NULL,
-    "onayliTedarikci" BOOLEAN NOT NULL DEFAULT false,
-    "firmaAdi" TEXT,
-    "vergiNo" TEXT,
-    "vergiDairesi" TEXT,
-    "adres" TEXT,
-    "teslimatAdresi" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "guvenPuani" INTEGER NOT NULL DEFAULT 100,
-    "resetToken" TEXT,
-    "resetTokenExpiry" TIMESTAMP(3),
-    "epostaOnaylandi" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Listing" (
-    "id" SERIAL NOT NULL,
-    "baslik" TEXT NOT NULL,
-    "aciklama" TEXT,
-    "urunUrl" TEXT,
-    "kategori" TEXT NOT NULL DEFAULT 'diger',
-    "perakendeFiyat" DOUBLE PRECISION NOT NULL,
-    "toptanFiyat" DOUBLE PRECISION NOT NULL,
-    "hedefSayi" INTEGER NOT NULL,
-    "hedefKitle" TEXT NOT NULL DEFAULT 'hepsi',
-    "minMiktarBireysel" INTEGER NOT NULL DEFAULT 1,
-    "minMiktarKobi" INTEGER NOT NULL DEFAULT 5,
-    "minMiktarKurumsal" INTEGER NOT NULL DEFAULT 20,
-    "bitisTarihi" TIMESTAMP(3) NOT NULL,
-    "teslimatYontemi" TEXT NOT NULL DEFAULT 'kargo',
-    "indirimOrani" INTEGER NOT NULL DEFAULT 10,
-    "depozitoOrani" INTEGER NOT NULL DEFAULT 30,
-    "durum" TEXT NOT NULL DEFAULT 'aktif',
-    "saticiId" INTEGER NOT NULL,
-    "olusturmaTarihi" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Listing_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Pool" (
-    "id" SERIAL NOT NULL,
-    "ilanId" INTEGER NOT NULL,
-    "mevcutKatilim" INTEGER NOT NULL DEFAULT 0,
-    "bitisTarihi" TIMESTAMP(3) NOT NULL,
-    "durum" TEXT NOT NULL DEFAULT 'bekliyor',
-
-    CONSTRAINT "Pool_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "Participant" (
-    "id" SERIAL NOT NULL,
-    "kullaniciId" INTEGER NOT NULL,
-    "havuzId" INTEGER NOT NULL,
-    "talepMiktari" INTEGER NOT NULL,
-    "odemeDurumu" TEXT NOT NULL DEFAULT 'bekliyor',
-
-    CONSTRAINT "Participant_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
-
--- AddForeignKey
-ALTER TABLE "Listing" ADD CONSTRAINT "Listing_saticiId_fkey" FOREIGN KEY ("saticiId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Pool" ADD CONSTRAINT "Pool_ilanId_fkey" FOREIGN KEY ("ilanId") REFERENCES "Listing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Participant" ADD CONSTRAINT "Participant_kullaniciId_fkey" FOREIGN KEY ("kullaniciId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Participant" ADD CONSTRAINT "Participant_havuzId_fkey" FOREIGN KEY ("havuzId") REFERENCES "Pool"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-</file>
-
-<file path="prisma/migrations/migration_lock.toml">
-# Please do not edit this file manually
-# It should be added in your version-control system (e.g., Git)
-provider = "sqlite"
-</file>
-
 <file path="public/file.svg">
 <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
 </file>
@@ -2183,8 +1479,57 @@ provider = "sqlite"
 <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
 </file>
 
+<file path="public/manifest.json">
+{
+    "name": "Toptan İlan Sistemi",
+    "short_name": "Toptanİlan",
+    "description": "Toptan alım ve ihale platformu",
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#2563eb",
+    "background_color": "#ffffff",
+    "icons": [
+      {
+        "src": "/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
+</file>
+
 <file path="public/next.svg">
 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/sw.js">
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+      caches.open('v1').then((cache) => {
+        return cache.addAll([
+          '/',
+          '/giris',
+          '/kayit',
+          '/ilan-ekle',
+          '/admin',
+          '/manifest.json'
+        ]);
+      })
+    );
+  });
+  
+  self.addEventListener('fetch', (event) => {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
+      })
+    );
+  });
 </file>
 
 <file path="public/vercel.svg">
@@ -2289,52 +1634,6 @@ declare module "next-auth/jwt" {
 }
 </file>
 
-<file path=".gitignore">
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-/app/generated/prisma
-</file>
-
 <file path="AGENTS.md">
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
@@ -2368,18 +1667,37 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 </file>
 
-<file path="next">
+<file path="middleware.ts ">
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
+const rateLimitMap = new Map();
+
+export function middleware(request: NextRequest) {
+  const ip = request.ip ?? '127.0.0.1';
+  const path = request.nextUrl.pathname;
+  const key = `${ip}-${path}`;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 dakika
+  const maxRequests = 30; // maksimum 30 istek
+
+  const timestamps = rateLimitMap.get(key) || [];
+  const recent = timestamps.filter(ts => now - ts < windowMs);
+  if (recent.length >= maxRequests) {
+    return new NextResponse('Too Many Requests', { status: 429 });
+  }
+  recent.push(now);
+  rateLimitMap.set(key, recent);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: '/api/:path*', // Sadece API yollarını koru
+};
 </file>
 
-<file path="next.config.ts">
-import type { NextConfig } from "next";
+<file path="next">
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
-
-export default nextConfig;
 </file>
 
 <file path="postcss.config.mjs">
@@ -4344,6 +3662,181 @@ model Participant {
 }
 </file>
 
+<file path="app/admin/layout.tsx">
+import { auth } from "@/auth"
+import { redirect } from "next/navigation"
+import Link from "next/link"
+
+export default async function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const session = await auth()
+  if (!session || !session.user?.isAdmin) {
+    redirect("/")
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <div className="flex">
+        <aside className="w-64 bg-white shadow-md h-screen sticky top-0">
+          <div className="p-4 font-bold text-xl border-b">Admin Panel</div>
+          <nav className="p-4 space-y-2">
+            <Link href="/admin" className="block py-2 px-3 rounded hover:bg-gray-100">Dashboard</Link>
+            <Link href="/admin/ilanlar" className="block py-2 px-3 rounded hover:bg-gray-100">İlanlar</Link>
+            <Link href="/admin/kullanicilar" className="block py-2 px-3 rounded hover:bg-gray-100">Kullanıcılar</Link>
+            <Link href="/admin/katilimlar" className="block py-2 px-3 rounded hover:bg-gray-100">Katılımlar</Link>
+          </nav>
+        </aside>
+        <main className="flex-1 p-6">{children}</main>
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/api/auth/auto-login/route.ts">
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { cookies } from 'next/headers';
+import { SignJWT } from 'jose';
+
+export async function GET(req: NextRequest) {
+  const userId = req.nextUrl.searchParams.get('userId');
+  if (!userId) {
+    return NextResponse.redirect(new URL('/giris?hata=gecersiz-kullanici', req.url));
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: parseInt(userId) }
+  });
+
+  if (!user) {
+    return NextResponse.redirect(new URL('/giris?hata=kullanici-bulunamadi', req.url));
+  }
+
+  if (!user.epostaOnaylandi) {
+    return NextResponse.redirect(new URL('/giris?hata=onaylanmadi', req.url));
+  }
+
+  const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
+  
+  const token = await new SignJWT({
+    email: user.email,
+    name: `${user.ad} ${user.soyad}`,
+    sub: String(user.id),
+    rol: user.hesapTuru,
+    isAdmin: user.isAdmin,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('30d')
+    .sign(secret);
+
+  const cookieStore = await cookies();
+  cookieStore.set('next-auth.session-token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60,
+  });
+
+  return NextResponse.redirect(new URL('/', req.url));
+}
+</file>
+
+<file path="app/giris/page.tsx">
+"use client"
+import { signIn } from "next-auth/react"
+import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense } from "react"
+
+function GirisForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const onay = searchParams.get("onay")
+  const [email, setEmail] = useState("")
+  const [sifre, setSifre] = useState("")
+  const [hata, setHata] = useState("")
+
+  async function handleGiris(e: React.FormEvent) {
+    e.preventDefault()
+    const sonuc = await signIn("credentials", {
+      email,
+      password: sifre,
+      redirect: false,
+    })
+    if (sonuc?.error) {
+      setHata("Email veya şifre hatalı")
+    } else {
+      router.push("/")
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Giriş Yap</h1>
+
+        {onay === "basarili" && (
+          <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
+            ✅ E-posta adresiniz başarıyla onaylandı. Şimdi giriş yapabilirsiniz.
+          </div>
+        )}
+
+        {hata && <p className="text-red-500 mb-4">{hata}</p>}
+        <form onSubmit={handleGiris} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
+            <input
+              type="password"
+              value={sifre}
+              onChange={e => setSifre(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+          >
+            Giriş Yap
+          </button>
+        </form>
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Hesabın yok mu?{" "}
+          <a href="/kayit" className="text-blue-600 hover:underline">Kayıt Ol</a>
+        </p>
+        <div className="text-center mt-2">
+          <a href="/sifre-unuttum" className="text-sm text-gray-500 hover:underline">Şifremi Unuttum</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function GirisPage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <GirisForm />
+    </Suspense>
+  )
+}
+</file>
+
 <file path="app/kayit/page.tsx">
 import RegisterForm from "@/app/components/RegisterForm"
 
@@ -4352,6 +3845,86 @@ export default function KayitPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
       <RegisterForm />
     </div>
+  )
+}
+</file>
+
+<file path="app/sifre-yenile/page.tsx">
+"use client"
+import { Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { resetPassword } from "@/app/actions/password-actions"
+import { useState } from "react"
+
+function SifreYenileForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const token = searchParams.get("token")
+
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState({ type: "", text: "" })
+
+  if (!token) {
+    return <div className="min-h-screen flex items-center justify-center text-red-500">Geçersiz bağlantı.</div>
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setMessage({ type: "", text: "" })
+
+    const result = await resetPassword(token, password)
+
+    if (result.success) {
+      setMessage({ type: "success", text: "Şifreniz başarıyla güncellendi. Yönlendiriliyorsunuz..." })
+      setTimeout(() => router.push("/"), 3000)
+    } else {
+      setMessage({ type: "error", text: result.error || "Hata oluştu." })
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
+        <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">Yeni Şifre Belirle</h1>
+        <p className="text-center text-gray-500 mb-6 text-sm">Lütfen hesabınız için yeni ve güçlü bir şifre belirleyin.</p>
+
+        {message.text && (
+          <div className={`p-4 rounded-lg mb-6 text-sm ${message.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+            {message.text}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input 
+            type="password" 
+            placeholder="Yeni Şifreniz (En az 8 karakter)" 
+            required 
+            minLength={8}
+            className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={password} 
+            onChange={e => setPassword(e.target.value)} 
+          />
+          <button 
+            type="submit" 
+            disabled={loading || message.type === "success"}
+            className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? "Güncelleniyor..." : "ŞİFREYİ KAYDET"}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default function SifreYenilePage() {
+  return (
+    <Suspense fallback={<div>Yükleniyor...</div>}>
+      <SifreYenileForm />
+    </Suspense>
   )
 }
 </file>
@@ -4370,22 +3943,22 @@ body {
 }
 </file>
 
-<file path="app/layout.tsx">
-import "./globals.css";
+<file path="lib/env.ts">
+import { z } from "zod"
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="tr">
-      <body className="bg-white text-black" suppressHydrationWarning>
-        {children}
-      </body>
-    </html>
-  );
-}
+const envSchema = z.object({
+  DATABASE_URL: z.string().min(1, "DATABASE_URL zorunludur"),
+  NEXTAUTH_SECRET: z.string().min(1, "NEXTAUTH_SECRET zorunludur"),
+  RESEND_API_KEY: z.string().optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
+})
+
+export const env = envSchema.parse({
+  DATABASE_URL: process.env.DATABASE_URL,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+})
 </file>
 
 <file path="lib/prisma.ts">
@@ -4399,64 +3972,714 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 </file>
 
-<file path="auth.ts">
-import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/app/generated/prisma
+test-email.js
+</file>
+
+<file path="app/actions/register.ts">
+"use server"
+
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { sendVerificationEmail } from "@/lib/mail"
+import { HesapTuru } from "@prisma/client"
+import crypto from "crypto"
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers:[
-    Credentials({
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Şifre", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
-        
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string }
-        })
-        
-        if (!user) return null
+const ALLOWED_COUNTRY_CODES = ["+90", "+1", "+44", "+49"]
 
-        // YENİ: E-Posta Onay Kontrolü!
-        if (!user.epostaOnaylandi) {
-          throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
-        }
-        
-        const sifreDogru = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        )
-        
-        if (!sifreDogru) return null
-        
-        return {
-          id: String(user.id),
-          email: user.email,
-          name: `${user.ad} ${user.soyad}`.trim(),
-          rol: user.hesapTuru,
-        }
+export async function registerUser(formData: any) {
+  try {
+    const { 
+      ad, soyad, email, ulkeKodu, telefon, password, hesapTuru, cinsiyet, kampanyaOnay,
+      firmaAdi, vergiNo, vergiDairesi, adres, teslimatAdresi 
+    } = formData
+
+    if (!soyad) return { success: false, error: "Soyad alanı zorunludur." }
+    
+    if (!ALLOWED_COUNTRY_CODES.includes(ulkeKodu)) {
+      return { success: false, error: "Geçersiz ülke kodu seçtiniz." }
+    }
+    
+    if (!/^\d{10}$/.test(telefon)) {
+      return { success: false, error: "Telefon numarası başında sıfır olmadan tam 10 haneli olmalıdır." }
+    }
+
+    const existingEmail = await prisma.user.findUnique({ where: { email } })
+    if (existingEmail) return { success: false, error: "Bu e-posta adresi zaten kayıtlı." }
+
+    const existingPhone = await prisma.user.findUnique({ where: { telefon } })
+    if (existingPhone) return { success: false, error: "Bu telefon numarası zaten sisteme kayıtlı." }
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+    const verifyToken = crypto.randomBytes(32).toString("hex")
+
+    const newUser = await prisma.user.create({
+      data: {
+        ad, soyad, email, ulkeKodu, telefon, password: hashedPassword,
+        cinsiyet: hesapTuru === "ALICI" ? cinsiyet : null,
+        kampanyaOnay, hesapTuru: hesapTuru as HesapTuru,
+        epostaOnaylandi: false,
+        emailVerifyToken: verifyToken,
+        firmaAdi: hesapTuru === "SATICI" ? firmaAdi : null,
+        vergiNo: hesapTuru === "SATICI" ? vergiNo : null,
+        vergiDairesi: hesapTuru === "SATICI" ? vergiDairesi : null,
+        adres: hesapTuru === "SATICI" ? adres : null,
+        teslimatAdresi: hesapTuru === "ALICI" ? teslimatAdresi : null,
       }
     })
-  ],
-  pages: {
-    signIn: "/giris",
-  },
-  session: { strategy: "jwt" },
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) token.rol = (user as any).rol
-      return token
-    },
-    session({ session, token }) {
-      if (session.user) (session.user as any).rol = token.rol
-      return session
+
+    // Onay maili gönder
+    try {
+      await sendVerificationEmail(newUser.email, newUser.ad, verifyToken)
+      console.log("✅ Onay maili gönderildi:", newUser.email)
+    } catch (mailError) {
+      console.error("❌ Onay maili gönderilemedi:", mailError)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Kayıt hatası:", error)
+    return { success: false, error: "Kayıt olurken sistemsel bir hata oluştu." }
+  }
+}
+</file>
+
+<file path="app/components/LoginModal.tsx">
+"use client"
+import { useState, useEffect } from "react"
+import { signIn } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { requestPasswordReset } from "@/app/actions/password-actions"
+
+export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen: boolean, onClose: () => void, onOpenRegister: () => void }) {
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [successMsg, setSuccessMsg] = useState("")
+  const[showPassword, setShowPassword] = useState(false)
+
+  // Görünüm State'i: "login" veya "forgot"
+  const [view, setView] = useState<"login" | "forgot">("login")
+
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden'
+    else {
+      document.body.style.overflow = 'unset'
+      setTimeout(() => { setView("login"); setError(""); setSuccessMsg(""); }, 300)
+    }
+    return () => { document.body.style.overflow = 'unset' }
+  },[isOpen])
+
+  if (!isOpen) return null
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(""); setLoading(true)
+
+    const result = await signIn("credentials", { email, password, redirect: false })
+
+    if (result?.error) {
+      setError("Giriş başarısız. Bilgilerinizi yanlış girmiş veya e-posta adresinizi henüz onaylamamış olabilirsiniz.")
+      setLoading(false)
+    } else {
+      onClose()
+      router.refresh()
     }
   }
-})
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(""); setSuccessMsg(""); setLoading(true)
+
+    const result = await requestPasswordReset(email)
+    if (result.success) {
+      setSuccessMsg("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.")
+    } else {
+      setError(result.error || "Bir hata oluştu.")
+    }
+    setLoading(false)
+  }
+
+  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
+
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 sm:p-10 animate-in zoom-in-95 duration-200 overflow-hidden">
+        
+        <button onClick={onClose} className="absolute top-6 right-6 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center">✕</button>
+
+        {view === "login" ? (
+          <div className="animate-in slide-in-from-left-4 duration-300">
+            <div className="text-center mb-8">
+              <div className="text-4xl mx-auto mb-4">🔐</div>
+              <h1 className="text-2xl font-extrabold text-gray-900">Tekrar Hoş Geldiniz</h1>
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
+              <div>
+  <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
+  <div className="relative mt-1.5">
+    <input
+      type={showPassword ? "text" : "password"}
+      placeholder="••••••••"
+      required
+      className={inputClass}
+      value={password}
+      onChange={e => setPassword(e.target.value)}
+    />
+    <button
+      type="button"
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+      aria-label="Şifreyi göster/gizle"
+    >
+      {showPassword ? "🙈" : "👁️"}
+    </button>
+  </div>
+                {/* Şifremi unuttum artık input'un altında */}
+                <div className="flex justify-end mt-2">
+                  <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">Şifremi Unuttum</button>
+                </div>
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50">
+                {loading ? "Bekleyin..." : "GİRİŞ YAP"}
+              </button>
+            </form>
+            <div className="text-center mt-6 text-sm text-gray-600">
+              Hesabınız yok mu? <button onClick={() => { onClose(); onOpenRegister(); }} className="text-blue-600 font-bold hover:underline">Kayıt Olun</button>
+            </div>
+          </div>
+        ) : (
+          <div className="animate-in slide-in-from-right-4 duration-300">
+            <div className="text-center mb-8">
+              <div className="text-4xl mx-auto mb-4">📬</div>
+              <h1 className="text-2xl font-extrabold text-gray-900">Şifrenizi mi Unuttunuz?</h1>
+              <p className="text-sm text-gray-500 mt-2">E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.</p>
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
+            {successMsg && <div className="bg-green-50 text-green-700 p-4 rounded-lg mb-6 text-sm">{successMsg}</div>}
+
+            <form onSubmit={handleForgot} className="space-y-5">
+              <input type="email" placeholder="Kayıtlı E-posta Adresiniz" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
+              
+              <button type="submit" disabled={loading || !!successMsg} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50">
+                {loading ? "Gönderiliyor..." : "Sıfırlama Linki Gönder"}
+              </button>
+            </form>
+            <div className="text-center mt-6">
+              <button onClick={() => setView("login")} className="text-sm text-gray-500 hover:text-gray-900 font-medium">← Giriş Ekranına Dön</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/components/RegisterModal.tsx">
+"use client"
+import { useState, useEffect } from "react"
+import { registerUser } from "@/app/actions/register"
+
+export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  const[step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false) // YENİ
+
+  const [form, setForm] = useState({
+    hesapTuru: "ALICI",
+    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "", confirmPassword: "", // YENİ: confirmPassword
+    cinsiyet: "", sozlesmeOnay: false, kampanyaOnay: false,
+    firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: ""
+  })
+
+  useEffect(() => {
+    if (isOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = 'unset'
+    return () => { document.body.style.overflow = 'unset' }
+  }, [isOpen])
+
+  if (!isOpen) return null
+
+  const updateForm = (field: string, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+
+    // Şifre eşleşme kontrolü
+    if (form.password !== form.confirmPassword) {
+      setError("Şifreler eşleşmiyor! Lütfen aynı şifreyi tekrar girin.")
+      return
+    }
+
+    // Telefon 10 Hane Kontrolü
+    if (form.telefon.length !== 10) {
+      setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
+      return
+    }
+    if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
+      setError("Vergi Numarası tam olarak 10 haneli olmalıdır.")
+      return
+    }
+
+    setLoading(true)
+    const result = await registerUser(form)
+    
+    if (result.success) {
+      setSuccess(true)
+      setTimeout(() => { onClose(); setSuccess(false); setStep(1); }, 3000)
+    } else {
+      setError(result.error || "Beklenmeyen bir hata oluştu.")
+      setLoading(false)
+    }
+  }
+
+  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
+
+      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-300 scrollbar-hide">
+        <button onClick={onClose} className="absolute top-5 right-5 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center transition-colors">✕</button>
+
+        {success ? (
+          <div className="text-center py-12">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">✓</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Kayıt Başarılı!</h2>
+            <p className="text-gray-500">Aramıza hoş geldiniz. Şimdi giriş yapabilirsiniz.</p>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Üye Ol</h1>
+              <p className="text-sm text-gray-500 mt-1">Mingax'a Katıl</p>
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-5 text-sm">{error}</div>}
+
+            {step === 1 && (
+              <div className="space-y-4">
+                <h2 className="text-sm font-semibold text-gray-400 uppercase text-center mb-2">Hesap Türünüzü Seçin</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => { updateForm("hesapTuru", "ALICI"); setStep(2); }} className="p-6 border-2 border-gray-100 rounded-xl hover:border-blue-500 transition-all bg-white text-center">
+                    <div className="text-3xl mb-2">🛒</div>
+                    <div className="font-bold text-gray-900 text-sm">ALICI OLUYORUM</div>
+                  </button>
+                  <button onClick={() => { updateForm("hesapTuru", "SATICI"); setStep(2); }} className="p-6 border-2 border-gray-100 rounded-xl hover:border-green-500 transition-all bg-white text-center">
+                    <div className="text-3xl mb-2">🏪</div>
+                    <div className="font-bold text-gray-900 text-sm">SATICI OLUYORUM</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                  <span className="font-bold text-gray-800">{form.hesapTuru === "ALICI" ? "🛒 Alıcı Kaydı" : "🏪 Satıcı Kaydı"}</span>
+                  <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline">Tür Değiştir</button>
+                </div>
+
+                {/* AD - SOYAD */}
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
+                  <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
+                </div>
+                
+                {/* E-POSTA */}
+                <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
+
+                {/* ÜLKE KODU VE TELEFON */}
+                <div>
+                  <div className="flex gap-3">
+                    <div className="w-1/3">
+                      <select className={`${inputClass} appearance-none cursor-pointer`} value={form.ulkeKodu} onChange={e => updateForm("ulkeKodu", e.target.value)}>
+                        <option value="+90">TR (+90)</option>
+                        <option value="+1">US (+1)</option>
+                        <option value="+44">UK (+44)</option>
+                        <option value="+49">DE (+49)</option>
+                      </select>
+                    </div>
+                    <div className="w-2/3">
+                      <input type="tel" placeholder="Telefon Numarası" required maxLength={10} className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value.replace(/\D/g, ''))} />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1 ml-1">Başına 0 koymadan 10 haneli giriniz (Örn: 5551234567)</p>
+                </div>
+
+                {/* Şifre Alanı */}
+<div className="relative">
+  <input
+    type={showPassword ? "text" : "password"}
+    placeholder="Şifre"
+    required
+    minLength={8}
+    className={inputClass}
+    value={form.password}
+    onChange={e => updateForm("password", e.target.value)}
+  />
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+    aria-label="Şifreyi göster/gizle"
+  >
+    {showPassword ? "🙈" : "👁️"}
+  </button>
+</div>
+
+{/* Şifre Tekrar Alanı */}
+<div className="relative">
+  <input
+    type={showConfirmPassword ? "text" : "password"}
+    placeholder="Şifre Tekrar"
+    required
+    minLength={8}
+    className={inputClass}
+    value={form.confirmPassword}
+    onChange={e => updateForm("confirmPassword", e.target.value)}
+  />
+  <button
+    type="button"
+    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+    aria-label="Şifreyi göster/gizle"
+  >
+    {showConfirmPassword ? "🙈" : "👁️"}
+  </button>
+</div>
+                {/* CİNSİYET (Sadece Alıcılara Göster) */}
+                {form.hesapTuru === "ALICI" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5 ml-1">Cinsiyet (İsteğe Bağlı)</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button type="button" onClick={() => updateForm("cinsiyet", "Kadın")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Kadın" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                        Kadın
+                      </button>
+                      <button type="button" onClick={() => updateForm("cinsiyet", "Erkek")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Erkek" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+                        Erkek
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* SATICI ÖZEL BİLGİLER */}
+                {form.hesapTuru === "SATICI" && (
+                  <div className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-100 mt-2">
+                    <input type="text" placeholder="Firma Adı" required className={inputClass} value={form.firmaAdi} onChange={e => updateForm("firmaAdi", e.target.value)} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" placeholder="Vergi Dairesi" required className={inputClass} value={form.vergiDairesi} onChange={e => updateForm("vergiDairesi", e.target.value)} />
+                      <input type="text" placeholder="Vergi No (10 Hane)" required maxLength={10} className={inputClass} value={form.vergiNo} onChange={e => updateForm("vergiNo", e.target.value.replace(/\D/g, ''))} />
+                    </div>
+                  </div>
+                )}
+
+                {/* ONAY KUTULARI */}
+                <div className="space-y-3 mt-4">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" required checked={form.sozlesmeOnay} onChange={e => updateForm("sozlesmeOnay", e.target.checked)} className="mt-1" />
+                    <span className="text-xs text-gray-600"><a href="#" className="underline">Üyelik Sözleşmesi</a> şartlarını okudum ve kabul ediyorum.</span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.kampanyaOnay} onChange={e => updateForm("kampanyaOnay", e.target.checked)} className="mt-1" />
+                    <span className="text-xs text-gray-600">Bana özel fırsat ve kampanyalardan haberdar olmak istiyorum.</span>
+                  </label>
+                </div>
+
+                <button type="submit" disabled={loading || !form.sozlesmeOnay} className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50 mt-2">
+                  {loading ? "Doğrulanıyor..." : "Kayıt Ol"}
+                </button>
+              </form>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="app/layout.tsx">
+import "./globals.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Toptan İlan Sistemi",
+  description: "Toptan alım ve ihale platformu",
+  manifest: "/manifest.json",
+  themeColor: "#2563eb",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Toptan İlan"
+  }
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="tr">
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className="bg-white text-black">
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://vercel.live; frame-src 'none'; base-uri 'self'; form-action 'self';"
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff"
+          },
+          {
+            key: "X-Frame-Options",
+            value: "DENY"
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block"
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin"
+          }
+        ]
+      }
+    ];
+  }
+};
+
+export default nextConfig;
+</file>
+
+<file path="app/ilan/[id]/page.tsx">
+import { prisma } from "@/lib/prisma"
+import { notFound } from "next/navigation"
+import Link from "next/link"
+
+export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const ilan = await prisma.listing.findUnique({
+    where: { id: parseInt(id) },
+    include: { satici: true }
+  })
+
+  if (!ilan) notFound()
+
+  const indirimYuzde = Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)
+  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <Link href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</Link>
+        </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Sol Kolon */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <span className="text-sm text-blue-600 font-medium">{ilan.kategori}</span>
+                  <h1 className="text-2xl font-bold text-gray-800 mt-1">{ilan.baslik}</h1>
+                </div>
+                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
+                  %{indirimYuzde} indirim
+                </span>
+              </div>
+
+              {ilan.aciklama && (
+                <p className="text-gray-600 mb-4">{ilan.aciklama}</p>
+              )}
+
+              {/* Hedef Kitle */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  👤 Bireysel min. {ilan.minMiktarBireysel} adet
+                </span>
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  🏪 KOBİ min. {ilan.minMiktarKobi} adet
+                </span>
+                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+                  🏢 Kurumsal min. {ilan.minMiktarKurumsal} adet
+                </span>
+              </div>
+
+              {/* Teslimat */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">🚚 Teslimat Yöntemi</p>
+                <p className="text-sm text-gray-600">
+                  {ilan.teslimatYontemi === "kargo" && "Her adrese ayrı kargo"}
+                  {ilan.teslimatYontemi === "merkezi" && "Merkezi teslim noktası"}
+                  {ilan.teslimatYontemi === "depo" && "Alıcı depoya teslim"}
+                </p>
+              </div>
+
+              {/* 24 Saat İade */}
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+                <span className="text-green-600">🔄</span>
+                <span className="text-sm text-green-700 font-medium">
+                  24 Saat İade Garantisi — Tedarikçi iptali veya teslimat gerçekleşmezse tam iade
+                </span>
+              </div>
+            </div>
+
+            {/* Tedarikçi (DÜZELTİLMİŞ) */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="font-bold text-gray-800 mb-3">Tedarikçi Bilgisi</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                  {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800">{ilan.satici.ad} {ilan.satici.soyad}</p>
+                  <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
+                </div>
+                <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
+                  ✓ Onaylı
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sağ Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-xl shadow-sm border p-6 sticky top-4">
+              <div className="bg-gray-900 rounded-lg p-4 mb-4 text-center">
+                <p className="text-gray-400 text-sm line-through">₺{ilan.perakendeFiyat}</p>
+                <p className="text-3xl font-bold text-yellow-400">₺{ilan.toptanFiyat}</p>
+                <p className="text-green-400 text-sm mt-1">%{indirimYuzde} tasarruf</p>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Hedef</span>
+                  <span className="font-medium">{ilan.hedefSayi} adet</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Kalan Süre</span>
+                  <span className={`font-medium ${kalanGun <= 1 ? "text-red-500" : kalanGun <= 3 ? "text-orange-500" : "text-gray-800"}`}>
+                    {kalanGun} gün
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Depozito</span>
+                  <span className="font-medium text-orange-600">%{ilan.depozitoOrani}</span>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <p className="text-xs text-orange-700">
+                  ⚠️ Katılım için toplam bedelin <strong>%{ilan.depozitoOrani}</strong>'i depozito olarak alınır. Vazgeçilirse iade edilmez.
+                </p>
+              </div>
+
+              <Link
+                href="/giris"
+                className="block w-full text-center bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              >
+                Katıl — %{ilan.depozitoOrani} Depozito
+              </Link>
+
+              <div className="mt-3 text-center text-xs text-gray-400">
+                🔒 Ödeme Escrow hesabında güvende
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
 </file>
 
 <file path="app/page.tsx">
@@ -4551,6 +4774,14 @@ export default async function Home() {
     </div>
   )
 }
+import MobileMenu from "./components/MobileMenu";
+
+// ... navbar içinde
+<div className="flex items-center gap-4">
+  {/* Mevcut session/login/logout butonları */}
+  {/* Mobil menüyü ekle: */}
+  <MobileMenu />
+</div>
 </file>
 
 <file path="package.json">
@@ -4568,6 +4799,7 @@ export default async function Home() {
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
+    "jose": "^6.2.2",
     "next": "16.2.1",
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.4",
@@ -4607,7 +4839,7 @@ enum HesapTuru {
 model User {
   id                Int           @id @default(autoincrement())
   ad                String
-  soyad             String        // Soru işareti (?) kalktı, artık ZORUNLU
+  soyad             String
   email             String        @unique
   ulkeKodu          String        @default("+90")
   telefon           String?       @unique
@@ -4623,17 +4855,21 @@ model User {
   teslimatAdresi    String?
   guvenPuani        Int           @default(100)
   
+  // Admin yetkisi
+  isAdmin           Boolean       @default(false)   // ✅ YENİ ALAN
+  
   // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
   resetTokenExpiry  DateTime?
   epostaOnaylandi   Boolean       @default(false)
-  emailVerifyToken  String?       // YENİ: E-posta onaylama kodu
+  emailVerifyToken  String?
   
   createdAt         DateTime      @default(now())
   
   ilanlar           Listing[]
   katilimlar        Participant[]
 }
+
 model Listing {
   id                Int      @id @default(autoincrement())
   baslik            String
@@ -4677,6 +4913,202 @@ model Participant {
   talepMiktari Int
   odemeDurumu  String @default("bekliyor")
 }
+</file>
+
+<file path="lib/mail.ts">
+import { Resend } from 'resend';
+
+const apiKey = process.env.RESEND_API_KEY;
+const resend = apiKey ? new Resend(apiKey) : null;
+
+const getBaseUrl = () => {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'http://localhost:3000';
+};
+
+export async function sendVerificationEmail(email: string, ad: string, token: string) {
+  const baseUrl = getBaseUrl();
+  const verifyLink = `${baseUrl}/eposta-onay?token=${token}`;
+
+  if (!resend) {
+    console.error(`❌ RESEND_API_KEY eksik. Link: ${verifyLink}`);
+    return;
+  }
+
+  try {
+    const result = await resend.emails.send({
+      from: 'Mingax <info@mingax.com>',
+      to: email,
+      subject: 'Mingax - E-posta Adresinizi Onaylayın',
+      html: `<div><h2>Merhaba ${ad},</h2><p>Hesabınızı onaylamak için <a href="${verifyLink}">buraya tıklayın</a>.</p></div>`,
+    });
+    console.log('✅ Onay maili gönderildi:', result);
+  } catch (error) {
+    console.error('❌ Onay maili hatası:', error);
+  }
+}
+
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const baseUrl = getBaseUrl();
+  const resetLink = `${baseUrl}/sifre-yenile?token=${token}`;
+
+  if (!resend) {
+    console.error(`❌ RESEND_API_KEY eksik. Link: ${resetLink}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: 'Mingax <info@mingax.com>',
+      to: email,
+      subject: 'Mingax - Şifre Sıfırlama',
+      html: `<div><p>Şifrenizi sıfırlamak için <a href="${resetLink}">tıklayın</a>.</p></div>`,
+    });
+  } catch (error) {
+    console.error('Şifre sıfırlama hatası:', error);
+  }
+}
+</file>
+
+<file path="app/eposta-onay/page.tsx">
+import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
+import Link from "next/link"
+
+export const viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+}
+
+export default async function EpostaOnayPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
+  const { token } = await searchParams
+
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
+          <div className="text-5xl mb-4">❌</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Geçersiz Bağlantı</h1>
+          <p className="text-gray-500 mb-6">Onay kodu eksik.</p>
+          <Link href="/" className="text-blue-600 font-bold hover:underline">Ana Sayfaya Dön</Link>
+        </div>
+      </div>
+    )
+  }
+
+  const user = await prisma.user.findFirst({
+    where: { emailVerifyToken: token }
+  })
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
+          <div className="text-5xl mb-4">❌</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Geçersiz veya Kullanılmış Kod</h1>
+          <p className="text-gray-500 mb-6">Bu onay kodu geçersiz veya daha önce kullanılmış.</p>
+          <Link href="/" className="text-blue-600 font-bold hover:underline">Ana Sayfaya Dön</Link>
+        </div>
+      </div>
+    )
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { epostaOnaylandi: true, emailVerifyToken: null }
+  })
+
+  redirect('/giris?onay=basarili')
+}
+</file>
+
+<file path="auth.ts">
+import NextAuth from "next-auth"
+import Credentials from "next-auth/providers/credentials"
+import { prisma } from "@/lib/prisma"
+import bcrypt from "bcryptjs"
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  providers: [
+    Credentials({
+      id: "credentials",
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Şifre", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string }
+        })
+        if (!user) return null
+        if (!user.epostaOnaylandi) {
+          throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
+        }
+        const sifreDogru = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        )
+        if (!sifreDogru) return null
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: `${user.ad} ${user.soyad}`.trim(),
+          rol: user.hesapTuru,
+          isAdmin: !!(user as any).isAdmin,
+        }
+      }
+    }),
+    Credentials({
+      id: "verify-token",
+      name: "verify-token",
+      credentials: {
+        token: { label: "Token", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.token) return null
+        const user = await prisma.user.findFirst({
+          where: { emailVerifyToken: credentials.token as string }
+        })
+        if (!user) return null
+        // Token ile oturum aç (onay zaten yapılmış olmalı, ama kontrol et)
+        if (!user.epostaOnaylandi) {
+          throw new Error("E-posta adresiniz henüz onaylanmamış.")
+        }
+        return {
+          id: String(user.id),
+          email: user.email,
+          name: `${user.ad} ${user.soyad}`.trim(),
+          rol: user.hesapTuru,
+          isAdmin: !!(user as any).isAdmin,
+        }
+      }
+    })
+  ],
+  pages: {
+    signIn: "/giris",
+  },
+  session: { strategy: "jwt" },
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.rol = (user as any).rol;
+        token.isAdmin = !!(user as any).isAdmin;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) {
+        (session.user as any).rol = token.rol ? token.rol : "ALICI";
+        (session.user as any).isAdmin = token.isAdmin === true;
+      }
+      return session;
+    }
+  }
+})
 </file>
 
 </files>
