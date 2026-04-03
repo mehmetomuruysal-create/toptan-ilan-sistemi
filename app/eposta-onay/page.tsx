@@ -3,6 +3,13 @@ import { signIn } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 
+// Next.js 15 uyarıları için viewport ve themeColor ayrıldı
+export const viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+}
+
 export default async function EpostaOnayPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
   const { token } = await searchParams
 
@@ -11,13 +18,15 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
           <div className="text-5xl mb-4">❌</div>
-          <h1 className="text-xl font-bold">Geçersiz Bağlantı</h1>
-          <Link href="/" className="text-blue-600 mt-4 inline-block">Ana Sayfaya Dön</Link>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Geçersiz Bağlantı</h1>
+          <p className="text-gray-500 mb-6">Onay kodu eksik.</p>
+          <Link href="/" className="text-blue-600 font-bold hover:underline">Ana Sayfaya Dön</Link>
         </div>
       </div>
     )
   }
 
+  // Token ile kullanıcıyı bul
   const user = await prisma.user.findFirst({
     where: { emailVerifyToken: token }
   })
@@ -27,8 +36,9 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
           <div className="text-5xl mb-4">❌</div>
-          <h1 className="text-xl font-bold">Geçersiz veya Kullanılmış Kod</h1>
-          <Link href="/" className="text-blue-600 mt-4 inline-block">Ana Sayfaya Dön</Link>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Geçersiz veya Kullanılmış Kod</h1>
+          <p className="text-gray-500 mb-6">Bu onay kodu geçersiz veya daha önce kullanılmış.</p>
+          <Link href="/" className="text-blue-600 font-bold hover:underline">Ana Sayfaya Dön</Link>
         </div>
       </div>
     )
@@ -40,12 +50,18 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     data: { epostaOnaylandi: true, emailVerifyToken: null }
   })
 
-  // Otomatik giriş yap (verify-token provider ile)
-  await signIn("verify-token", {
-    token: token,
-    redirect: false,
-  })
+  // ✅ Otomatik giriş yap (verify-token provider ile)
+  try {
+    await signIn("verify-token", {
+      token: token,
+      redirect: false,
+    })
+  } catch (error) {
+    console.error("Otomatik giriş hatası:", error)
+    // Hata durumunda kullanıcıyı giriş sayfasına yönlendir
+    redirect("/giris?onay=basarili")
+  }
 
-  // Ana sayfaya yönlendir
+  // Başarılı girişten sonra ana sayfaya yönlendir
   redirect("/")
 }
