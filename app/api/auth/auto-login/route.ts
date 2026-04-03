@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { encode } from 'next-auth/jwt';
+import { SignJWT } from 'jose';
 
 export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId');
@@ -21,23 +21,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/giris?hata=onaylanmadi', req.url));
   }
 
-  const secret = process.env.NEXTAUTH_SECRET!;
-  const tokenPayload = {
+  const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
+  
+  const token = await new SignJWT({
     email: user.email,
     name: `${user.ad} ${user.soyad}`,
     sub: String(user.id),
     rol: user.hesapTuru,
     isAdmin: user.isAdmin,
-  };
-
-  const encodedToken = await encode({
-    token: tokenPayload,
-    secret,
-    maxAge: 30 * 24 * 60 * 60,
-  });
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('30d')
+    .sign(secret);
 
   const cookieStore = await cookies();
-  cookieStore.set('next-auth.session-token', encodedToken, {
+  cookieStore.set('next-auth.session-token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
