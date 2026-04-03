@@ -40,7 +40,12 @@ export default async function AdminDashboard() {
       <div className="bg-white rounded shadow overflow-x-auto">
         <table className="min-w-full">
           <thead className="bg-gray-50">
-            <tr><th className="px-4 py-2 text-left">Başlık</th><th className="px-4 py-2 text-left">Satıcı</th><th className="px-4 py-2 text-left">Durum</th><th className="px-4 py-2 text-left">Tarih</th></tr>
+            <tr>
+              <th className="px-4 py-2 text-left">Başlık</th>
+              <th className="px-4 py-2 text-left">Satıcı</th>
+              <th className="px-4 py-2 text-left">Durum</th>
+              <th className="px-4 py-2 text-left">Tarih</th>
+            </tr>
           </thead>
           <tbody>
             {recentListings.map((ilan) => (
