@@ -46,5 +46,5 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     data: { epostaOnaylandi: true, emailVerifyToken: null }
   })
 
-  redirect(`/api/auth/auto-login?userId=${user.id}`)
+  redirect('/giris?onay=basarili')
 }
