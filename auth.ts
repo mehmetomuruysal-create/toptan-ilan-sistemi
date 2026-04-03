@@ -47,7 +47,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { emailVerifyToken: credentials.token as string }
         })
         if (!user) return null
-        // Token ile oturum açmaya izin ver (onay zaten yapılmış olmalı)
+        // Token ile oturum aç (onay zaten yapılmış olmalı, ama kontrol et)
+        if (!user.epostaOnaylandi) {
+          throw new Error("E-posta adresiniz henüz onaylanmamış.")
+        }
         return {
           id: String(user.id),
           email: user.email,
@@ -78,3 +81,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     }
   }
+})
