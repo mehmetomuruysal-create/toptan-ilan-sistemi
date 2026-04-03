@@ -12,10 +12,9 @@ export async function POST(
   }
 
   const { id } = await params
-  const adresId = parseInt(id)
-
+  // parseInt kullanma, direkt string olarak kullan
   await prisma.address.delete({
-    where: { id: adresId }
+    where: { id }
   })
 
   return NextResponse.redirect(new URL("/admin/adresler", req.url))
