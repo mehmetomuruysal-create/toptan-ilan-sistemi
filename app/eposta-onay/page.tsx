@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import { signIn } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 
@@ -47,15 +46,5 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     data: { epostaOnaylandi: true, emailVerifyToken: null }
   })
 
-  try {
-    await signIn("verify-token", {
-      token: token,
-      redirect: false,
-    })
-  } catch (error) {
-    console.error("Otomatik giriş hatası:", error)
-    redirect("/giris?onay=basarili")
-  }
-
-  redirect("/")
+  redirect(`/api/auth/auto-login?userId=${user.id}`)
 }
