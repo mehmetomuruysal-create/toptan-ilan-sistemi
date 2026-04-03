@@ -3,7 +3,6 @@ import { signIn } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 
-// Next.js 15 uyarıları için viewport ve themeColor ayrıldı
 export const viewport = {
   themeColor: "#2563eb",
   width: "device-width",
@@ -26,7 +25,6 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     )
   }
 
-  // Token ile kullanıcıyı bul
   const user = await prisma.user.findFirst({
     where: { emailVerifyToken: token }
   })
@@ -44,13 +42,11 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     )
   }
 
-  // Kullanıcıyı onayla ve kodu temizle
   await prisma.user.update({
     where: { id: user.id },
     data: { epostaOnaylandi: true, emailVerifyToken: null }
   })
 
-  // ✅ Otomatik giriş yap (verify-token provider ile)
   try {
     await signIn("verify-token", {
       token: token,
@@ -58,10 +54,8 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     })
   } catch (error) {
     console.error("Otomatik giriş hatası:", error)
-    // Hata durumunda kullanıcıyı giriş sayfasına yönlendir
     redirect("/giris?onay=basarili")
   }
 
-  // Başarılı girişten sonra ana sayfaya yönlendir
   redirect("/")
 }
