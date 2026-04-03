@@ -8,7 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const session = await auth()
-  if (!session || !session.user?.isAdmin) {
+  if (!session || !(session.user as any).isAdmin) {
     redirect("/")
   }
 
@@ -22,6 +22,7 @@ export default async function AdminLayout({
             <Link href="/admin/ilanlar" className="block py-2 px-3 rounded hover:bg-gray-100">İlanlar</Link>
             <Link href="/admin/kullanicilar" className="block py-2 px-3 rounded hover:bg-gray-100">Kullanıcılar</Link>
             <Link href="/admin/katilimlar" className="block py-2 px-3 rounded hover:bg-gray-100">Katılımlar</Link>
+            <Link href="/admin/adresler" className="block py-2 px-3 rounded hover:bg-gray-100">Adres Yönetimi</Link>
           </nav>
         </aside>
         <main className="flex-1 p-6">{children}</main>

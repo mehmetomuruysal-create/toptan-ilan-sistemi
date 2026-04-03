@@ -32,7 +32,7 @@ model User {
   guvenPuani        Int           @default(100)
   
   // Admin yetkisi
-  isAdmin           Boolean       @default(false)   // ✅ YENİ ALAN
+  isAdmin           Boolean       @default(false)
   
   // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
@@ -44,6 +44,7 @@ model User {
   
   ilanlar           Listing[]
   katilimlar        Participant[]
+  adresler          Address[]      // ✅ EKLENDI: Address modeli ile ilişki
 }
 
 model Listing {
@@ -88,4 +89,39 @@ model Participant {
   havuz        Pool   @relation(fields: [havuzId], references: [id])
   talepMiktari Int
   odemeDurumu  String @default("bekliyor")
+}
+
+enum FaturaTuru {
+  BIREYSEL
+  KURUMSAL
+}
+
+model Address {
+  id                   Int        @id @default(autoincrement())
+  userId               Int
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  baslik               String     // Örn: "Ev Adresim", "Merkez Ofis"
+  teslimAlacakKisi     String     // Siparişi teslim alacak kişinin Adı Soyadı
+  telefon              String     // Teslimat irtibat numarası
+  
+  il                   String
+  ilce                 String
+  mahalle              String?
+  adresSatiri          String     // Sokak, bina, daire no
+  postaKodu            String?
+  
+  isVarsayilanTeslimat Boolean    @default(false)
+  isVarsayilanFatura   Boolean    @default(false)
+  
+  faturaTuru           FaturaTuru @default(BIREYSEL)
+  tcKimlik             String?    // Bireysel fatura için
+  firmaAdi             String?    // Kurumsal fatura için
+  vergiDairesi         String?
+  vergiNo              String?
+
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@index([userId])
 }

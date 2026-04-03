@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: "Toptan İlan Sistemi",
@@ -27,7 +28,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className="bg-white text-black">
-        {children}
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

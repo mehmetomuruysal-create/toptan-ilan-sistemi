@@ -46,15 +46,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await prisma.user.findFirst({
           where: { emailVerifyToken: credentials.token as string }
         })
-        
-        if (!user) throw new Error("Geçersiz veya süresi dolmuş link.")
-
-        // E-postayı onayla ve token'ı sil
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { epostaOnaylandi: true, emailVerifyToken: null }
-        })
-
+        if (!user) return null
+        if (!user.epostaOnaylandi) {
+          throw new Error("E-posta adresiniz henüz onaylanmamış.")
+        }
         return {
           id: String(user.id),
           email: user.email,
@@ -74,6 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.rol = (user as any).rol;
         token.isAdmin = !!(user as any).isAdmin;
+        token.sub = (user as any).id; // ✅ id'yi token'a ekle
       }
       return token;
     },
@@ -81,6 +77,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         (session.user as any).rol = token.rol ? token.rol : "ALICI";
         (session.user as any).isAdmin = token.isAdmin === true;
+        (session.user as any).id = token.sub; // ✅ id'yi session'a ekle
       }
       return session;
     }

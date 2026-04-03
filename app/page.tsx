@@ -2,6 +2,9 @@ import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import AuthButtons from "./components/AuthButtons"
+import MobileMenu from "./components/MobileMenu"
+import AddressButton from "./components/AddressButton"
+
 export default async function Home() {
   const session = await auth()
   const ilanlar = await prisma.listing.findMany({
@@ -10,52 +13,43 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-xl font-bold text-blue-600">Toptan İlan</h1>
           <div className="flex items-center gap-4">
             {session ? (
               <>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-600 hidden sm:inline">
                   Hoş geldin, <strong>{session.user?.name}</strong>
                 </span>
+                <AddressButton />
                 {(session.user as any)?.rol === "satici" && (
-                  <Link
-                    href="/ilan-ekle"
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
-                  >
+                  <Link href="/ilan-ekle" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 hidden sm:inline-block">
                     + İlan Ekle
                   </Link>
                 )}
-                <form action={async () => {
-                  "use server"
-                  await signOut({ redirectTo: "/" })
-                }}>
-                  <button className="text-sm text-gray-500 hover:text-red-500">
-                    Çıkış
-                  </button>
+                <form action={async () => { "use server"; await signOut({ redirectTo: "/" }) }} className="hidden sm:block">
+                  <button className="text-sm text-gray-500 hover:text-red-500">Çıkış</button>
                 </form>
+                <MobileMenu />
               </>
             ) : (
-              <AuthButtons />
+              <>
+                <div className="hidden sm:block"><AuthButtons /></div>
+                <MobileMenu />
+              </>
             )}
           </div>
         </div>
       </nav>
-
-      {/* İçerik */}
       <main className="max-w-6xl mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">Güncel Fırsatlar</h2>
         <p className="text-gray-500 mb-6">Birlikte alalım, toptan fiyatına alalım.</p>
-
         {ilanlar.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <p className="text-lg">Henüz ilan eklenmemiş.</p>
             {session && (session.user as any)?.rol === "satici" && (
-              <Link href="/ilan-ekle" className="mt-4 inline-block text-blue-600 hover:underline">
-                İlk ilanı sen ekle →
-              </Link>
+              <Link href="/ilan-ekle" className="mt-4 inline-block text-blue-600 hover:underline">İlk ilanı sen ekle →</Link>
             )}
           </div>
         ) : (
@@ -72,13 +66,8 @@ export default async function Home() {
                     %{Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)} indirim
                   </div>
                 </div>
-                <div className="text-sm text-gray-500 mb-4">
-                  Hedef: <strong>{ilan.hedefSayi} kişi</strong>
-                </div>
-                <Link
-                  href={`/ilan/${ilan.id}`}
-                  className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-                >
+                <div className="text-sm text-gray-500 mb-4">Hedef: <strong>{ilan.hedefSayi} kişi</strong></div>
+                <Link href={`/ilan/${ilan.id}`} className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition">
                   İncele & Katıl
                 </Link>
               </div>
@@ -89,11 +78,3 @@ export default async function Home() {
     </div>
   )
 }
-import MobileMenu from "./components/MobileMenu";
-
-// ... navbar içinde
-<div className="flex items-center gap-4">
-  {/* Mevcut session/login/logout butonları */}
-  {/* Mobil menüyü ekle: */}
-  <MobileMenu />
-</div>
