@@ -11,10 +11,10 @@ function GirisForm() {
 
   const [email, setEmail] = useState("")
   const [sifre, setSifre] = useState("")
+  const [showPassword, setShowPassword] = useState(false) // ✅ EKLENDİ
   const [hata, setHata] = useState("")
   const [otomatikGirisYapiliyor, setOtomatikGirisYapiliyor] = useState(false)
 
-  // Otomatik giriş tetikleyicisi
   useEffect(() => {
     if (autoLoginToken) {
       setOtomatikGirisYapiliyor(true)
@@ -46,7 +46,6 @@ function GirisForm() {
     }
   }
 
-  // Kullanıcı mailden gelip otomatik giriş yaparken gösterilecek ekran
   if (otomatikGirisYapiliyor) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -82,13 +81,22 @@ function GirisForm() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-            <input
-              type="password"
-              value={sifre}
-              onChange={e => setSifre(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={sifre}
+                onChange={e => setSifre(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
           <button
             type="submit"
