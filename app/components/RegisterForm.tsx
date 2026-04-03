@@ -8,14 +8,12 @@ export default function RegisterForm() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  
-  // Şifre gizle/göster state'leri
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
 
-  const[form, setForm] = useState({
+  const [form, setForm] = useState({
     hesapTuru: "ALICI",
-    adSoyad: "", email: "", telefon: "", password: "", confirmPassword: "",
+    ad: "", soyad: "", email: "", telefon: "", password: "", confirmPassword: "",
     firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: "",
     kvkk: false
   })
@@ -28,11 +26,21 @@ export default function RegisterForm() {
     e.preventDefault()
     setError("")
 
+    if (!form.ad.trim()) {
+      setError("Ad alanı zorunludur.")
+      return
+    }
+    if (!form.soyad.trim()) {
+      setError("Soyad alanı zorunludur.")
+      return
+    }
     if (form.password !== form.confirmPassword) {
-      return setError("Şifreler birbiriyle eşleşmiyor.")
+      setError("Şifreler eşleşmiyor.")
+      return
     }
     if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
-      return setError("Vergi Numarası 10 haneli olmalıdır.")
+      setError("Vergi Numarası 10 haneli olmalıdır.")
+      return
     }
 
     setLoading(true)
@@ -46,7 +54,6 @@ export default function RegisterForm() {
     }
   }
 
-  // Ortak Input Sınıfları (Görseldeki gibi temiz ve soluk placeholder)
   const inputClass = "w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 text-gray-800"
 
   return (
@@ -56,23 +63,16 @@ export default function RegisterForm() {
 
       {error && <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6 text-sm">{error}</div>}
 
-      {/* AŞAMA 1: Hesap Türü Seçimi */}
       {step === 1 && (
         <div className="space-y-4">
           <h2 className="text-lg font-medium text-gray-700 mb-4 text-center">Hesap Türünüzü Seçin</h2>
           <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={() => { updateForm("hesapTuru", "ALICI"); setStep(2); }}
-              className="py-12 border-2 border-gray-200 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition group"
-            >
+            <button onClick={() => { updateForm("hesapTuru", "ALICI"); setStep(2); }} className="py-12 border-2 border-gray-200 rounded-xl hover:border-blue-600 hover:bg-blue-50 transition group">
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">🛒</div>
               <div className="font-bold text-gray-700 group-hover:text-blue-700">ALICI OLUYORUM</div>
               <div className="text-xs text-gray-400 mt-2">Toptan fiyatına ürün almak istiyorum</div>
             </button>
-            <button 
-              onClick={() => { updateForm("hesapTuru", "SATICI"); setStep(2); }}
-              className="py-12 border-2 border-gray-200 rounded-xl hover:border-green-600 hover:bg-green-50 transition group"
-            >
+            <button onClick={() => { updateForm("hesapTuru", "SATICI"); setStep(2); }} className="py-12 border-2 border-gray-200 rounded-xl hover:border-green-600 hover:bg-green-50 transition group">
               <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">🏪</div>
               <div className="font-bold text-gray-700 group-hover:text-green-700">SATICI OLUYORUM</div>
               <div className="text-xs text-gray-400 mt-2">Ürünlerimi toptan satmak istiyorum</div>
@@ -81,42 +81,39 @@ export default function RegisterForm() {
         </div>
       )}
 
-      {/* AŞAMA 2: Form Bilgileri */}
       {step === 2 && (
         <form onSubmit={handleSubmit} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center justify-between mb-6 pb-4 border-b">
-            <span className="font-semibold text-gray-700">
-              {form.hesapTuru === "ALICI" ? "🛒 Alıcı Kaydı" : "🏪 Satıcı Kaydı"}
-            </span>
-            <button type="button" onClick={() => setStep(1)} className="text-sm text-blue-600 hover:underline">
-              Tür Değiştir
+            <span className="font-semibold text-gray-700">{form.hesapTuru === "ALICI" ? "🛒 Alıcı Kaydı" : "🏪 Satıcı Kaydı"}</span>
+            <button type="button" onClick={() => setStep(1)} className="text-sm text-blue-600 hover:underline">Tür Değiştir</button>
+          </div>
+
+          {/* AD - SOYAD (ayrı ayrı) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
+            <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
+          </div>
+          
+          <input type="tel" placeholder="Telefon Numaranız" required className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value)} />
+          <input type="email" placeholder="E-posta Adresiniz" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
+
+          {/* Şifre */}
+          <div className="relative">
+            <input type={showPassword ? "text" : "password"} placeholder="Şifreniz" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+              {showPassword ? "🙈" : "👁️"}
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <input type="text" placeholder="Adınız ve Soyadınız" required className={inputClass} value={form.adSoyad} onChange={e => updateForm("adSoyad", e.target.value)} />
-            <input type="tel" placeholder="Telefon Numaranız" required className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value)} />
-          </div>
-          
-          <input type="email" placeholder="E-posta Adresiniz" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
-
-          {/* Şifre Alanı */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="relative">
-              <input type={showPassword ? "text" : "password"} placeholder="Şifreniz" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
-              <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} onMouseLeave={() => setShowPassword(false)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                👁️
-              </button>
-            </div>
-            <div className="relative">
-              <input type={showConfirm ? "text" : "password"} placeholder="Şifre Tekrar" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
-              <button type="button" onMouseDown={() => setShowConfirm(true)} onMouseUp={() => setShowConfirm(false)} onMouseLeave={() => setShowConfirm(false)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                👁️
-              </button>
-            </div>
+          {/* Şifre Tekrar */}
+          <div className="relative">
+            <input type={showConfirm ? "text" : "password"} placeholder="Şifre Tekrar" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
+            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+              {showConfirm ? "🙈" : "👁️"}
+            </button>
           </div>
 
-          {/* SATICI ÖZEL ALANLARI */}
+          {/* SATICI ÖZEL */}
           {form.hesapTuru === "SATICI" && (
             <div className="p-5 bg-gray-50 rounded-xl space-y-4 border border-gray-200 mt-6">
               <h3 className="font-semibold text-gray-700 mb-2">Kurumsal Bilgiler</h3>
@@ -129,12 +126,12 @@ export default function RegisterForm() {
             </div>
           )}
 
-          {/* ALICI ÖZEL ALANLARI */}
+          {/* ALICI ÖZEL */}
           {form.hesapTuru === "ALICI" && (
             <textarea placeholder="Teslimat Adresiniz (Opsiyonel)" rows={2} className={inputClass} value={form.teslimatAdresi} onChange={e => updateForm("teslimatAdresi", e.target.value)} />
           )}
 
-          {/* KVKK Onayı */}
+          {/* KVKK */}
           <div className="flex items-start gap-3 mt-6">
             <input type="checkbox" id="kvkk" required checked={form.kvkk} onChange={e => updateForm("kvkk", e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
             <label htmlFor="kvkk" className="text-sm text-gray-600 cursor-pointer">

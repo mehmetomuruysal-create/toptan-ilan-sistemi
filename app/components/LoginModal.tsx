@@ -9,11 +9,8 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [successMsg, setSuccessMsg] = useState("")
-  const[showPassword, setShowPassword] = useState(false)
-
-  // Görünüm State'i: "login" veya "forgot"
+  const [showPassword, setShowPassword] = useState(false)
   const [view, setView] = useState<"login" | "forgot">("login")
-
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
@@ -24,18 +21,16 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
       setTimeout(() => { setView("login"); setError(""); setSuccessMsg(""); }, 300)
     }
     return () => { document.body.style.overflow = 'unset' }
-  },[isOpen])
+  }, [isOpen])
 
   if (!isOpen) return null
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(""); setLoading(true)
-
     const result = await signIn("credentials", { email, password, redirect: false })
-
     if (result?.error) {
-      setError("Giriş başarısız. Bilgilerinizi yanlış girmiş veya e-posta adresinizi henüz onaylamamış olabilirsiniz.")
+      setError("Giriş başarısız. Bilgilerinizi kontrol edin.")
       setLoading(false)
     } else {
       onClose()
@@ -46,7 +41,6 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
   const handleForgot = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(""); setSuccessMsg(""); setLoading(true)
-
     const result = await requestPasswordReset(email)
     if (result.success) {
       setSuccessMsg("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.")
@@ -61,9 +55,7 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
-
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 sm:p-10 animate-in zoom-in-95 duration-200 overflow-hidden">
-        
         <button onClick={onClose} className="absolute top-6 right-6 w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center">✕</button>
 
         {view === "login" ? (
@@ -72,37 +64,21 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
               <div className="text-4xl mx-auto mb-4">🔐</div>
               <h1 className="text-2xl font-extrabold text-gray-900">Tekrar Hoş Geldiniz</h1>
             </div>
-
             {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
-
             <form onSubmit={handleLogin} className="space-y-5">
               <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
               <div>
-  <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
-  <div className="relative mt-1.5">
-    <input
-      type={showPassword ? "text" : "password"}
-      placeholder="••••••••"
-      required
-      className={inputClass}
-      value={password}
-      onChange={e => setPassword(e.target.value)}
-    />
-    <button
-      type="button"
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
-      aria-label="Şifreyi göster/gizle"
-    >
-      {showPassword ? "🙈" : "👁️"}
-    </button>
-  </div>
-                {/* Şifremi unuttum artık input'un altında */}
+                <label className="text-sm font-semibold text-gray-700 ml-1">Şifre</label>
+                <div className="relative mt-1.5">
+                  <input type={showPassword ? "text" : "password"} placeholder="••••••••" required className={inputClass} value={password} onChange={e => setPassword(e.target.value)} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600">
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
                 <div className="flex justify-end mt-2">
                   <button type="button" onClick={() => setView("forgot")} className="text-xs text-blue-600 font-medium hover:underline">Şifremi Unuttum</button>
                 </div>
               </div>
-
               <button type="submit" disabled={loading} className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-black transition-all disabled:opacity-50">
                 {loading ? "Bekleyin..." : "GİRİŞ YAP"}
               </button>
@@ -118,13 +94,10 @@ export default function LoginModal({ isOpen, onClose, onOpenRegister }: { isOpen
               <h1 className="text-2xl font-extrabold text-gray-900">Şifrenizi mi Unuttunuz?</h1>
               <p className="text-sm text-gray-500 mt-2">E-posta adresinizi girin, size şifre sıfırlama bağlantısı gönderelim.</p>
             </div>
-
             {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 text-sm">{error}</div>}
             {successMsg && <div className="bg-green-50 text-green-700 p-4 rounded-lg mb-6 text-sm">{successMsg}</div>}
-
             <form onSubmit={handleForgot} className="space-y-5">
               <input type="email" placeholder="Kayıtlı E-posta Adresiniz" required className={inputClass} value={email} onChange={e => setEmail(e.target.value)} />
-              
               <button type="submit" disabled={loading || !!successMsg} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50">
                 {loading ? "Gönderiliyor..." : "Sıfırlama Linki Gönder"}
               </button>

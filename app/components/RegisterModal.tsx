@@ -33,7 +33,6 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
     e.preventDefault()
     setError("")
 
-    // Ad ve soyad kontrolü (frontend)
     if (!form.ad.trim()) {
       setError("Ad alanı zorunludur.")
       return
@@ -42,12 +41,10 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
       setError("Soyad alanı zorunludur.")
       return
     }
-
     if (form.password !== form.confirmPassword) {
       setError("Şifreler eşleşmiyor! Lütfen aynı şifreyi tekrar girin.")
       return
     }
-
     if (form.telefon.length !== 10) {
       setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
       return
@@ -116,7 +113,7 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline">Tür Değiştir</button>
                 </div>
 
-                {/* AD - SOYAD (ayrı ayrı, zorunlu) */}
+                {/* AD - SOYAD */}
                 <div className="grid grid-cols-2 gap-3">
                   <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
                   <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
