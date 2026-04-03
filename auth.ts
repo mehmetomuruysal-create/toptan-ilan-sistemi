@@ -65,17 +65,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.rol = (user as any).rol
-        token.isAdmin = !!(user as any).isAdmin
+        token.rol = (user as any).rol;
+        token.isAdmin = !!(user as any).isAdmin;
       }
-      return token
+      return token;
     },
     session({ session, token }) {
       if (session.user) {
-        (session.user as any).rol = token.rol ?? "ALICI"
-        (session.user as any).isAdmin = token.isAdmin ?? false
+        (session.user as any).rol = token.rol ? token.rol : "ALICI";
+        (session.user as any).isAdmin = token.isAdmin === true;
       }
-      return session
+      return session;
     }
   }
-})
