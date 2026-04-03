@@ -8,11 +8,11 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false) // YENİ
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const [form, setForm] = useState({
     hesapTuru: "ALICI",
-    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "", confirmPassword: "", // YENİ: confirmPassword
+    ad: "", soyad: "", email: "", ulkeKodu: "+90", telefon: "", password: "", confirmPassword: "",
     cinsiyet: "", sozlesmeOnay: false, kampanyaOnay: false,
     firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: ""
   })
@@ -33,13 +33,21 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
     e.preventDefault()
     setError("")
 
-    // Şifre eşleşme kontrolü
+    // Ad ve soyad kontrolü (frontend)
+    if (!form.ad.trim()) {
+      setError("Ad alanı zorunludur.")
+      return
+    }
+    if (!form.soyad.trim()) {
+      setError("Soyad alanı zorunludur.")
+      return
+    }
+
     if (form.password !== form.confirmPassword) {
       setError("Şifreler eşleşmiyor! Lütfen aynı şifreyi tekrar girin.")
       return
     }
 
-    // Telefon 10 Hane Kontrolü
     if (form.telefon.length !== 10) {
       setError("Lütfen telefon numarasını başında sıfır olmadan 10 haneli olarak giriniz.")
       return
@@ -108,16 +116,15 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline">Tür Değiştir</button>
                 </div>
 
-                {/* AD - SOYAD */}
+                {/* AD - SOYAD (ayrı ayrı, zorunlu) */}
                 <div className="grid grid-cols-2 gap-3">
                   <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
                   <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
                 </div>
                 
-                {/* E-POSTA */}
                 <input type="email" placeholder="E-posta Adresi" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
 
-                {/* ÜLKE KODU VE TELEFON */}
+                {/* Telefon */}
                 <div>
                   <div className="flex gap-3">
                     <div className="w-1/3">
@@ -135,63 +142,34 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   <p className="text-xs text-gray-400 mt-1 ml-1">Başına 0 koymadan 10 haneli giriniz (Örn: 5551234567)</p>
                 </div>
 
-                {/* Şifre Alanı */}
-<div className="relative">
-  <input
-    type={showPassword ? "text" : "password"}
-    placeholder="Şifre"
-    required
-    minLength={8}
-    className={inputClass}
-    value={form.password}
-    onChange={e => updateForm("password", e.target.value)}
-  />
-  <button
-    type="button"
-    onClick={() => setShowPassword(!showPassword)}
-    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
-    aria-label="Şifreyi göster/gizle"
-  >
-    {showPassword ? "🙈" : "👁️"}
-  </button>
-</div>
+                {/* Şifre */}
+                <div className="relative">
+                  <input type={showPassword ? "text" : "password"} placeholder="Şifre" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600">
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
 
-{/* Şifre Tekrar Alanı */}
-<div className="relative">
-  <input
-    type={showConfirmPassword ? "text" : "password"}
-    placeholder="Şifre Tekrar"
-    required
-    minLength={8}
-    className={inputClass}
-    value={form.confirmPassword}
-    onChange={e => updateForm("confirmPassword", e.target.value)}
-  />
-  <button
-    type="button"
-    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-    className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
-    aria-label="Şifreyi göster/gizle"
-  >
-    {showConfirmPassword ? "🙈" : "👁️"}
-  </button>
-</div>
-                {/* CİNSİYET (Sadece Alıcılara Göster) */}
+                {/* Şifre Tekrar */}
+                <div className="relative">
+                  <input type={showConfirmPassword ? "text" : "password"} placeholder="Şifre Tekrar" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600">
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+
+                {/* Cinsiyet (Alıcı) */}
                 {form.hesapTuru === "ALICI" && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1.5 ml-1">Cinsiyet (İsteğe Bağlı)</label>
                     <div className="grid grid-cols-2 gap-3">
-                      <button type="button" onClick={() => updateForm("cinsiyet", "Kadın")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Kadın" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                        Kadın
-                      </button>
-                      <button type="button" onClick={() => updateForm("cinsiyet", "Erkek")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Erkek" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-                        Erkek
-                      </button>
+                      <button type="button" onClick={() => updateForm("cinsiyet", "Kadın")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Kadın" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Kadın</button>
+                      <button type="button" onClick={() => updateForm("cinsiyet", "Erkek")} className={`py-2 rounded-lg border text-sm font-medium transition-colors ${form.cinsiyet === "Erkek" ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}>Erkek</button>
                     </div>
                   </div>
                 )}
 
-                {/* SATICI ÖZEL BİLGİLER */}
+                {/* Satıcı Özel */}
                 {form.hesapTuru === "SATICI" && (
                   <div className="p-4 bg-gray-50 rounded-xl space-y-3 border border-gray-100 mt-2">
                     <input type="text" placeholder="Firma Adı" required className={inputClass} value={form.firmaAdi} onChange={e => updateForm("firmaAdi", e.target.value)} />
@@ -202,7 +180,12 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
                   </div>
                 )}
 
-                {/* ONAY KUTULARI */}
+                {/* Alıcı Teslimat Adresi */}
+                {form.hesapTuru === "ALICI" && (
+                  <textarea placeholder="Teslimat Adresiniz (Opsiyonel)" rows={2} className={inputClass} value={form.teslimatAdresi} onChange={e => updateForm("teslimatAdresi", e.target.value)} />
+                )}
+
+                {/* Onaylar */}
                 <div className="space-y-3 mt-4">
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" required checked={form.sozlesmeOnay} onChange={e => updateForm("sozlesmeOnay", e.target.checked)} className="mt-1" />

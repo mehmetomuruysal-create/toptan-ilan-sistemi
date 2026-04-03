@@ -1,6 +1,23 @@
 "use client";
 import { useState, useMemo } from "react";
 
+interface Adres {
+  id: string;
+  baslik: string;
+  teslimAlacakKisi: string;
+  telefon: string;
+  adresSatiri: string;
+  ilce: string;
+  il: string;
+  isVarsayilanTeslimat: boolean;
+  isVarsayilanFatura: boolean;
+  faturaTuru: string;
+  user: {
+    ad: string;
+    soyad: string;
+  };
+}
+
 type ShowColumnsKey = 
   | "id" 
   | "kullanici" 
@@ -13,7 +30,7 @@ type ShowColumnsKey =
   | "faturaTuru" 
   | "islem";
 
-export default function AdreslerClient({ initialAdresler }: { initialAdresler: any[] }) {
+export default function AdreslerClient({ initialAdresler }: { initialAdresler: Adres[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterField, setFilterField] = useState("baslik");
   const [showColumns, setShowColumns] = useState<Record<ShowColumnsKey, boolean>>({
@@ -39,7 +56,7 @@ export default function AdreslerClient({ initialAdresler }: { initialAdresler: a
       let value = "";
       if (filterField === "kullanici") value = `${adres.user.ad} ${adres.user.soyad}`;
       else if (filterField === "adres") value = `${adres.adresSatiri} ${adres.ilce} ${adres.il}`;
-      else value = adres[filterField]?.toString() || "";
+      else value = adres[filterField as keyof Adres]?.toString() || "";
       return value.toLowerCase().includes(searchTerm.toLowerCase());
     });
   }, [initialAdresler, searchTerm, filterField]);

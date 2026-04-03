@@ -19,8 +19,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 })
   }
 
-  const { id } = await params
-  const adresId = parseInt(id)
+  const { id } = await params  // id string olarak gelir, parseInt yapma!
+  const adresId = id  // direkt string
 
   const adres = await prisma.address.findFirst({
     where: { id: adresId, userId: user.id }

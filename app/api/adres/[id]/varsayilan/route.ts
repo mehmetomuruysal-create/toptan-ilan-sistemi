@@ -20,7 +20,9 @@ export async function POST(
   }
 
   const { id } = await params
-  const adresId = parseInt(id)
+  // parseInt(id) kaldırıldı, direkt string olarak kullan
+  const adresId = id
+
   const { tip } = await req.json()
 
   if (!tip || (tip !== "teslimat" && tip !== "fatura")) {

@@ -97,9 +97,11 @@ enum FaturaTuru {
 }
 
 model Address {
-  id                   Int        @id @default(autoincrement())
-  userId               Int
+  id                   String     @id @default(cuid()) // Güvenlik için CUID kalmalı!
+  userId               Int        // Senin tespitin: User.id ile eşleşmesi için Int oldu
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // ... geri kalan alanlar tamamen aynı
   
   baslik               String     // Örn: "Ev Adresim", "Merkez Ofis"
   teslimAlacakKisi     String     // Siparişi teslim alacak kişinin Adı Soyadı

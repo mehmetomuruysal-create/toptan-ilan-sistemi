@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 
 interface Adres {
-  id: number;
+  id: string;  // number -> string
   baslik: string;
   adresSatiri: string;
   ilce: string;
