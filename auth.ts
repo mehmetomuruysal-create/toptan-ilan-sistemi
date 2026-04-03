@@ -46,11 +46,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await prisma.user.findFirst({
           where: { emailVerifyToken: credentials.token as string }
         })
-        if (!user) return null
-        // Token ile oturum aç (onay zaten yapılmış olmalı, ama kontrol et)
-        if (!user.epostaOnaylandi) {
-          throw new Error("E-posta adresiniz henüz onaylanmamış.")
-        }
+        
+        if (!user) throw new Error("Geçersiz veya süresi dolmuş link.")
+
+        // E-postayı onayla ve token'ı sil
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { epostaOnaylandi: true, emailVerifyToken: null }
+        })
+
         return {
           id: String(user.id),
           email: user.email,

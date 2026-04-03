@@ -11,7 +11,7 @@ const getBaseUrl = () => {
 
 export async function sendVerificationEmail(email: string, ad: string, token: string) {
   const baseUrl = getBaseUrl();
-  const verifyLink = `${baseUrl}/eposta-onay?token=${token}`;
+  const verifyLink = `${baseUrl}/giris?autoLoginToken=${token}`;
 
   if (!resend) {
     console.error(`❌ RESEND_API_KEY eksik. Link: ${verifyLink}`);
