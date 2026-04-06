@@ -30,21 +30,16 @@ model User {
   adres             String?
   teslimatAdresi    String?
   guvenPuani        Int           @default(100)
-  
-  // Admin yetkisi
   isAdmin           Boolean       @default(false)
-  
-  // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
   resetTokenExpiry  DateTime?
   epostaOnaylandi   Boolean       @default(false)
   emailVerifyToken  String?
-  
   createdAt         DateTime      @default(now())
   
   ilanlar           Listing[]
   katilimlar        Participant[]
-  adresler          Address[]      // ✅ EKLENDI: Address modeli ile ilişki
+  adresler          Address[]
 }
 
 model Listing {
@@ -67,8 +62,26 @@ model Listing {
   durum             String   @default("aktif")
   saticiId          Int
   satici            User     @relation(fields: [saticiId], references: [id])
-  havuzlar          Pool[]
   olusturmaTarihi   DateTime @default(now())
+  
+  havuzlar          Pool[]
+  baremler          Barem[]
+}
+
+model Barem {
+  id           Int           @id @default(autoincrement())
+  listingId    Int
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sira         Int
+  miktar       Int
+  fiyat        Float
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  katilimcilar Participant[]
+
+  @@unique([listingId, sira])
+  @@index([listingId])
 }
 
 model Pool {
@@ -78,6 +91,7 @@ model Pool {
   mevcutKatilim Int           @default(0)
   bitisTarihi   DateTime
   durum         String        @default("bekliyor")
+  
   katilimcilar  Participant[]
 }
 
@@ -89,6 +103,8 @@ model Participant {
   havuz        Pool   @relation(fields: [havuzId], references: [id])
   talepMiktari Int
   odemeDurumu  String @default("bekliyor")
+  baremId      Int
+  barem        Barem  @relation(fields: [baremId], references: [id])
 }
 
 enum FaturaTuru {
@@ -97,31 +113,24 @@ enum FaturaTuru {
 }
 
 model Address {
-  id                   String     @id @default(cuid()) // Güvenlik için CUID kalmalı!
-  userId               Int        // Senin tespitin: User.id ile eşleşmesi için Int oldu
+  id                   String     @id @default(cuid())
+  userId               Int
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // ... geri kalan alanlar tamamen aynı
-  
-  baslik               String     // Örn: "Ev Adresim", "Merkez Ofis"
-  teslimAlacakKisi     String     // Siparişi teslim alacak kişinin Adı Soyadı
-  telefon              String     // Teslimat irtibat numarası
-  
+  baslik               String
+  teslimAlacakKisi     String
+  telefon              String
   il                   String
   ilce                 String
   mahalle              String?
-  adresSatiri          String     // Sokak, bina, daire no
+  adresSatiri          String
   postaKodu            String?
-  
   isVarsayilanTeslimat Boolean    @default(false)
   isVarsayilanFatura   Boolean    @default(false)
-  
   faturaTuru           FaturaTuru @default(BIREYSEL)
-  tcKimlik             String?    // Bireysel fatura için
-  firmaAdi             String?    // Kurumsal fatura için
+  tcKimlik             String?
+  firmaAdi             String?
   vergiDairesi         String?
   vergiNo              String?
-
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 

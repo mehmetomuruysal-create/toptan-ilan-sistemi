@@ -34,11 +34,12 @@ export default function MobileMenu() {
             {session ? (
               <>
                 <span className="text-lg font-medium">Hoş geldin, {session.user?.name}</span>
-                {(session.user as any)?.rol === "satici" && (
-                  <Link href="/ilan-ekle" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
-                    + İlan Ekle
-                  </Link>
-                )}
+               {/* MobileMenu.tsx içinde bu satırı bul ve büyük harfle SATICI yap: */}
+{(session.user as any)?.rol === "SATICI" && (
+  <Link href="/ilan-ekle" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
+    + İlan Ekle
+  </Link>
+)}
                 {(session.user as any)?.isAdmin && (
                   <Link href="/admin" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-purple-600 text-white rounded-xl">
                     Admin Panel

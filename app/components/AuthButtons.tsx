@@ -1,14 +1,25 @@
 "use client"
 import { useState } from "react"
+import Link from "next/link"
+import { PlusCircle } from "lucide-react"
 import RegisterModal from "./RegisterModal"
 import LoginModal from "./LoginModal"
 
 export default function AuthButtons() {
-  const[isRegisterOpen, setIsRegisterOpen] = useState(false)
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false)
   const [isLoginOpen, setIsLoginOpen] = useState(false)
 
   return (
-    <>
+    <div className="flex items-center gap-4">
+      {/* İlan Ver Butonu */}
+      <Link 
+        href="/ilan-ekle" 
+        className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl hover:shadow-md hover:opacity-90 transition-all font-medium text-sm"
+      >
+        <PlusCircle size={18} />
+        İlan Ver
+      </Link>
+
       <button 
         onClick={() => setIsLoginOpen(true)} 
         className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
@@ -23,18 +34,8 @@ export default function AuthButtons() {
         Kayıt Ol
       </button>
 
-      {/* Kayıt Modalı */}
-      <RegisterModal 
-        isOpen={isRegisterOpen} 
-        onClose={() => setIsRegisterOpen(false)} 
-      />
-
-      {/* Giriş Modalı */}
-      <LoginModal 
-        isOpen={isLoginOpen} 
-        onClose={() => setIsLoginOpen(false)}
-        onOpenRegister={() => setIsRegisterOpen(true)} // "Hesabım yok, kayıt ol" butonu için
-      />
-    </>
+      <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onOpenRegister={() => setIsRegisterOpen(true)} />
+    </div>
   )
 }
