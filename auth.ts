@@ -6,7 +6,8 @@ import bcrypt from "bcryptjs"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // 1. Adapter eklemezsen sihirli bağlantı token'ları DB'ye yazılamaz
-  adapter: PrismaAdapter(prisma),
+  // @ts-ignore veya as any kullanarak tip uyuşmazlığını geçiyoruz
+adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   providers: [
     Credentials({
