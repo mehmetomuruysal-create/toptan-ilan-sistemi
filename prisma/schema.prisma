@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// --- ENUMLAR ---
+
 enum HesapTuru {
   ALICI
   SATICI
@@ -17,22 +19,22 @@ enum FaturaTuru {
   KURUMSAL
 }
 
-// YENI: İlanların tüm durumlarını kontrol etmek için
 enum ListingStatus {
   ACTIVE
   PENDING
   COMPLETED
   CANCELLED
-  SUSPENDED // Kullanıcı dondurulduğunda ilanlar bu duruma geçer
+  SUSPENDED // Admin veya kullanıcı tarafından dondurulan ilanlar
 }
 
-// YENI: Katılımların (Siparişlerin) durumlarını kontrol etmek için
 enum ParticipationStatus {
   PENDING
   CONFIRMED
   CANCELLED
-  SUSPENDED // Kullanıcı dondurulduğunda katılımlar bu duruma geçer
+  SUSPENDED // Kullanıcı dondurulduğunda talepler bu duruma geçer
 }
+
+// --- MODELLER ---
 
 model User {
   id                Int           @id @default(autoincrement())
@@ -80,13 +82,12 @@ model Listing {
   bitisTarihi       DateTime
   teslimatYontemi   String        @default("kargo")
   indirimOrani      Int           @default(10)
-  depozitoOrani     Int           @default(30)
+  depozitoOrani      Int           @default(30)
   
-  // GÜNCELLENDİ: String yerine Enum yapıldı
   durum             ListingStatus @default(ACTIVE)
   
   saticiId          Int
-  satici            User          @relation(fields: [saticiId], references: [id])
+  satici            User          @relation(fields: [saticiId], references: [id], onDelete: Cascade)
   olusturmaTarihi   DateTime      @default(now())
   
   havuzlar          Pool[]
@@ -112,7 +113,7 @@ model Barem {
 model Pool {
   id            Int           @id @default(autoincrement())
   ilanId        Int
-  ilan          Listing       @relation(fields: [ilanId], references: [id], onDelete: Cascade) // Cascade eklendi
+  ilan          Listing       @relation(fields: [ilanId], references: [id], onDelete: Cascade)
   mevcutKatilim Int           @default(0)
   bitisTarihi   DateTime
   durum         String        @default("bekliyor")
@@ -123,16 +124,15 @@ model Pool {
 model Participant {
   id           Int                 @id @default(autoincrement())
   kullaniciId  Int
-  kullanici    User                @relation(fields: [kullaniciId], references: [id])
+  kullanici    User                @relation(fields: [kullaniciId], references: [id], onDelete: Cascade)
   havuzId      Int
-  havuz        Pool                @relation(fields: [havuzId], references: [id])
+  havuz        Pool                @relation(fields: [havuzId], references: [id], onDelete: Cascade)
   talepMiktari Int
   
-  // GÜNCELLENDİ: String yerine Enum yapıldı
   durum        ParticipationStatus @default(PENDING)
   
   baremId      Int
-  barem        Barem               @relation(fields: [baremId], references: [id])
+  barem        Barem               @relation(fields: [baremId], references: [id], onDelete: Cascade)
 }
 
 model Address {
