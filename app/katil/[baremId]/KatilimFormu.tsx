@@ -85,62 +85,99 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler }: any
         )}
 
         {/* ADIM 2: ADRES SEÇİMİ */}
-        {step === 2 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <MapPin className="text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Teslimat Adresi</h2>
-              </div>
-              <button 
-                onClick={() => setIsAddressModalOpen(true)}
-                className="flex items-center gap-1 text-sm font-bold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-all"
-              >
-                <Plus size={16} /> Yeni Ekle
-              </button>
-            </div>
+       {/* ADIM 2: ADRES SEÇİMİ */}
+{step === 2 && (
+  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+    <div className="flex items-center justify-between border-b pb-4">
+      <div className="flex items-center gap-3">
+        <div className="bg-blue-100 p-2 rounded-lg">
+          <MapPin className="text-blue-600" size={24} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Teslimat Adresi</h2>
+          <p className="text-sm text-gray-500">Ürünlerin gönderileceği adresi seçin</p>
+        </div>
+      </div>
+      <button 
+        onClick={() => setIsAddressModalOpen(true)}
+        className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl transition-all shadow-sm"
+      >
+        <Plus size={18} /> Yeni Adres Ekle
+      </button>
+    </div>
 
-            <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-              {adresler.map((adres: any) => (
-                <div 
-                  key={adres.id}
-                  onClick={() => setSeciliAdres(adres.id)}
-                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${seciliAdres === adres.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}
-                >
-                  <div className="flex justify-between font-bold">
-                    <span className="text-gray-900">{adres.baslik}</span>
-                    {seciliAdres === adres.id && <CheckCircle2 size={20} className="text-blue-600" />}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">{adres.adresSatiri} {adres.ilce}/{adres.il}</p>
-                </div>
-              ))}
-              
-              {adresler.length === 0 && (
-                <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
-                  <p className="text-gray-400 text-sm mb-4">Henüz kayıtlı bir adresiniz bulunmuyor.</p>
-                  <button 
-                    onClick={() => setIsAddressModalOpen(true)}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-blue-700 shadow-lg"
-                  >
-                    Hemen Adres Ekle
-                  </button>
-                </div>
-              )}
+    <div className="grid gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar py-2">
+      {adresler.map((adres: any) => (
+        <div 
+          key={adres.id}
+          onClick={() => setSeciliAdres(adres.id)}
+          className={`relative group p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
+            seciliAdres === adres.id 
+            ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-600/10' 
+            : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'
+          }`}
+        >
+          {/* Seçili İkonu (Sağ Üstte Kabarık) */}
+          {seciliAdres === adres.id && (
+            <div className="absolute -top-3 -right-3 bg-blue-600 text-white rounded-full p-1 shadow-lg border-2 border-white">
+              <CheckCircle2 size={20} strokeWidth={3} />
             </div>
+          )}
 
-            <div className="flex gap-3">
-              <button onClick={() => setStep(1)} className="flex-1 py-4 font-bold text-gray-500 bg-gray-100 rounded-2xl hover:bg-gray-200 transition-colors">Geri</button>
-              <button 
-                onClick={() => setStep(3)}
-                disabled={!seciliAdres}
-                className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-bold disabled:opacity-50"
-              >
-                Ödeme Özetini Gör
-              </button>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
+                seciliAdres === adres.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {adres.baslik}
+              </span>
+              <span className="font-bold text-gray-900">{adres.teslimAlacakKisi}</span>
             </div>
+            
+            <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+              {adres.adresSatiri}
+            </p>
+            <p className="text-sm font-medium text-gray-500 italic">
+              {adres.ilce} / {adres.il}
+            </p>
           </div>
-        )}
+        </div>
+      ))}
+      
+      {adresler.length === 0 && (
+        <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50">
+          <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+            <MapPin className="text-gray-300" size={32} />
+          </div>
+          <p className="text-gray-500 font-medium mb-4">Henüz bir adres eklemediniz.</p>
+          <button 
+            onClick={() => setIsAddressModalOpen(true)}
+            className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all"
+          >
+            İlk Adresimi Şimdi Ekle
+          </button>
+        </div>
+      )}
 
+    </div>
+
+    <div className="flex gap-4 pt-4">
+      <button 
+        onClick={() => setStep(1)} 
+        className="flex-1 py-4 font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-colors"
+      >
+        Geri Dön
+      </button>
+      <button 
+        onClick={() => setStep(3)}
+        disabled={!seciliAdres}
+        className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-black text-lg hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-xl shadow-gray-200 flex items-center justify-center gap-2"
+      >
+        Ödeme Özetine Geç <ArrowRight size={20} />
+      </button>
+    </div>
+  </div>
+)}
         {/* ADIM 3: ÖDEME ÖZETİ */}
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
