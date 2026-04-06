@@ -1,18 +1,26 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // Viewport tipini ekledik
 import { SessionProvider } from "next-auth/react";
 
+// 1. Viewport Ayarları (Yeni Standart)
+export const viewport: Viewport = {
+  themeColor: "#2563eb",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: true,
+};
+
+// 2. Metadata Ayarları (Temizlenmiş Hali)
 export const metadata: Metadata = {
   title: "Toptan İlan Sistemi",
   description: "Toptan alım ve ihale platformu",
   manifest: "/manifest.json",
-  themeColor: "#2563eb",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Toptan İlan"
-  }
+    title: "Toptan İlan",
+  },
 };
 
 export default function RootLayout({
@@ -23,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
+        {/* PWA ve Mobil Uygulama İkonları */}
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
