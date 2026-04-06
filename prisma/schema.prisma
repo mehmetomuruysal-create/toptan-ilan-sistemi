@@ -12,6 +12,28 @@ enum HesapTuru {
   SATICI
 }
 
+enum FaturaTuru {
+  BIREYSEL
+  KURUMSAL
+}
+
+// YENI: İlanların tüm durumlarını kontrol etmek için
+enum ListingStatus {
+  ACTIVE
+  PENDING
+  COMPLETED
+  CANCELLED
+  SUSPENDED // Kullanıcı dondurulduğunda ilanlar bu duruma geçer
+}
+
+// YENI: Katılımların (Siparişlerin) durumlarını kontrol etmek için
+enum ParticipationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  SUSPENDED // Kullanıcı dondurulduğunda katılımlar bu duruma geçer
+}
+
 model User {
   id                Int           @id @default(autoincrement())
   ad                String
@@ -22,7 +44,7 @@ model User {
   password          String
   cinsiyet          String?       
   kampanyaOnay      Boolean       @default(false)
-  hesapTuru         HesapTuru     @default(ALICI)
+  hesapTuru          HesapTuru     @default(ALICI)
   onayliTedarikci   Boolean       @default(false)
   firmaAdi          String?
   vergiNo           String?
@@ -43,40 +65,43 @@ model User {
 }
 
 model Listing {
-  id                Int      @id @default(autoincrement())
+  id                Int           @id @default(autoincrement())
   baslik            String
   aciklama          String?
   urunUrl           String?
-  kategori          String   @default("diger")
+  kategori          String        @default("diger")
   perakendeFiyat    Float
   toptanFiyat       Float
   hedefSayi         Int
-  hedefKitle        String   @default("hepsi")
-  minMiktarBireysel Int      @default(1)
-  minMiktarKobi     Int      @default(5)
-  minMiktarKurumsal Int      @default(20)
+  hedefKitle        String        @default("hepsi")
+  minMiktarBireysel Int           @default(1)
+  minMiktarKobi      Int           @default(5)
+  minMiktarKurumsal Int           @default(20)
   bitisTarihi       DateTime
-  teslimatYontemi   String   @default("kargo")
-  indirimOrani      Int      @default(10)
-  depozitoOrani     Int      @default(30)
-  durum             String   @default("aktif")
+  teslimatYontemi   String        @default("kargo")
+  indirimOrani      Int           @default(10)
+  depozitoOrani     Int           @default(30)
+  
+  // GÜNCELLENDİ: String yerine Enum yapıldı
+  durum             ListingStatus @default(ACTIVE)
+  
   saticiId          Int
-  satici            User     @relation(fields: [saticiId], references: [id])
-  olusturmaTarihi   DateTime @default(now())
+  satici            User          @relation(fields: [saticiId], references: [id])
+  olusturmaTarihi   DateTime      @default(now())
   
   havuzlar          Pool[]
   baremler          Barem[]
 }
 
 model Barem {
-  id           Int           @id @default(autoincrement())
+  id           Int          @id @default(autoincrement())
   listingId    Int
-  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
   sira         Int
   miktar       Int
   fiyat        Float
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   
   katilimcilar Participant[]
 
@@ -87,7 +112,7 @@ model Barem {
 model Pool {
   id            Int           @id @default(autoincrement())
   ilanId        Int
-  ilan          Listing       @relation(fields: [ilanId], references: [id])
+  ilan          Listing       @relation(fields: [ilanId], references: [id], onDelete: Cascade) // Cascade eklendi
   mevcutKatilim Int           @default(0)
   bitisTarihi   DateTime
   durum         String        @default("bekliyor")
@@ -96,20 +121,18 @@ model Pool {
 }
 
 model Participant {
-  id           Int    @id @default(autoincrement())
+  id           Int                 @id @default(autoincrement())
   kullaniciId  Int
-  kullanici    User   @relation(fields: [kullaniciId], references: [id])
+  kullanici    User                @relation(fields: [kullaniciId], references: [id])
   havuzId      Int
-  havuz        Pool   @relation(fields: [havuzId], references: [id])
+  havuz        Pool                @relation(fields: [havuzId], references: [id])
   talepMiktari Int
-  odemeDurumu  String @default("bekliyor")
+  
+  // GÜNCELLENDİ: String yerine Enum yapıldı
+  durum        ParticipationStatus @default(PENDING)
+  
   baremId      Int
-  barem        Barem  @relation(fields: [baremId], references: [id])
-}
-
-enum FaturaTuru {
-  BIREYSEL
-  KURUMSAL
+  barem        Barem               @relation(fields: [baremId], references: [id])
 }
 
 model Address {
