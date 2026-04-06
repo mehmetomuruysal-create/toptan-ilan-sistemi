@@ -11,6 +11,7 @@ export const viewport = {
 export default async function EpostaOnayPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
   const { token } = await searchParams
 
+  // 1. Token Kontrolü
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -24,6 +25,7 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     )
   }
 
+  // 2. Kullanıcıyı Token ile Bulma
   const user = await prisma.user.findFirst({
     where: { emailVerifyToken: token }
   })
@@ -41,10 +43,13 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     )
   }
 
+  // 3. Kullanıcıyı Onaylandı Olarak İşaretle
+  // NOT: Token'ı burada silmiyoruz, auto-login API'si kullandıktan sonra silecek.
   await prisma.user.update({
     where: { id: user.id },
-    data: { epostaOnaylandi: true, emailVerifyToken: null }
+    data: { epostaOnaylandi: true }
   })
 
-  redirect('/giris?onay=basarili')
+  // 4. Sihirli Giriş (Auto-Login) API'sine Yönlendir
+  redirect(`/api/auth/auto-login?token=${token}`)
 }

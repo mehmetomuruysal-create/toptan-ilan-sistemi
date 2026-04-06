@@ -1,48 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cookies } from 'next/headers';
-import { SignJWT } from 'jose';
+import { signIn } from "@/auth"; // Önemli: auth.ts'deki signIn metodunu kullanıyoruz
 
 export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get('userId');
-  if (!userId) {
-    return NextResponse.redirect(new URL('/giris?hata=gecersiz-kullanici', req.url));
+  const token = req.nextUrl.searchParams.get('token'); // URL'den token'ı alıyoruz
+
+  if (!token) {
+    return NextResponse.redirect(new URL('/giris?hata=gecersiz-token', req.url));
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: parseInt(userId) }
-  });
+  try {
+    // 1. Kullanıcıyı token ile bulalım ve onaylanmış mı bakalım
+    const user = await prisma.user.findFirst({
+      where: { emailVerifyToken: token }
+    });
 
-  if (!user) {
-    return NextResponse.redirect(new URL('/giris?hata=kullanici-bulunamadi', req.url));
+    if (!user) {
+      return NextResponse.redirect(new URL('/giris?hata=token-gecersiz', req.url));
+    }
+
+    if (!user.epostaOnaylandi) {
+      return NextResponse.redirect(new URL('/giris?hata=onaylanmadi', req.url));
+    }
+
+    // 2. NextAuth üzerinden resmi giriş yapalım
+    // auth.ts içindeki "verify-token" Credentials sağlayıcısını tetikler
+    await signIn("verify-token", {
+      token: token,
+      redirect: false, // Manuel yönlendirme yapacağız
+    });
+
+    // 3. Başarılı girişten sonra ana sayfaya
+    const response = NextResponse.redirect(new URL('/?onay=basarili', req.url));
+    return response;
+
+  } catch (error) {
+    console.error("Otomatik giriş hatası:", error);
+    return NextResponse.redirect(new URL('/giris?hata=otomatik-giris-basarisiz', req.url));
   }
-
-  if (!user.epostaOnaylandi) {
-    return NextResponse.redirect(new URL('/giris?hata=onaylanmadi', req.url));
-  }
-
-  const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET!);
-  
-  const token = await new SignJWT({
-    email: user.email,
-    name: `${user.ad} ${user.soyad}`,
-    sub: String(user.id),
-    rol: user.hesapTuru,
-    isAdmin: user.isAdmin,
-  })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('30d')
-    .sign(secret);
-
-  const cookieStore = await cookies();
-  cookieStore.set('next-auth.session-token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 30 * 24 * 60 * 60,
-  });
-
-  return NextResponse.redirect(new URL('/', req.url));
 }
