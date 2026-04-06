@@ -5,9 +5,8 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // 1. Adapter eklemezsen sihirli bağlantı token'ları DB'ye yazılamaz
-  // @ts-ignore veya as any kullanarak tip uyuşmazlığını geçiyoruz
-adapter: PrismaAdapter(prisma) as any,
+  // Tip hatasını önlemek için as any ekledik
+  adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   providers: [
     Credentials({
@@ -24,9 +23,8 @@ adapter: PrismaAdapter(prisma) as any,
           where: { email: credentials.email as string }
         })
 
-        if (!user) return null
+        if (!user || !user.password) return null
 
-        // Şifre kontrolü
         const sifreDogru = await bcrypt.compare(
           credentials.password as string,
           user.password
@@ -34,9 +32,8 @@ adapter: PrismaAdapter(prisma) as any,
         
         if (!sifreDogru) return null
 
-        // E-posta onay kontrolü (Şifre doğruysa bakılır)
         if (!user.epostaOnaylandi) {
-          throw new Error("Lütfen giriş yapmadan önce e-posta adresinizi onaylayın.")
+          throw new Error("Lütfen e-posta adresinizi onaylayın.")
         }
 
         return {
@@ -48,7 +45,6 @@ adapter: PrismaAdapter(prisma) as any,
         }
       }
     }),
-    // Magic Link için özel authorize mantığı
     Credentials({
       id: "magic-link-verify",
       name: "magic-link-verify",
@@ -58,10 +54,10 @@ adapter: PrismaAdapter(prisma) as any,
       async authorize(credentials) {
         if (!credentials?.token) return null
 
+        // Token ile kullanıcıyı bul ve aynı zamanda onayla (veya onaylı mı bak)
         const user = await prisma.user.findFirst({
           where: { 
-            emailVerifyToken: credentials.token as string,
-            epostaOnaylandi: true // Sadece onaylıları alalım
+            emailVerifyToken: credentials.token as string
           }
         })
 
@@ -79,11 +75,10 @@ adapter: PrismaAdapter(prisma) as any,
   ],
   pages: {
     signIn: "/giris",
-    error: "/giris", // Hata durumunda giriş sayfasına dön
+    error: "/giris",
   },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      // İlk girişte user bilgilerini token'a yaz
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.rol = (user as any).rol;
@@ -92,7 +87,6 @@ adapter: PrismaAdapter(prisma) as any,
       return token;
     },
     async session({ session, token }) {
-      // Token'daki bilgileri session'a aktar
       if (session.user && token) {
         (session.user as any).id = token.id;
         (session.user as any).rol = token.rol;
