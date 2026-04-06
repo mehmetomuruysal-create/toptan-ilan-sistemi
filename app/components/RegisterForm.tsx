@@ -13,7 +13,10 @@ export default function RegisterForm() {
 
   const [form, setForm] = useState({
     hesapTuru: "ALICI",
-    ad: "", soyad: "", email: "", telefon: "", password: "", confirmPassword: "",
+    ad: "", soyad: "", email: "", 
+    ulkeKodu: "+90",           // ✅ EKLENDI: varsayılan ülke kodu
+    telefon: "", 
+    password: "", confirmPassword: "",
     firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: "",
     kvkk: false
   })
@@ -38,12 +41,18 @@ export default function RegisterForm() {
       setError("Şifreler eşleşmiyor.")
       return
     }
+    // Telefon kontrolü: 10 haneli olmalı (sadece rakam)
+    if (!/^\d{10}$/.test(form.telefon)) {
+      setError("Telefon numarası başında sıfır olmadan 10 haneli olmalıdır.")
+      return
+    }
     if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
       setError("Vergi Numarası 10 haneli olmalıdır.")
       return
     }
 
     setLoading(true)
+    // backend'e ulkeKodu da gönderiliyor
     const result = await registerUser(form)
     
     if (result.success) {
@@ -88,13 +97,27 @@ export default function RegisterForm() {
             <button type="button" onClick={() => setStep(1)} className="text-sm text-blue-600 hover:underline">Tür Değiştir</button>
           </div>
 
-          {/* AD - SOYAD (ayrı ayrı) */}
+          {/* AD - SOYAD */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <input type="text" placeholder="Ad" required className={inputClass} value={form.ad} onChange={e => updateForm("ad", e.target.value)} />
             <input type="text" placeholder="Soyad" required className={inputClass} value={form.soyad} onChange={e => updateForm("soyad", e.target.value)} />
           </div>
           
-          <input type="tel" placeholder="Telefon Numaranız" required className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value)} />
+          {/* TELEFON + ÜLKE KODU */}
+          <div className="flex gap-3">
+            <div className="w-1/3">
+              <select className={inputClass} value={form.ulkeKodu} onChange={e => updateForm("ulkeKodu", e.target.value)}>
+                <option value="+90">🇹🇷 Türkiye (+90)</option>
+                <option value="+1">🇺🇸 ABD (+1)</option>
+                <option value="+44">🇬🇧 İngiltere (+44)</option>
+                <option value="+49">🇩🇪 Almanya (+49)</option>
+              </select>
+            </div>
+            <div className="w-2/3">
+              <input type="tel" placeholder="Telefon (10 haneli, başında 0 olmadan)" required className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value.replace(/\D/g, '').slice(0,10))} />
+            </div>
+          </div>
+
           <input type="email" placeholder="E-posta Adresiniz" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
 
           {/* Şifre */}

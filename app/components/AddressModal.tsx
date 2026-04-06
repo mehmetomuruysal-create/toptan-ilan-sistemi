@@ -2,9 +2,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { adresEkle } from "@/app/actions/adres";
+import { MapPin, Plus, Star, Trash2, X } from "lucide-react"; // İkonlar eklendi
 
 interface Address {
-  id: number;
+  id: string; // API'de string yapmıştık
   baslik: string;
   teslimAlacakKisi: string;
   telefon: string;
@@ -43,10 +44,11 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
   useEffect(() => {
     if (isOpen && session) {
       fetchAddresses();
+      setFormVisible(false); // Modal açıldığında hep listeyi göster
     }
   }, [isOpen, session]);
 
-  const deleteAddress = async (id: number) => {
+  const deleteAddress = async (id: string) => {
     if (!confirm("Bu adresi silmek istediğinize emin misiniz?")) return;
     const res = await fetch(`/api/adres/${id}`, { method: "DELETE" });
     if (res.ok) {
@@ -56,7 +58,7 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
     }
   };
 
-  const setDefault = async (id: number, tip: "teslimat" | "fatura") => {
+  const setDefault = async (id: string, tip: "teslimat" | "fatura") => {
     const res = await fetch(`/api/adres/${id}/varsayilan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -83,22 +85,21 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
       mahalle: formData.get("mahalle") as string || undefined,
       adresSatiri: formData.get("adresSatiri") as string,
       postaKodu: formData.get("postaKodu") as string || undefined,
-      isVarsayilanTeslimat: formData.has("isVarsayilanTeslimat"),
-      isVarsayilanFatura: formData.has("isVarsayilanFatura"),
-      faturaTuru,
-      tcKimlik: faturaTuru === "BIREYSEL" ? (formData.get("tcKimlik") as string) : undefined,
-      firmaAdi: faturaTuru === "KURUMSAL" ? (formData.get("firmaAdi") as string) : undefined,
-      vergiDairesi: faturaTuru === "KURUMSAL" ? (formData.get("vergiDairesi") as string) : undefined,
-      vergiNo: faturaTuru === "KURUMSAL" ? (formData.get("vergiNo") as string) : undefined,
+      isVarsayilanTeslimat: formData.get("isVarsayilanTeslimat") === "on",
+      isVarsayilanFatura: formData.get("isVarsayilanFatura") === "on",
+      faturaTuru: faturaTuru,
+      tcKimlik: faturaTuru === "BIREYSEL" ? formData.get("tcKimlik") as string : undefined,
+      firmaAdi: faturaTuru === "KURUMSAL" ? formData.get("firmaAdi") as string : undefined,
+      vergiDairesi: faturaTuru === "KURUMSAL" ? formData.get("vergiDairesi") as string : undefined,
+      vergiNo: faturaTuru === "KURUMSAL" ? formData.get("vergiNo") as string : undefined,
     };
-    const result = await adresEkle(data);
-    if (result.success) {
-      setMessage("Adres başarıyla eklendi!");
-      if (formRef.current) formRef.current.reset();
-      setFormVisible(false);
-      fetchAddresses();
+
+    const res = await adresEkle(data);
+    if (res.success) {
+      setFormVisible(false); // Başarılıysa formu kapat
+      fetchAddresses();      // Listeyi yenile
     } else {
-      setMessage(result.error || "Bir hata oluştu");
+      setMessage(res.error || "Bir hata oluştu");
     }
     setFormLoading(false);
   };
@@ -106,92 +107,184 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold">Adreslerim</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-        </div>
-        <div className="p-6">
-          <button
-            onClick={() => setFormVisible(!formVisible)}
-            className="mb-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            + Yeni Adres Ekle
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
+      <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto transform transition-all">
+        {/* Modal Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center rounded-t-2xl">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <MapPin className="text-blue-600" /> 
+            {formVisible ? "Yeni Adres Ekle" : "Adreslerim"}
+          </h2>
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition">
+            <X size={20} />
           </button>
+        </div>
 
-          {formVisible && (
-            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-              <h3 className="font-semibold mb-3">Yeni Adres Ekle</h3>
-              <form ref={formRef} onSubmit={handleSubmit} className="space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input name="baslik" placeholder="Başlık (Ev, İş)" required className="border rounded px-3 py-2" />
-                  <input name="teslimAlacakKisi" placeholder="Teslim Alacak Kişi" required className="border rounded px-3 py-2" />
-                  <input name="telefon" placeholder="Telefon" required className="border rounded px-3 py-2" />
-                  <input name="il" placeholder="İl" required className="border rounded px-3 py-2" />
-                  <input name="ilce" placeholder="İlçe" required className="border rounded px-3 py-2" />
-                  <input name="mahalle" placeholder="Mahalle (Opsiyonel)" className="border rounded px-3 py-2" />
-                </div>
-                <textarea name="adresSatiri" placeholder="Adres (Sokak, Bina, Daire)" required className="border rounded px-3 py-2 w-full" rows={2} />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <input name="postaKodu" placeholder="Posta Kodu (Opsiyonel)" className="border rounded px-3 py-2" />
-                </div>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2"><input type="checkbox" name="isVarsayilanTeslimat" /> Varsayılan Teslimat</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" name="isVarsayilanFatura" /> Varsayılan Fatura</label>
+        <div className="p-6">
+          {formVisible ? (
+            /* --- YENİ ADRES FORMU --- */
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
+              <button 
+                type="button" 
+                onClick={() => setFormVisible(false)} 
+                className="text-sm font-medium text-blue-600 hover:text-blue-800 mb-4 inline-block"
+              >
+                &larr; Adres Listesine Dön
+              </button>
+              
+              {message && <div className="p-3 bg-red-50 text-red-600 rounded-lg">{message}</div>}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Adres Başlığı (Örn: Ev, Ofis)</label>
+                  <input type="text" name="baslik" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block font-medium">Fatura Türü</label>
-                  <div className="flex gap-4 mt-1">
-                    <label className="flex items-center gap-2"><input type="radio" name="faturaTuruR" checked={faturaTuru === "BIREYSEL"} onChange={() => setFaturaTuru("BIREYSEL")} /> Bireysel</label>
-                    <label className="flex items-center gap-2"><input type="radio" name="faturaTuruR" checked={faturaTuru === "KURUMSAL"} onChange={() => setFaturaTuru("KURUMSAL")} /> Kurumsal</label>
-                  </div>
+                  <label className="block text-sm font-medium text-gray-700">Teslim Alacak Kişi</label>
+                  <input type="text" name="teslimAlacakKisi" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
                 </div>
-                {faturaTuru === "BIREYSEL" && <input name="tcKimlik" placeholder="TC Kimlik No" className="border rounded px-3 py-2 w-full" />}
-                {faturaTuru === "KURUMSAL" && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input name="firmaAdi" placeholder="Firma Adı" className="border rounded px-3 py-2" />
-                    <input name="vergiDairesi" placeholder="Vergi Dairesi" className="border rounded px-3 py-2" />
-                    <input name="vergiNo" placeholder="Vergi No" className="border rounded px-3 py-2" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Telefon</label>
+                <input type="tel" name="telefon" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">İl</label>
+                  <input type="text" name="il" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">İlçe</label>
+                  <input type="text" name="ilce" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Açık Adres</label>
+                <textarea name="adresSatiri" rows={3} required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"></textarea>
+              </div>
+
+              <div className="flex gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="checkbox" name="isVarsayilanTeslimat" className="w-4 h-4 text-blue-600 rounded" />
+                  Varsayılan Teslimat Adresi Yap
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                  <input type="checkbox" name="isVarsayilanFatura" className="w-4 h-4 text-blue-600 rounded" />
+                  Varsayılan Fatura Adresi Yap
+                </label>
+              </div>
+
+              {/* Fatura Bilgileri */}
+              <div className="border-t pt-4 mt-6">
+                <h3 className="font-semibold text-gray-800 mb-3">Fatura Bilgileri</h3>
+                <div className="flex gap-4 mb-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="radio" checked={faturaTuru === "BIREYSEL"} onChange={() => setFaturaTuru("BIREYSEL")} className="w-4 h-4 text-blue-600" />
+                    Bireysel
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="radio" checked={faturaTuru === "KURUMSAL"} onChange={() => setFaturaTuru("KURUMSAL")} className="w-4 h-4 text-blue-600" />
+                    Kurumsal
+                  </label>
+                </div>
+
+                {faturaTuru === "BIREYSEL" ? (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">TC Kimlik No (İsteğe Bağlı)</label>
+                    <input type="text" name="tcKimlik" maxLength={11} className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">Firma Adı</label>
+                      <input type="text" name="firmaAdi" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Vergi Dairesi</label>
+                      <input type="text" name="vergiDairesi" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Vergi No</label>
+                      <input type="text" name="vergiNo" required className="mt-1 w-full p-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
                   </div>
                 )}
-                <button type="submit" disabled={formLoading} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
-                  {formLoading ? "Kaydediliyor..." : "Kaydet"}
-                </button>
-                {message && <p className="text-sm text-gray-600">{message}</p>}
-              </form>
-            </div>
-          )}
+              </div>
 
-          {loading ? (
-            <p>Yükleniyor...</p>
-          ) : addresses.length === 0 ? (
-            <p className="text-gray-500">Henüz adres eklememişsiniz.</p>
+              <button 
+                type="submit" 
+                disabled={formLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-xl font-bold text-lg hover:shadow-lg hover:opacity-90 transition disabled:opacity-50 mt-6"
+              >
+                {formLoading ? "Kaydediliyor..." : "Adresi Kaydet"}
+              </button>
+            </form>
           ) : (
-            <div className="space-y-3">
-              {addresses.map((adres) => (
-                <div key={adres.id} className="border rounded-lg p-4 bg-white shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold">{adres.baslik}</h3>
-                      {adres.isVarsayilanTeslimat && <span className="inline-block bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded mt-1">Varsayılan Teslimat</span>}
-                      {adres.isVarsayilanFatura && <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded mt-1 ml-2">Varsayılan Fatura</span>}
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => deleteAddress(adres.id)} className="text-red-500 hover:text-red-700 text-sm">Sil</button>
-                    </div>
+            /* --- ADRESLER LİSTESİ --- */
+            <div className="animate-in fade-in">
+              <button 
+                onClick={() => setFormVisible(true)} 
+                className="w-full flex items-center justify-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-4 py-3 rounded-xl hover:bg-blue-100 transition-colors font-medium mb-6"
+              >
+                <Plus size={18} /> Yeni Adres Ekle
+              </button>
+
+              {loading ? (
+                <div className="text-center py-8 text-gray-500">Yükleniyor...</div>
+              ) : addresses.length === 0 ? (
+                /* BOŞ DURUM (Empty State) Tasarımı */
+                <div className="bg-gradient-to-b from-gray-50 to-white p-10 text-center rounded-2xl border-2 border-dashed border-gray-200">
+                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Star size={32} />
                   </div>
-                  <div className="mt-2 text-sm text-gray-600">
-                    <p>{adres.teslimAlacakKisi} - {adres.telefon}</p>
-                    <p>{adres.adresSatiri}, {adres.mahalle ? adres.mahalle + ", " : ""}{adres.ilce}/{adres.il}</p>
-                    {adres.postaKodu && <p>{adres.postaKodu}</p>}
-                  </div>
-                  <div className="mt-2 flex gap-2 text-xs">
-                    {!adres.isVarsayilanTeslimat && <button onClick={() => setDefault(adres.id, "teslimat")} className="bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Varsayılan Teslimat Yap</button>}
-                    {!adres.isVarsayilanFatura && <button onClick={() => setDefault(adres.id, "fatura")} className="bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded">Varsayılan Fatura Yap</button>}
-                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">Henüz Bir Adres Eklenmedi</h3>
+                  <p className="text-gray-500 mb-6 text-sm">Siparişlerinizin size hızlıca ulaşması için hemen bir teslimat adresi oluşturun.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {addresses.map((adres) => (
+                    /* KART Tasarımı */
+                    <div key={adres.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
+                      
+                      {/* Varsayılan Etiketleri */}
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        {adres.isVarsayilanTeslimat && (
+                          <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">Teslimat</span>
+                        )}
+                        {adres.isVarsayilanFatura && (
+                          <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">Fatura</span>
+                        )}
+                      </div>
+                      
+                      <h3 className="font-bold text-lg text-gray-800 mb-1">{adres.baslik}</h3>
+                      <p className="text-gray-600 text-sm font-medium">{adres.teslimAlacakKisi} • {adres.telefon}</p>
+                      <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+                        {adres.adresSatiri} <br />
+                        {adres.ilce} / {adres.il}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-50">
+                        {!adres.isVarsayilanTeslimat && (
+                          <button onClick={() => setDefault(adres.id, "teslimat")} className="text-xs font-medium text-gray-500 hover:text-green-600 transition flex items-center gap-1">
+                            <Star size={14} /> Varsayılan Teslimat
+                          </button>
+                        )}
+                        {!adres.isVarsayilanFatura && (
+                          <button onClick={() => setDefault(adres.id, "fatura")} className="text-xs font-medium text-gray-500 hover:text-indigo-600 transition flex items-center gap-1">
+                            <Star size={14} /> Varsayılan Fatura
+                          </button>
+                        )}
+                        <button onClick={() => deleteAddress(adres.id)} className="text-xs font-medium text-red-400 hover:text-red-600 transition flex items-center gap-1 ml-auto">
+                          <Trash2 size={14} /> Sil
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
