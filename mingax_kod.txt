@@ -89,7 +89,6 @@ app/
     MobileMenu.tsx
     RegisterForm.tsx
     RegisterModal.tsx
-    Untitled
   eposta-onay/
     page.tsx
   giris/
@@ -103,9 +102,14 @@ app/
       page.tsx
   ilan/
     [id]/
+      BaremSecici.tsx
       page.tsx
   ilan-ekle/
     page.tsx
+  katil/
+    [baremId]/
+      KatilimFormu.tsx
+      page.tsx
   kayit/
     page.tsx
   sifre-yenile/
@@ -433,57 +437,6 @@ export async function GET() {
 <file path="app/api/auth/[...nextauth]/route.ts">
 import { handlers } from "@/auth"
 export const { GET, POST } = handlers
-</file>
-
-<file path="app/api/ilan-ekle/route.ts">
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { auth } from "@/auth"
-
-export async function POST(req: Request) {
-  const session = await auth()
-
-  if (!session || (session.user as any)?.rol !== "satici") {
-    return NextResponse.json({ hata: "Yetkisiz erişim" }, { status: 401 })
-  }
-
-  const body = await req.json()
-  const {
-    baslik, aciklama, urunUrl, kategori,
-    perakendeFiyat, toptanFiyat, hedefSayi,
-    hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
-    bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani
-  } = body
-
-  if (!baslik || !perakendeFiyat || !toptanFiyat || !hedefSayi || !bitisTarihi) {
-    return NextResponse.json({ hata: "Zorunlu alanlar eksik" }, { status: 400 })
-  }
-
-  if (toptanFiyat >= perakendeFiyat) {
-    return NextResponse.json({ hata: "Toptan fiyat perakende fiyattan düşük olmalı" }, { status: 400 })
-  }
-
-  const kullanici = await prisma.user.findUnique({
-    where: { email: session.user!.email! }
-  })
-
-  if (!kullanici) {
-    return NextResponse.json({ hata: "Kullanıcı bulunamadı" }, { status: 404 })
-  }
-
-  const ilan = await prisma.listing.create({
-    data: {
-      baslik, aciklama, urunUrl, kategori,
-      perakendeFiyat, toptanFiyat, hedefSayi,
-      hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
-      bitisTarihi: new Date(bitisTarihi),
-      teslimatYontemi, indirimOrani, depozitoOrani,
-      saticiId: kullanici.id,
-    }
-  })
-
-  return NextResponse.json({ mesaj: "İlan eklendi", ilan }, { status: 201 })
-}
 </file>
 
 <file path="app/components/AddressButton.tsx">
@@ -841,305 +794,6 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
 }
 </file>
 
-<file path="app/components/AuthButtons.tsx">
-"use client"
-import { useState } from "react"
-import RegisterModal from "./RegisterModal"
-import LoginModal from "./LoginModal"
-
-export default function AuthButtons() {
-  const[isRegisterOpen, setIsRegisterOpen] = useState(false)
-  const [isLoginOpen, setIsLoginOpen] = useState(false)
-
-  return (
-    <>
-      <button 
-        onClick={() => setIsLoginOpen(true)} 
-        className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
-      >
-        Giriş Yap
-      </button>
-      
-      <button 
-        onClick={() => setIsRegisterOpen(true)} 
-        className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 hover:shadow-md transition-all"
-      >
-        Kayıt Ol
-      </button>
-
-      {/* Kayıt Modalı */}
-      <RegisterModal 
-        isOpen={isRegisterOpen} 
-        onClose={() => setIsRegisterOpen(false)} 
-      />
-
-      {/* Giriş Modalı */}
-      <LoginModal 
-        isOpen={isLoginOpen} 
-        onClose={() => setIsLoginOpen(false)}
-        onOpenRegister={() => setIsRegisterOpen(true)} // "Hesabım yok, kayıt ol" butonu için
-      />
-    </>
-  )
-}
-</file>
-
-<file path="app/components/MobileMenu.tsx">
-"use client";
-import { useState } from "react";
-import Link from "next/link";
-import { signOut, useSession } from "next-auth/react";
-
-export default function MobileMenu() {
-  const { data: session } = useSession();
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <>
-      {/* Hamburger Icon */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 md:hidden"
-        aria-label="Menu"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
-      {/* Mobile Drawer */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 md:hidden">
-          <div className="flex justify-end p-4">
-            <button onClick={() => setIsOpen(false)} className="p-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <nav className="flex flex-col items-center gap-4 p-8">
-            {session ? (
-              <>
-                <span className="text-lg font-medium">Hoş geldin, {session.user?.name}</span>
-                {(session.user as any)?.rol === "satici" && (
-                  <Link href="/ilan-ekle" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
-                    + İlan Ekle
-                  </Link>
-                )}
-                {(session.user as any)?.isAdmin && (
-                  <Link href="/admin" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-purple-600 text-white rounded-xl">
-                    Admin Panel
-                  </Link>
-                )}
-                <button
-                  onClick={() => signOut()}
-                  className="w-full py-3 bg-red-500 text-white rounded-xl"
-                >
-                  Çıkış Yap
-                </button>
-              </>
-            ) : (
-              <>
-                <Link href="/giris" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-gray-200 rounded-xl">
-                  Giriş Yap
-                </Link>
-                <Link href="/kayit" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
-                  Kayıt Ol
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-      )}
-    </>
-  );
-}
-</file>
-
-<file path="app/components/Untitled">
-"use client"
-import { useState, useEffect } from "react"
-import { registerUser } from "@/app/actions/register"
-
-export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-  
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-
-  const [form, setForm] = useState({
-    hesapTuru: "ALICI",
-    adSoyad: "", email: "", telefon: "", password: "", confirmPassword: "",
-    firmaAdi: "", vergiNo: "", vergiDairesi: "", adres: "", teslimatAdresi: "",
-    kvkk: false
-  })
-
-  // Modal açıldığında arkadaki sayfanın kaydırılmasını (scroll) engelle (İnsan psikolojisi için odaklanma sağlar)
-  useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = 'unset'
-    return () => { document.body.style.overflow = 'unset' }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  const updateForm = (field: string, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (form.password !== form.confirmPassword) {
-      return setError("Şifreleriniz birbiriyle eşleşmiyor, lütfen kontrol edin.")
-    }
-    if (form.hesapTuru === "SATICI" && form.vergiNo.length !== 10) {
-      return setError("Vergi Numarası tam olarak 10 haneli olmalıdır.")
-    }
-
-    setLoading(true)
-    const result = await registerUser(form)
-    
-    if (result.success) {
-      setSuccess(true)
-      setTimeout(() => {
-        onClose()
-        setSuccess(false)
-        setStep(1)
-      }, 3000)
-    } else {
-      setError(result.error || "Beklenmeyen bir hata oluştu, lütfen tekrar deneyin.")
-      setLoading(false)
-    }
-  }
-
-  const inputClass = "w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-3.5 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      {/* Arka plan bulanıklığı (Tıklayınca kapanır) */}
-      <div 
-        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      ></div>
-
-      {/* Modal Kutusu */}
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] p-8 sm:p-10 animate-in fade-in zoom-in-95 duration-300 scrollbar-hide">
-        
-        <button 
-          onClick={onClose} 
-          className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors"
-        >
-          ✕
-        </button>
-
-        {success ? (
-          <div className="text-center py-12 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">
-              ✓
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Kayıt Başarılı!</h2>
-            <p className="text-gray-500">Mingax ailesine hoş geldiniz.<br/>Birazdan giriş yapabileceksiniz.</p>
-          </div>
-        ) : (
-          <>
-            <div className="text-center mb-8">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">Mingax'a Katıl</h1>
-              <p className="text-sm sm:text-base text-gray-500 mt-2">Profesyonel toptan alışveriş ağına hoş geldiniz.</p>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-r-lg mb-6 text-sm animate-in shake duration-300">
-                {error}
-              </div>
-            )}
-
-            {step === 1 && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <h2 className="text-sm font-semibold text-gray-400 tracking-wider uppercase text-center">Hesap Türünüzü Seçin</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <button onClick={() => { updateForm("hesapTuru", "ALICI"); setStep(2); }} className="relative flex flex-col items-center p-8 border-2 border-gray-100 rounded-2xl hover:border-blue-500 hover:shadow-lg transition-all duration-200 group bg-white">
-                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">🛒</div>
-                    <div className="font-bold text-gray-900">ALICI OLUYORUM</div>
-                    <div className="text-xs text-gray-500 mt-2 text-center">Toptan fiyatına avantajlı ürünler almak istiyorum</div>
-                  </button>
-                  <button onClick={() => { updateForm("hesapTuru", "SATICI"); setStep(2); }} className="relative flex flex-col items-center p-8 border-2 border-gray-100 rounded-2xl hover:border-green-500 hover:shadow-lg transition-all duration-200 group bg-white">
-                    <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">🏪</div>
-                    <div className="font-bold text-gray-900">SATICI OLUYORUM</div>
-                    <div className="text-xs text-gray-500 mt-2 text-center">Ürünlerimi toptan ve güvenle satmak istiyorum</div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 2 && (
-              <form onSubmit={handleSubmit} className="space-y-5 animate-in slide-in-from-right-8 duration-500">
-                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{form.hesapTuru === "ALICI" ? "🛒" : "🏪"}</span>
-                    <span className="font-bold text-gray-800">
-                      {form.hesapTuru === "ALICI" ? "Alıcı Kaydı" : "Satıcı Kaydı"}
-                    </span>
-                  </div>
-                  <button type="button" onClick={() => setStep(1)} className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors">
-                    ← Tür Değiştir
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input type="text" placeholder="Adınız ve Soyadınız" required className={inputClass} value={form.adSoyad} onChange={e => updateForm("adSoyad", e.target.value)} />
-                  <input type="tel" placeholder="Telefon Numaranız" required className={inputClass} value={form.telefon} onChange={e => updateForm("telefon", e.target.value)} />
-                </div>
-                
-                <input type="email" placeholder="E-posta Adresiniz" required className={inputClass} value={form.email} onChange={e => updateForm("email", e.target.value)} />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Şifre Belirleyin" required minLength={8} className={inputClass} value={form.password} onChange={e => updateForm("password", e.target.value)} />
-                    <button type="button" onMouseDown={() => setShowPassword(true)} onMouseUp={() => setShowPassword(false)} onMouseLeave={() => setShowPassword(false)} className="absolute right-4 top-3.5 text-gray-400 hover:text-blue-600 transition-colors">👁️</button>
-                  </div>
-                  <div className="relative">
-                    <input type={showConfirm ? "text" : "password"} placeholder="Şifreyi Tekrar Girin" required minLength={8} className={inputClass} value={form.confirmPassword} onChange={e => updateForm("confirmPassword", e.target.value)} />
-                    <button type="button" onMouseDown={() => setShowConfirm(true)} onMouseUp={() => setShowConfirm(false)} onMouseLeave={() => setShowConfirm(false)} className="absolute right-4 top-3.5 text-gray-400 hover:text-blue-600 transition-colors">👁️</button>
-                  </div>
-                </div>
-
-                {form.hesapTuru === "SATICI" && (
-                  <div className="p-6 bg-gray-50/50 rounded-2xl space-y-4 border border-gray-100 mt-2">
-                    <h3 className="font-semibold text-gray-900 mb-1">🏢 Kurumsal Bilgiler</h3>
-                    <input type="text" placeholder="Firma / Şirket Adı" required className={inputClass} value={form.firmaAdi} onChange={e => updateForm("firmaAdi", e.target.value)} />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <input type="text" placeholder="Vergi Dairesi" required className={inputClass} value={form.vergiDairesi} onChange={e => updateForm("vergiDairesi", e.target.value)} />
-                      <input type="text" placeholder="Vergi Numarası (10 Hane)" required maxLength={10} className={inputClass} value={form.vergiNo} onChange={e => updateForm("vergiNo", e.target.value.replace(/\D/g, ''))} />
-                    </div>
-                    <textarea placeholder="Firma Adresiniz" required rows={2} className={inputClass} value={form.adres} onChange={e => updateForm("adres", e.target.value)} />
-                  </div>
-                )}
-
-                <div className="flex items-start gap-3 mt-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
-                  <input type="checkbox" id="kvkk" required checked={form.kvkk} onChange={e => updateForm("kvkk", e.target.checked)} className="mt-1 w-5 h-5 text-blue-600 rounded focus:ring-blue-500 border-gray-300" />
-                  <label htmlFor="kvkk" className="text-sm text-gray-600 cursor-pointer leading-relaxed">
-                    <a href="#" className="text-blue-600 font-medium hover:underline">KVKK Aydınlatma Metni</a>'ni ve <a href="#" className="text-blue-600 font-medium hover:underline">Üyelik Sözleşmesi</a>'ni okudum, platform kurallarını kabul ediyorum.
-                  </label>
-                </div>
-
-                <button type="submit" disabled={loading || !form.kvkk} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2">
-                  {loading ? "Hesap Oluşturuluyor..." : "HESABIMI OLUŞTUR"}
-                </button>
-              </form>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  )
-}
-</file>
-
 <file path="app/hesabim/adresler/yeni/page.tsx">
 "use client"
 import { useState } from "react"
@@ -1300,518 +954,146 @@ export default async function AdreslerPage() {
 }
 </file>
 
-<file path="app/ilan-ekle/page.tsx">
+<file path="app/ilan/[id]/BaremSecici.tsx">
 "use client"
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { CheckCircle2, Users, ArrowRight, ShieldCheck, Clock } from "lucide-react"
+import Link from "next/link"
 
-const KATEGORILER = [
-  { value: "elektronik", label: "💻 Elektronik & Bilişim" },
-  { value: "temizlik", label: "🧴 Temizlik & Hijyen" },
-  { value: "ofis", label: "🖨 Ofis Malzemeleri" },
-  { value: "hammadde", label: "🏭 Hammadde & Sanayi" },
-  { value: "endustri", label: "🛠 Endüstriyel Ekipman" },
-  { value: "ambalaj", label: "📦 Ambalaj & Lojistik" },
-  { value: "spor", label: "🏋️ Spor & Yaşam" },
-  { value: "gida", label: "🍽 Gıda & İçecek" },
-  { value: "insaat", label: "🏗 İnşaat & Yapı" },
-  { value: "saglik", label: "🏥 Sağlık & Medikal" },
-  { value: "diger", label: "📦 Diğer" },
-]
-
-export default function IlanEklePage() {
-  const router = useRouter()
-  const [adim, setAdim] = useState(1)
-  const [hata, setHata] = useState("")
-  const [yukleniyor, setYukleniyor] = useState(false)
-
-  const [form, setForm] = useState({
-    // Adım 1
-    urunUrl: "",
-    baslik: "",
-    aciklama: "",
-    kategori: "diger",
-    perakendeFiyat: "",
-    toptanFiyat: "",
-    // Adım 2
-    hedefKitle: "hepsi",
-    minMiktarBireysel: "1",
-    minMiktarKobi: "5",
-    minMiktarKurumsal: "20",
-    hedefSayi: "",
-    bitisTarihi: "",
-    teslimatYontemi: "kargo",
-    indirimOrani: "15",
-    // Adım 3
-    depozitoOrani: "30",
-    sozlesmeOnay: false,
-    vazgecmeOnay: false,
-  })
-
-  function guncelle(alan: string, deger: string | boolean) {
-    setForm(prev => ({ ...prev, [alan]: deger }))
-  }
-
-  async function handleSubmit() {
-    setYukleniyor(true)
-    setHata("")
-    const res = await fetch("/api/ilan-ekle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...form,
-        perakendeFiyat: parseFloat(form.perakendeFiyat),
-        toptanFiyat: parseFloat(form.toptanFiyat),
-        hedefSayi: parseInt(form.hedefSayi),
-        minMiktarBireysel: parseInt(form.minMiktarBireysel),
-        minMiktarKobi: parseInt(form.minMiktarKobi),
-        minMiktarKurumsal: parseInt(form.minMiktarKurumsal),
-        indirimOrani: parseInt(form.indirimOrani),
-        depozitoOrani: parseInt(form.depozitoOrani),
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      setHata(data.hata || "Bir hata oluştu")
-      setYukleniyor(false)
-    } else {
-      router.push("/")
-    }
-  }
-
-  const indirimYuzde = form.perakendeFiyat && form.toptanFiyat
-    ? Math.round((1 - parseFloat(form.toptanFiyat) / parseFloat(form.perakendeFiyat)) * 100)
-    : 0
+export default function BaremSecici({ baremler, perakendeFiyat, depozitoOrani, kalanGun }: any) {
+  const [seciliBaremId, setSeciliBaremId] = useState(baremler[0]?.id)
+  const seciliBarem = baremler.find((b: any) => b.id === seciliBaremId) || baremler[0]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
-          <a href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</a>
-          <span className="text-sm text-gray-500">Adım {adim} / 4</span>
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      {/* Üst Kısım: Zaman Sayacı */}
+      <div className="bg-gray-900 p-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-white">
+          <Clock size={18} className="text-yellow-400" />
+          <span className="text-sm font-bold uppercase tracking-tight">Kalan Süre:</span>
         </div>
-      </nav>
-
-      {/* Progress Bar */}
-      <div className="bg-white border-b">
-        <div className="max-w-3xl mx-auto px-4 py-3">
-          <div className="flex gap-2">
-            {["Ürün Bilgisi", "İhale Koşulları", "Depozito", "Önizleme"].map((label, i) => (
-              <div key={i} className="flex-1">
-                <div className={`h-2 rounded-full ${i + 1 <= adim ? "bg-blue-600" : "bg-gray-200"}`} />
-                <p className={`text-xs mt-1 text-center ${i + 1 === adim ? "text-blue-600 font-medium" : "text-gray-400"}`}>
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <span className={`text-sm font-black px-3 py-1 rounded-lg ${kalanGun <= 2 ? 'bg-red-500 animate-pulse' : 'bg-gray-800'} text-white`}>
+          {kalanGun} GÜN
+        </span>
       </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
-        {hata && <p className="text-red-500 mb-4 bg-red-50 p-3 rounded-lg">{hata}</p>}
+      <div className="p-6">
+        <h3 className="text-lg font-black text-gray-900 mb-4 flex items-center gap-2">
+          <Users className="text-blue-600" size={20} />
+          Fiyat Kademeleri
+        </h3>
 
-        {/* ── ADIM 1: ÜRÜN BİLGİSİ ── */}
-        {adim === 1 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
-            <h2 className="text-xl font-bold text-gray-800">📦 Ürün Bilgisi</h2>
+        {/* Dinamik Barem Kartları */}
+        <div className="space-y-3 mb-6">
+          {baremler.map((barem: any) => {
+            const isSelected = seciliBaremId === barem.id
+            const tasarruf = Math.round((1 - barem.fiyat / perakendeFiyat) * 100)
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ürün URL'si <span className="text-gray-400">(opsiyonel)</span>
-              </label>
-              <input
-                type="url"
-                value={form.urunUrl}
-                onChange={e => guncelle("urunUrl", e.target.value)}
-                placeholder="https://www.trendyol.com/urun/..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-400 mt-1">Ürün linkini girin, bilgiler otomatik doldurulacak (yakında)</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                İlan Başlığı <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.baslik}
-                onChange={e => guncelle("baslik", e.target.value)}
-                placeholder="Örn: Organik Zeytinyağı 5L Teneke"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
-              <select
-                value={form.kategori}
-                onChange={e => guncelle("kategori", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            return (
+              <div
+                key={barem.id}
+                onClick={() => setSeciliBaremId(barem.id)}
+                className={`group relative cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 ${
+                  isSelected 
+                    ? "border-blue-600 bg-blue-50 shadow-lg shadow-blue-100" 
+                    : "border-gray-100 bg-white hover:border-blue-200"
+                }`}
               >
-                {KATEGORILER.map(k => (
-                  <option key={k.value} value={k.value}>{k.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ürün Açıklaması</label>
-              <textarea
-                value={form.aciklama}
-                onChange={e => guncelle("aciklama", e.target.value)}
-                placeholder="Ürün hakkında detaylı bilgi verin..."
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-400 mt-1">{form.aciklama.length} / 1000 karakter</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Perakende Fiyat (₺) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.perakendeFiyat}
-                  onChange={e => guncelle("perakendeFiyat", e.target.value)}
-                  placeholder="250"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Toptan Fiyat (₺) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.toptanFiyat}
-                  onChange={e => guncelle("toptanFiyat", e.target.value)}
-                  placeholder="180"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            {indirimYuzde > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-700 text-sm font-medium">
-                ✅ %{indirimYuzde} indirim — Alıcılar bu fiyatla alacak
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                if (!form.baslik || !form.perakendeFiyat || !form.toptanFiyat) {
-                  setHata("Başlık ve fiyat alanları zorunludur")
-                  return
-                }
-                if (parseFloat(form.toptanFiyat) >= parseFloat(form.perakendeFiyat)) {
-                  setHata("Toptan fiyat perakende fiyattan düşük olmalı")
-                  return
-                }
-                setHata("")
-                setAdim(2)
-              }}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-            >
-              Devam Et →
-            </button>
-          </div>
-        )}
-
-        {/* ── ADIM 2: İHALE KOŞULLARI ── */}
-        {adim === 2 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
-            <h2 className="text-xl font-bold text-gray-800">⚙️ İhale Koşulları</h2>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hedef Katılımcı Kitlesi</label>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { value: "hepsi", label: "🌐 Hepsi" },
-                  { value: "bireysel", label: "👤 Bireysel" },
-                  { value: "kobi", label: "🏪 KOBİ" },
-                  { value: "kurumsal", label: "🏢 Kurumsal" },
-                ].map(k => (
-                  <button
-                    key={k.value}
-                    type="button"
-                    onClick={() => guncelle("hedefKitle", k.value)}
-                    className={`p-3 rounded-lg border-2 text-sm font-medium transition ${
-                      form.hedefKitle === k.value
-                        ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    {k.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Sipariş Miktarları</label>
-              <div className="space-y-3">
-                {[
-                  { key: "minMiktarBireysel", label: "👤 Bireysel" },
-                  { key: "minMiktarKobi", label: "🏪 KOBİ / Esnaf" },
-                  { key: "minMiktarKurumsal", label: "🏢 Kurumsal" },
-                ].map(item => (
-                  <div key={item.key} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-36">{item.label}</span>
-                    <input
-                      type="number"
-                      value={form[item.key as keyof typeof form] as string}
-                      onChange={e => guncelle(item.key, e.target.value)}
-                      min="1"
-                      className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-400">adet</span>
+                <div className="flex justify-between items-center">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        HEDEF: {barem.miktar} ADET
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-gray-900 leading-none">₺{barem.fiyat}</span>
+                      <span className="text-xs font-bold text-green-600">%{tasarruf} İndirim</span>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Hedef Toplam Adet <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  value={form.hedefSayi}
-                  onChange={e => guncelle("hedefSayi", e.target.value)}
-                  placeholder="50"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bitiş Tarihi <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={form.bitisTarihi}
-                  onChange={e => guncelle("bitisTarihi", e.target.value)}
-                  min={new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Teslimat Yöntemi</label>
-              <select
-                value={form.teslimatYontemi}
-                onChange={e => guncelle("teslimatYontemi", e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="kargo">🏠 Her adrese ayrı kargo</option>
-                <option value="merkezi">📍 Merkezi teslim noktası</option>
-                <option value="depo">🏭 Alıcı depoya teslim</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hedef İndirim Oranı: %{form.indirimOrani}
-              </label>
-              <input
-                type="range"
-                min="5"
-                max="40"
-                value={form.indirimOrani}
-                onChange={e => guncelle("indirimOrani", e.target.value)}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>%5</span><span>%40</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAdim(1)}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                ← Geri
-              </button>
-              <button
-                onClick={() => {
-                  if (!form.hedefSayi || !form.bitisTarihi) {
-                    setHata("Hedef adet ve bitiş tarihi zorunludur")
-                    return
-                  }
-                  setHata("")
-                  setAdim(3)
-                }}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Devam Et →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── ADIM 3: DEPOZİTO ── */}
-        {adim === 3 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6 space-y-5">
-            <h2 className="text-xl font-bold text-gray-800">💰 Depozito & Koşullar</h2>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Depozito Oranı: %{form.depozitoOrani}
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="50"
-                value={form.depozitoOrani}
-                onChange={e => guncelle("depozitoOrani", e.target.value)}
-                className="w-full"
-              />
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>%10</span><span>%50</span>
-              </div>
-            </div>
-
-            {form.toptanFiyat && (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-                <p className="font-medium text-gray-700">📊 Örnek Hesaplama</p>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Toptan fiyat</span>
-                  <span className="font-medium">₺{form.toptanFiyat}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Katılım anında ödenecek</span>
-                  <span className="font-medium text-orange-600">
-                    ₺{(parseFloat(form.toptanFiyat) * parseInt(form.depozitoOrani) / 100).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">İhale kapandığında kalan</span>
-                  <span className="font-medium">
-                    ₺{(parseFloat(form.toptanFiyat) * (1 - parseInt(form.depozitoOrani) / 100)).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.vazgecmeOnay}
-                  onChange={e => guncelle("vazgecmeOnay", e.target.checked)}
-                  className="mt-1"
-                />
-                <span className="text-sm text-orange-800">
-                  <strong>Vazgeçme Politikası:</strong> Katılımcı ihaleden çekilirse depozito iade edilmez ve platform güvence fonuna aktarılır. Bu kural ihale sayfasında açıkça belirtilir.
-                </span>
-              </label>
-            </div>
-
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.sozlesmeOnay}
-                  onChange={e => guncelle("sozlesmeOnay", e.target.checked)}
-                  className="mt-1"
-                />
-                <span className="text-sm text-gray-700">
-                  Platform <strong>Şartlar ve Koşullarını</strong> okudum ve kabul ediyorum.
-                </span>
-              </label>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAdim(2)}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                ← Geri
-              </button>
-              <button
-                onClick={() => {
-                  if (!form.vazgecmeOnay || !form.sozlesmeOnay) {
-                    setHata("Lütfen tüm onay kutularını işaretleyin")
-                    return
-                  }
-                  setHata("")
-                  setAdim(4)
-                }}
-                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Önizleme →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── ADIM 4: ÖNİZLEME ── */}
-        {adim === 4 && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">🔍 İlan Önizleme</h2>
-
-              <div className="bg-gray-50 rounded-xl p-5 border">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-bold text-lg text-gray-800">{form.baslik}</h3>
-                  <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-sm font-medium">
-                    %{indirimYuzde} indirim
-                  </span>
-                </div>
-                {form.aciklama && <p className="text-gray-500 text-sm mb-3">{form.aciklama}</p>}
-                <div className="flex gap-4 mb-3">
-                  <div>
-                    <p className="text-xs text-gray-400 line-through">₺{form.perakendeFiyat}</p>
-                    <p className="text-2xl font-bold text-blue-600">₺{form.toptanFiyat}</p>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    <p>Hedef: <strong>{form.hedefSayi} adet</strong></p>
-                    <p>Bitiş: <strong>{form.bitisTarihi}</strong></p>
-                    <p>Depozito: <strong>%{form.depozitoOrani}</strong></p>
+                  <div className="text-right">
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-200 text-transparent'}`}>
+                      <CheckCircle2 size={14} />
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                    👤 Bireysel min. {form.minMiktarBireysel} adet
-                  </span>
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                    🏪 KOBİ min. {form.minMiktarKobi} adet
-                  </span>
-                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                    🏢 Kurumsal min. {form.minMiktarKurumsal} adet
-                  </span>
-                </div>
               </div>
-            </div>
+            )
+          })}
+        </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAdim(3)}
-                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                ← Geri
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={yukleniyor}
-                className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
-              >
-                {yukleniyor ? "Yayınlanıyor..." : "🚀 İlanı Yayınla"}
-              </button>
-            </div>
+        {/* Katılım Özeti */}
+        <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-dashed border-gray-200">
+          <div className="flex justify-between items-center mb-3 text-sm">
+            <span className="text-gray-500 font-medium">Seçili Barem Hedefi:</span>
+            <span className="font-bold text-gray-900">{seciliBarem.miktar} Adet</span>
           </div>
-        )}
-      </main>
+          <div className="flex justify-between items-center mb-1 text-sm">
+            <span className="text-gray-500 font-medium">Depozito (%{depozitoOrani}):</span>
+            <span className="font-black text-orange-600">₺{((seciliBarem.fiyat * depozitoOrani) / 100).toFixed(2)}</span>
+          </div>
+          <p className="text-[10px] text-gray-400 italic text-center mt-3">
+             * Depozito, katılımınızı onaylamak için peşin alınır.
+          </p>
+        </div>
+
+        <Link
+          href={`/katil/${seciliBarem.id}`}
+          className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center justify-center gap-3 group"
+        >
+          ŞİMDİ KATIL
+          <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
+        </Link>
+
+        <div className="mt-4 flex items-center justify-center gap-2 text-gray-400">
+          <ShieldCheck size={16} />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Güvenli Escrow Ödeme</span>
+        </div>
+      </div>
     </div>
   )
+}
+</file>
+
+<file path="app/katil/[baremId]/page.tsx">
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { notFound, redirect } from "next/navigation";
+import KatilimFormu from "./KatilimFormu";
+
+export default async function KatilPage({ params }: { params: Promise<{ baremId: string }> }) {
+  const session = await auth();
+  if (!session) redirect("/giris");
+
+  const { baremId } = await params;
+
+  const barem = await prisma.barem.findUnique({
+    where: { id: parseInt(baremId) },
+    include: {
+      listing: {
+        include: { satici: true }
+      }
+    }
+  });
+
+  if (!barem) notFound();
+
+  // Kullanıcının adreslerini çekiyoruz (AddressModal'da kullandığımız mantıkla)
+  const adresler = await prisma.address.findMany({
+    where: { user: { email: session.user?.email! } }
+  });
+
+  return (
+    <main className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-2xl mx-auto px-4">
+        <KatilimFormu 
+          barem={barem} 
+          ilan={barem.listing} 
+          adresler={adresler} 
+        />
+      </div>
+    </main>
+  );
 }
 </file>
 
@@ -2706,6 +1988,87 @@ export async function GET(req: NextRequest) {
 }
 </file>
 
+<file path="app/api/ilan-ekle/route.ts">
+import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { auth } from "@/auth"
+
+export async function POST(req: Request) {
+  const session = await auth()
+
+  if (!session || !session.user?.email) {
+    return NextResponse.json({ hata: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 })
+  }
+
+  // 1. ÖNCE KULLANICIYI VERİTABANINDAN ÇEKİYORUZ
+  const kullanici = await prisma.user.findUnique({
+    where: { email: session.user.email }
+  })
+
+  // 2. YETKİ KONTROLÜNÜ VERİTABANINDAKİ "hesapTuru" İLE YAPIYORUZ
+  if (!kullanici || kullanici.hesapTuru !== "SATICI") {
+    return NextResponse.json({ hata: "Yetkisiz erişim. Sadece satıcı yetkisine sahip kullanıcılar ilan ekleyebilir." }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const {
+    baslik, aciklama, urunUrl, kategori, perakendeFiyat,
+    hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
+    bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani,
+    baremler
+  } = body
+
+  if (!baslik || !perakendeFiyat || !bitisTarihi) {
+    return NextResponse.json({ hata: "Zorunlu alanlar eksik" }, { status: 400 })
+  }
+
+  if (!baremler || baremler.length === 0) {
+    return NextResponse.json({ hata: "İlan oluşturmak için en az 1 adet barem girmelisiniz." }, { status: 400 })
+  }
+
+  const enYuksekBarem = baremler[baremler.length - 1]
+  const toptanFiyat = enYuksekBarem.fiyat
+  const hedefSayi = enYuksekBarem.miktar
+
+  if (toptanFiyat >= perakendeFiyat) {
+    return NextResponse.json({ hata: "Toptan fiyat (Barem fiyatı), perakende fiyattan düşük olmalıdır." }, { status: 400 })
+  }
+
+  try {
+    const ilan = await prisma.listing.create({
+      data: {
+        saticiId: kullanici.id,
+        baslik, aciklama, urunUrl, kategori,
+        perakendeFiyat: Number(perakendeFiyat),
+        toptanFiyat: Number(toptanFiyat),
+        hedefSayi: Number(hedefSayi),
+        hedefKitle: hedefKitle || "hepsi", 
+        minMiktarBireysel: Number(minMiktarBireysel || 1), 
+        minMiktarKobi: Number(minMiktarKobi || 5), 
+        minMiktarKurumsal: Number(minMiktarKurumsal || 20),
+        bitisTarihi: new Date(bitisTarihi), 
+        teslimatYontemi: teslimatYontemi || "kargo", 
+        indirimOrani: Number(indirimOrani || 10), 
+        depozitoOrani: Number(depozitoOrani || 30),
+        
+        baremler: {
+          create: baremler.map((b: any, index: number) => ({
+            sira: index + 1,
+            miktar: Number(b.miktar),
+            fiyat: Number(b.fiyat)
+          }))
+        }
+      }
+    })
+
+    return NextResponse.json(ilan, { status: 201 })
+  } catch (error) {
+    console.error("İlan ekleme hatası:", error)
+    return NextResponse.json({ hata: "İlan eklenirken sistemsel bir hata oluştu" }, { status: 500 })
+  }
+}
+</file>
+
 <file path="app/components/AddressModal.tsx">
 "use client";
 import { useState, useEffect, useRef } from "react";
@@ -3000,6 +2363,538 @@ export default function AddressModal({ isOpen, onClose }: { isOpen: boolean; onC
       </div>
     </div>
   );
+}
+</file>
+
+<file path="app/components/AuthButtons.tsx">
+"use client"
+import { useState } from "react"
+import Link from "next/link"
+import { PlusCircle } from "lucide-react"
+import RegisterModal from "./RegisterModal"
+import LoginModal from "./LoginModal"
+
+export default function AuthButtons() {
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false)
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
+
+  return (
+    <div className="flex items-center gap-4">
+      {/* İlan Ver Butonu */}
+      <Link 
+        href="/ilan-ekle" 
+        className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl hover:shadow-md hover:opacity-90 transition-all font-medium text-sm"
+      >
+        <PlusCircle size={18} />
+        İlan Ver
+      </Link>
+
+      <button 
+        onClick={() => setIsLoginOpen(true)} 
+        className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
+      >
+        Giriş Yap
+      </button>
+      
+      <button 
+        onClick={() => setIsRegisterOpen(true)} 
+        className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-700 hover:shadow-md transition-all"
+      >
+        Kayıt Ol
+      </button>
+
+      <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
+      <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} onOpenRegister={() => setIsRegisterOpen(true)} />
+    </div>
+  )
+}
+</file>
+
+<file path="app/components/MobileMenu.tsx">
+"use client";
+import { useState } from "react";
+import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
+
+export default function MobileMenu() {
+  const { data: session } = useSession();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      {/* Hamburger Icon */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 md:hidden"
+        aria-label="Menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Mobile Drawer */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900 md:hidden">
+          <div className="flex justify-end p-4">
+            <button onClick={() => setIsOpen(false)} className="p-2">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <nav className="flex flex-col items-center gap-4 p-8">
+            {session ? (
+              <>
+                <span className="text-lg font-medium">Hoş geldin, {session.user?.name}</span>
+               {/* MobileMenu.tsx içinde bu satırı bul ve büyük harfle SATICI yap: */}
+{(session.user as any)?.rol === "SATICI" && (
+  <Link href="/ilan-ekle" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
+    + İlan Ekle
+  </Link>
+)}
+                {(session.user as any)?.isAdmin && (
+                  <Link href="/admin" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-purple-600 text-white rounded-xl">
+                    Admin Panel
+                  </Link>
+                )}
+                <button
+                  onClick={() => signOut()}
+                  className="w-full py-3 bg-red-500 text-white rounded-xl"
+                >
+                  Çıkış Yap
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/giris" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-gray-200 rounded-xl">
+                  Giriş Yap
+                </Link>
+                <Link href="/kayit" onClick={() => setIsOpen(false)} className="block w-full text-center py-3 bg-blue-600 text-white rounded-xl">
+                  Kayıt Ol
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      )}
+    </>
+  );
+}
+</file>
+
+<file path="app/ilan-ekle/page.tsx">
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Plus, Trash2, Package, Info } from "lucide-react"
+
+export default function IlanEkleSayfasi() {
+  const router = useRouter()
+  const [yukleniyor, setYukleniyor] = useState(false)
+  const [hata, setHata] = useState("")
+
+  // Dinamik Barem State'i (En az 1 tane boş barem ile başlar)
+  const [baremler, setBaremler] = useState([{ miktar: "", fiyat: "" }])
+
+  const baremEkle = () => {
+    setBaremler([...baremler, { miktar: "", fiyat: "" }])
+  }
+
+  const baremSil = (index: number) => {
+    if (baremler.length === 1) return // En az 1 barem kalmak zorunda
+    const yeniBaremler = [...baremler]
+    yeniBaremler.splice(index, 1)
+    setBaremler(yeniBaremler)
+  }
+
+  const baremDegistir = (index: number, alan: "miktar" | "fiyat", deger: string) => {
+    const yeniBaremler = [...baremler]
+    yeniBaremler[index][alan] = deger
+    setBaremler(yeniBaremler)
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setYukleniyor(true)
+    setHata("")
+
+    const formData = new FormData(e.currentTarget)
+    
+    // Normal inputları obje haline getir
+    const data = Object.fromEntries(formData.entries())
+    
+    // Dinamik baremleri objeye ekle
+    const payload = {
+      ...data,
+      baremler: baremler.map(b => ({ miktar: Number(b.miktar), fiyat: Number(b.fiyat) }))
+    }
+
+    try {
+      const res = await fetch("/api/ilan-ekle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      const sonuc = await res.json()
+
+      if (res.ok) {
+        alert("İlan başarıyla oluşturuldu!")
+        router.push("/") // Veya satıcı paneline yönlendir
+      } else {
+        setHata(sonuc.hata || "Bir hata oluştu")
+      }
+    } catch (error) {
+      setHata("Sunucu ile bağlantı kurulamadı.")
+    } finally {
+      setYukleniyor(false)
+    }
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 my-8 bg-white rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex items-center gap-3 mb-8 pb-4 border-b">
+        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+          <Package size={24} />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Yeni İlan Oluştur</h1>
+          <p className="text-gray-500 text-sm">Grup alım sistemine (C2M) yeni bir ürün ekleyin.</p>
+        </div>
+      </div>
+
+      {hata && <div className="p-4 bg-red-50 text-red-600 rounded-xl mb-6 font-medium">{hata}</div>}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* TEMEL BİLGİLER */}
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-800">Temel Bilgiler</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">İlan Başlığı</label>
+              <input type="text" name="baslik" required className="mt-1 w-full p-2.5 border rounded-xl" placeholder="Örn: 10.000 mAh Taşınabilir Şarj Aleti" />
+            </div>
+            
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Ürün Açıklaması</label>
+              <textarea name="aciklama" rows={3} className="mt-1 w-full p-2.5 border rounded-xl resize-none" placeholder="Ürün detaylarını buraya girin..."></textarea>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Kategori</label>
+              <select name="kategori" className="mt-1 w-full p-2.5 border rounded-xl bg-white">
+                <option value="elektronik">Elektronik</option>
+                <option value="giyim">Giyim & Moda</option>
+                <option value="ev-yasam">Ev & Yaşam</option>
+                <option value="diger">Diğer</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Ürün URL (Görsel vb.)</label>
+              <input type="url" name="urunUrl" className="mt-1 w-full p-2.5 border rounded-xl" placeholder="https://..." />
+            </div>
+          </div>
+        </div>
+
+        {/* SATIŞ VE BAREM AYARLARI */}
+        <div className="space-y-4 pt-4 border-t">
+          <h2 className="text-lg font-semibold text-gray-800">Satış ve Hedef Ayarları</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Piyasa Perakende Fiyatı (TL)</label>
+              <input type="number" name="perakendeFiyat" required className="mt-1 w-full p-2.5 border rounded-xl" placeholder="Örn: 500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Kampanya Bitiş Tarihi</label>
+              <input type="date" name="bitisTarihi" required className="mt-1 w-full p-2.5 border rounded-xl" />
+            </div>
+          </div>
+
+          {/* DİNAMİK BAREM BÖLÜMÜ */}
+          <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-semibold text-blue-900">Miktar ve Fiyat Baremleri</h3>
+                <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                  <Info size={14} /> Hedeflenen toplam sayı ve toptan fiyat son bareme göre otomatik belirlenir.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {baremler.map((barem, index) => (
+                <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-xl border shadow-sm relative group">
+                  <span className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-600 font-bold rounded-lg text-sm">
+                    {index + 1}
+                  </span>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 block mb-1">Ulaşılması Gereken Adet</label>
+                    <input 
+                      type="number" 
+                      value={barem.miktar} 
+                      onChange={(e) => baremDegistir(index, "miktar", e.target.value)}
+                      placeholder="Örn: 100" 
+                      required 
+                      className="w-full p-2 border rounded-lg"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 block mb-1">Bu Adetteki Birim Fiyat (TL)</label>
+                    <input 
+                      type="number" 
+                      value={barem.fiyat} 
+                      onChange={(e) => baremDegistir(index, "fiyat", e.target.value)}
+                      placeholder="Örn: 450" 
+                      required 
+                      className="w-full p-2 border rounded-lg"
+                    />
+                  </div>
+                  {baremler.length > 1 && (
+                    <button 
+                      type="button" 
+                      onClick={() => baremSil(index)}
+                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg mt-5 transition"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <button 
+              type="button" 
+              onClick={baremEkle}
+              className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-100/50 hover:bg-blue-100 px-4 py-2 rounded-lg transition"
+            >
+              <Plus size={16} /> Yeni Barem Ekle
+            </button>
+          </div>
+        </div>
+
+        {/* MİNİMUM ALIM LİMİTLERİ */}
+        <div className="space-y-4 pt-4 border-t">
+          <h2 className="text-lg font-semibold text-gray-800">Minimum Alım Limitleri</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Bireysel Müşteri</label>
+              <input type="number" name="minMiktarBireysel" defaultValue={1} className="mt-1 w-full p-2.5 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">KOBİ Müşteri</label>
+              <input type="number" name="minMiktarKobi" defaultValue={5} className="mt-1 w-full p-2.5 border rounded-xl" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Kurumsal Müşteri</label>
+              <input type="number" name="minMiktarKurumsal" defaultValue={20} className="mt-1 w-full p-2.5 border rounded-xl" />
+            </div>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={yukleniyor}
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg hover:opacity-90 transition disabled:opacity-50 mt-8"
+        >
+          {yukleniyor ? "İlan Oluşturuluyor..." : "İlanı Yayına Al"}
+        </button>
+      </form>
+    </div>
+  )
+}
+</file>
+
+<file path="app/katil/[baremId]/KatilimFormu.tsx">
+"use client"
+import { useState, useEffect } from "react"
+import { CreditCard, MapPin, ShoppingBag, ArrowRight, CheckCircle2, Plus } from "lucide-react"
+import AddressModal from "@/app/components/AddressModal"
+
+export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler }: any) {
+  const [step, setStep] = useState(1)
+  const [adet, setAdet] = useState(barem.miktar)
+  const [adresler, setAdresler] = useState(ilkAdresler)
+  const [seciliAdres, setSeciliAdres] = useState("")
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
+
+  // Sayfa ilk açıldığında varsa varsayılan adresi seç
+  useEffect(() => {
+    const varsayilan = adresler.find((a: any) => a.isVarsayilanTeslimat)
+    if (varsayilan) setSeciliAdres(varsayilan.id)
+    else if (adresler.length > 0) setSeciliAdres(adresler[0].id)
+  }, [adresler])
+
+  // Yeni adres eklendiğinde listeyi güncellemek için
+  const yeniAdresleriGetir = async () => {
+    try {
+      const res = await fetch("/api/adres/liste")
+      if (res.ok) {
+        const data = await res.json()
+        setAdresler(data)
+        if (data.length > 0) {
+          setSeciliAdres(data[data.length - 1].id)
+        }
+      }
+    } catch (error) {
+      console.error("Adresler güncellenirken hata oluştu:", error)
+    }
+  }
+
+  const toplamTutar = adet * barem.fiyat
+  const depozitoTutari = (toplamTutar * ilan.depozitoOrani) / 100
+
+  return (
+    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+      {/* Progress Bar */}
+      <div className="flex h-2 bg-gray-100">
+        <div className={`transition-all duration-500 bg-blue-600 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
+      </div>
+
+      <div className="p-8">
+        {/* ADIM 1: ADET SEÇİMİ */}
+        {step === 1 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+            <div className="flex items-center gap-3 mb-2">
+              <ShoppingBag className="text-blue-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Kaç adet alacaksınız?</h2>
+            </div>
+            <p className="text-gray-500 text-sm">Bu barem için minimum <strong>{barem.miktar} adet</strong> girmelisiniz.</p>
+            
+            <input 
+              type="number" 
+              min={barem.miktar}
+              value={adet}
+              onChange={(e) => setAdet(parseInt(e.target.value) || 0)}
+              className="w-full text-4xl font-black p-6 border-2 border-gray-100 rounded-2xl focus:border-blue-600 focus:outline-none transition-colors"
+            />
+            
+            <div className="bg-blue-50 p-4 rounded-xl">
+              <div className="flex justify-between text-sm mb-1 text-blue-700 font-medium">
+                <span>Birim Fiyat:</span>
+                <span>₺{barem.fiyat}</span>
+              </div>
+              <div className="flex justify-between text-lg font-black text-blue-900">
+                <span>Toplam:</span>
+                <span>₺{toplamTutar.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setStep(2)}
+              disabled={adet < barem.miktar}
+              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all disabled:opacity-50"
+            >
+              Teslimat Adresi Seç <ArrowRight size={20} />
+            </button>
+          </div>
+        )}
+
+        {/* ADIM 2: ADRES SEÇİMİ */}
+        {step === 2 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MapPin className="text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Teslimat Adresi</h2>
+              </div>
+              <button 
+                onClick={() => setIsAddressModalOpen(true)}
+                className="flex items-center gap-1 text-sm font-bold text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition-all"
+              >
+                <Plus size={16} /> Yeni Ekle
+              </button>
+            </div>
+
+            <div className="grid gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+              {adresler.map((adres: any) => (
+                <div 
+                  key={adres.id}
+                  onClick={() => setSeciliAdres(adres.id)}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${seciliAdres === adres.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 hover:border-gray-200'}`}
+                >
+                  <div className="flex justify-between font-bold">
+                    <span className="text-gray-900">{adres.baslik}</span>
+                    {seciliAdres === adres.id && <CheckCircle2 size={20} className="text-blue-600" />}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">{adres.adresSatiri} {adres.ilce}/{adres.il}</p>
+                </div>
+              ))}
+              
+              {adresler.length === 0 && (
+                <div className="text-center py-8 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <p className="text-gray-400 text-sm mb-4">Henüz kayıtlı bir adresiniz bulunmuyor.</p>
+                  <button 
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-blue-700 shadow-lg"
+                  >
+                    İlk Adresimi Ekle
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setStep(1)} className="flex-1 py-4 font-bold text-gray-500 bg-gray-100 rounded-2xl">Geri</button>
+              <button 
+                onClick={() => setStep(3)}
+                disabled={!seciliAdres}
+                className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-bold disabled:opacity-50"
+              >
+                Ödeme Özetine Geç
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ADIM 3: ÖDEME ÖZETİ */}
+        {step === 3 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+            <div className="flex items-center gap-3">
+              <CreditCard className="text-blue-600" />
+              <h2 className="text-2xl font-bold text-gray-900">Ödeme Özeti</h2>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
+              <div className="flex justify-between text-gray-600 text-sm">
+                <span>Ürün Toplam ({adet} adet)</span>
+                <span className="font-semibold text-gray-900">₺{toplamTutar.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between items-center py-4 border-y border-dashed border-gray-200">
+                <div className="leading-tight">
+                  <span className="block font-bold text-gray-900">Ödenecek Depozito</span>
+                  <span className="text-xs text-orange-600 font-medium">Toplamın %{ilan.depozitoOrani}'i</span>
+                </div>
+                <span className="text-3xl font-black text-blue-600">₺{depozitoTutari.toLocaleString()}</span>
+              </div>
+              <p className="text-[11px] text-gray-400 text-center leading-relaxed">
+                Kalan ₺{(toplamTutar - depozitoTutari).toLocaleString()} tutarı, hedef sayıya ulaşıldığında ve ürünler kargolanmadan önce tahsil edilecektir.
+              </p>
+            </div>
+
+            <button 
+              className="w-full bg-green-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-green-700 shadow-xl shadow-green-100 transition-all flex items-center justify-center gap-3"
+            >
+              ÖDEMEYİ TAMAMLA
+            </button>
+            <button onClick={() => setStep(2)} className="w-full py-2 text-sm text-gray-400 font-medium hover:text-gray-600 transition-colors">Adresi Değiştir</button>
+          </div>
+        )}
+      </div>
+
+      <AddressModal 
+        isOpen={isAddressModalOpen} 
+        onClose={() => {
+          setIsAddressModalOpen(false)
+          yeniAdresleriGetir()
+        }} 
+      />
+    </div>
+  )
 }
 </file>
 
@@ -18432,190 +18327,6 @@ export default function GirisPage() {
 }
 </file>
 
-<file path="app/ilan/[id]/page.tsx">
-import { prisma } from "@/lib/prisma"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-
-export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const ilan = await prisma.listing.findUnique({
-    where: { id: parseInt(id) },
-    include: { satici: true }
-  })
-
-  if (!ilan) notFound()
-
-  const indirimYuzde = Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)
-  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <Link href="/" className="text-blue-600 font-bold text-xl">← Toptan İlan</Link>
-        </div>
-      </nav>
-
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-          {/* Sol Kolon */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <span className="text-sm text-blue-600 font-medium">{ilan.kategori}</span>
-                  <h1 className="text-2xl font-bold text-gray-800 mt-1">{ilan.baslik}</h1>
-                </div>
-                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
-                  %{indirimYuzde} indirim
-                </span>
-              </div>
-
-              {ilan.aciklama && (
-                <p className="text-gray-600 mb-4">{ilan.aciklama}</p>
-              )}
-
-              {/* Hedef Kitle */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  👤 Bireysel min. {ilan.minMiktarBireysel} adet
-                </span>
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  🏪 KOBİ min. {ilan.minMiktarKobi} adet
-                </span>
-                <span className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                  🏢 Kurumsal min. {ilan.minMiktarKurumsal} adet
-                </span>
-              </div>
-
-              {/* Teslimat */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">🚚 Teslimat Yöntemi</p>
-                <p className="text-sm text-gray-600">
-                  {ilan.teslimatYontemi === "kargo" && "Her adrese ayrı kargo"}
-                  {ilan.teslimatYontemi === "merkezi" && "Merkezi teslim noktası"}
-                  {ilan.teslimatYontemi === "depo" && "Alıcı depoya teslim"}
-                </p>
-              </div>
-
-              {/* 24 Saat İade */}
-              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
-                <span className="text-green-600">🔄</span>
-                <span className="text-sm text-green-700 font-medium">
-                  24 Saat İade Garantisi — Tedarikçi iptali veya teslimat gerçekleşmezse tam iade
-                </span>
-              </div>
-            </div>
-
-            {/* Tedarikçi (DÜZELTİLMİŞ) */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h2 className="font-bold text-gray-800 mb-3">Tedarikçi Bilgisi</h2>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
-                  {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
-                </div>
-                <div>
-                  <p className="font-medium text-gray-800">{ilan.satici.ad} {ilan.satici.soyad}</p>
-                  <p className="text-sm text-gray-500">⭐ Güven Puanı: {ilan.satici.guvenPuani}</p>
-                </div>
-                <span className="ml-auto bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">
-                  ✓ Onaylı
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Sağ Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border p-6 sticky top-4">
-              <div className="bg-gray-900 rounded-lg p-4 mb-4 text-center">
-                <p className="text-gray-400 text-sm line-through">₺{ilan.perakendeFiyat}</p>
-                <p className="text-3xl font-bold text-yellow-400">₺{ilan.toptanFiyat}</p>
-                <p className="text-green-400 text-sm mt-1">%{indirimYuzde} tasarruf</p>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Hedef</span>
-                  <span className="font-medium">{ilan.hedefSayi} adet</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Kalan Süre</span>
-                  <span className={`font-medium ${kalanGun <= 1 ? "text-red-500" : kalanGun <= 3 ? "text-orange-500" : "text-gray-800"}`}>
-                    {kalanGun} gün
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Depozito</span>
-                  <span className="font-medium text-orange-600">%{ilan.depozitoOrani}</span>
-                </div>
-              </div>
-
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
-                <p className="text-xs text-orange-700">
-                  ⚠️ Katılım için toplam bedelin <strong>%{ilan.depozitoOrani}</strong>'i depozito olarak alınır. Vazgeçilirse iade edilmez.
-                </p>
-              </div>
-
-              <Link
-                href="/giris"
-                className="block w-full text-center bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Katıl — %{ilan.depozitoOrani} Depozito
-              </Link>
-
-              <div className="mt-3 text-center text-xs text-gray-400">
-                🔒 Ödeme Escrow hesabında güvende
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  )
-}
-</file>
-
-<file path="app/layout.tsx">
-import "./globals.css";
-import type { Metadata } from "next";
-import { SessionProvider } from "next-auth/react";
-
-export const metadata: Metadata = {
-  title: "Toptan İlan Sistemi",
-  description: "Toptan alım ve ihale platformu",
-  manifest: "/manifest.json",
-  themeColor: "#2563eb",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Toptan İlan"
-  }
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="tr">
-      <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-      </head>
-      <body className="bg-white text-black">
-        <SessionProvider>{children}</SessionProvider>
-      </body>
-    </html>
-  );
-}
-</file>
-
 <file path="app/components/RegisterModal.tsx">
 "use client"
 import { useState, useEffect } from "react"
@@ -18826,86 +18537,188 @@ export default function RegisterModal({ isOpen, onClose }: { isOpen: boolean, on
 }
 </file>
 
-<file path="app/page.tsx">
-import { auth, signOut } from "@/auth"
+<file path="app/ilan/[id]/page.tsx">
 import { prisma } from "@/lib/prisma"
+import { notFound } from "next/navigation"
 import Link from "next/link"
-import AuthButtons from "./components/AuthButtons"
-import MobileMenu from "./components/MobileMenu"
-import AddressButton from "./components/AddressButton"
+import BaremSecici from "./BaremSecici" // Yeni oluşturacağımız istemci bileşeni
 
-export default async function Home() {
-  const session = await auth()
-  const ilanlar = await prisma.listing.findMany({
-    include: { satici: true }
+export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  
+  const ilan = await prisma.listing.findUnique({
+    where: { id: parseInt(id) },
+    include: { 
+      satici: true,
+      baremler: { orderBy: { sira: 'asc' } } // Baremleri sırasıyla çekiyoruz
+    }
   })
+
+  if (!ilan) notFound()
+
+  // En düşük fiyatlı (en son) baremi bulalım
+  const enDusukFiyat = ilan.baremler.length > 0 
+    ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
+    : ilan.toptanFiyat;
+
+  const indirimYuzde = Math.round((1 - enDusukFiyat / ilan.perakendeFiyat) * 100)
+  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <h1 className="text-xl font-bold text-blue-600">Toptan İlan</h1>
-          <div className="flex items-center gap-4">
-            {session ? (
-              <>
-                <span className="text-sm text-gray-600 hidden sm:inline">
-                  Hoş geldin, <strong>{session.user?.name}</strong>
-                </span>
-                <AddressButton />
-                {(session.user as any)?.rol === "satici" && (
-                  <Link href="/ilan-ekle" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 hidden sm:inline-block">
-                    + İlan Ekle
-                  </Link>
-                )}
-                <form action={async () => { "use server"; await signOut({ redirectTo: "/" }) }} className="hidden sm:block">
-                  <button className="text-sm text-gray-500 hover:text-red-500">Çıkış</button>
-                </form>
-                <MobileMenu />
-              </>
-            ) : (
-              <>
-                <div className="hidden sm:block"><AuthButtons /></div>
-                <MobileMenu />
-              </>
-            )}
+          <Link href="/" className="text-blue-600 font-bold text-xl flex items-center gap-2">
+            <span>←</span> Toptan İlan
+          </Link>
+          <div className="text-xs text-gray-400 hidden sm:block">
+            İlan ID: #{ilan.id} | Bitiş: {new Date(ilan.bitisTarihi).toLocaleDateString('tr-TR')}
           </div>
         </div>
       </nav>
+
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Güncel Fırsatlar</h2>
-        <p className="text-gray-500 mb-6">Birlikte alalım, toptan fiyatına alalım.</p>
-        {ilanlar.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-lg">Henüz ilan eklenmemiş.</p>
-            {session && (session.user as any)?.rol === "satici" && (
-              <Link href="/ilan-ekle" className="mt-4 inline-block text-blue-600 hover:underline">İlk ilanı sen ekle →</Link>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ilanlar.map(ilan => (
-              <div key={ilan.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-5">
-                <h3 className="font-bold text-gray-800 text-lg mb-2">{ilan.baslik}</h3>
-                <div className="flex justify-between items-center mb-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* Sol Kolon: Ürün Detayları */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6 sm:p-8">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <nav className="flex gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
+                    <span className="bg-blue-50 px-2 py-1 rounded">{ilan.kategori}</span>
+                  </nav>
+                  <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
+                    {ilan.baslik}
+                  </h1>
+                </div>
+                <div className="hidden sm:flex flex-col items-end text-right">
+                  <span className="text-sm text-gray-400 line-through">₺{ilan.perakendeFiyat}</span>
+                  <span className="text-2xl font-black text-green-600">-%{indirimYuzde}</span>
+                </div>
+              </div>
+
+              {ilan.aciklama && (
+                <div className="prose prose-blue max-w-none text-gray-600 mb-8 leading-relaxed">
+                  {ilan.aciklama}
+                </div>
+              )}
+
+              {/* Hedef Kitle Kılavuzu */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-center">
+                  <span className="block text-2xl mb-1">👤</span>
+                  <span className="block text-xs font-bold text-blue-800 uppercase">Bireysel</span>
+                  <span className="text-sm font-medium text-blue-600">Min. {ilan.minMiktarBireysel} Adet</span>
+                </div>
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-center">
+                  <span className="block text-2xl mb-1">🏪</span>
+                  <span className="block text-xs font-bold text-indigo-800 uppercase">KOBİ</span>
+                  <span className="text-sm font-medium text-indigo-600">Min. {ilan.minMiktarKobi} Adet</span>
+                </div>
+                <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 text-center">
+                  <span className="block text-2xl mb-1">🏢</span>
+                  <span className="block text-xs font-bold text-purple-800 uppercase">Kurumsal</span>
+                  <span className="text-sm font-medium text-purple-600">Min. {ilan.minMiktarKurumsal} Adet</span>
+                </div>
+              </div>
+
+              {/* Güvenlik Paneli */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl">🚚</div>
                   <div>
-                    <p className="text-sm text-gray-400 line-through">₺{ilan.perakendeFiyat}</p>
-                    <p className="text-xl font-bold text-blue-600">₺{ilan.toptanFiyat}</p>
-                  </div>
-                  <div className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-sm font-medium">
-                    %{Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)} indirim
+                    <p className="text-xs font-bold text-gray-400 uppercase">Teslimat</p>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {ilan.teslimatYontemi === "kargo" ? "Adrese Kargo" : "Merkezi Teslimat"}
+                    </p>
                   </div>
                 </div>
-                <div className="text-sm text-gray-500 mb-4">Hedef: <strong>{ilan.hedefSayi} kişi</strong></div>
-                <Link href={`/ilan/${ilan.id}`} className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                  İncele & Katıl
-                </Link>
+                <div className="flex items-center gap-4 p-4 bg-green-50/50 rounded-2xl border border-green-100">
+                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl">🛡️</div>
+                  <div>
+                    <p className="text-xs font-bold text-green-700 uppercase">Koruma</p>
+                    <p className="text-sm font-semibold text-green-800">24 Saat İade Garantisi</p>
+                  </div>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Tedarikçi Kartı */}
+            <div className="bg-white rounded-2xl shadow-sm border p-6 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg">
+                  {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                    {ilan.satici.ad} {ilan.satici.soyad}
+                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Onaylı</span>
+                  </h3>
+                  <p className="text-sm text-gray-500">Güven Puanı: <span className="text-yellow-500 font-bold">★ {ilan.satici.guvenPuani}</span></p>
+                </div>
+              </div>
+              <button className="hidden sm:block text-sm font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
+                Satıcı Profilini Gör
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* Sağ Kolon: Dinamik Barem Seçici */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-24 space-y-4">
+               {/* Baremleri yönetecek client bileşeni buraya geliyor */}
+               <BaremSecici 
+                  baremler={ilan.baremler} 
+                  perakendeFiyat={ilan.perakendeFiyat} 
+                  depozitoOrani={ilan.depozitoOrani}
+                  kalanGun={kalanGun}
+               />
+            </div>
+          </div>
+
+        </div>
       </main>
     </div>
   )
+}
+</file>
+
+<file path="app/layout.tsx">
+import "./globals.css";
+import type { Metadata } from "next";
+import { SessionProvider } from "next-auth/react";
+
+export const metadata: Metadata = {
+  title: "Toptan İlan Sistemi",
+  description: "Toptan alım ve ihale platformu",
+  manifest: "/manifest.json",
+  themeColor: "#2563eb",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Toptan İlan"
+  }
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="tr" suppressHydrationWarning>
+      <head>
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className="bg-white text-black" suppressHydrationWarning>
+        <SessionProvider>{children}</SessionProvider>
+      </body>
+    </html>
+  );
 }
 </file>
 
@@ -18944,6 +18757,107 @@ export default async function Home() {
     "tailwindcss": "^4",
     "typescript": "^5"
   }
+}
+</file>
+
+<file path="app/page.tsx">
+import { auth, signOut } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import Link from "next/link"
+import { PlusCircle } from "lucide-react"
+import AuthButtons from "./components/AuthButtons"
+import MobileMenu from "./components/MobileMenu"
+import AddressButton from "./components/AddressButton"
+
+export default async function Home() {
+  const session = await auth()
+  
+  // EKLENEN KISIM: Kullanıcının rolünü doğrudan veritabanından kesin olarak alıyoruz
+  let dbUser = null
+  if (session?.user?.email) {
+    dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+  }
+
+  const ilanlar = await prisma.listing.findMany({
+    include: { satici: true }
+  })
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-blue-600">Toptan İlan</h1>
+          <div className="flex items-center gap-4">
+            {session ? (
+              <>
+                <span className="text-sm text-gray-600 hidden sm:inline">
+                  Hoş geldin, <strong>{session.user?.name}</strong>
+                </span>
+                <AddressButton />
+                
+                {/* DÜZELTİLEN KISIM: Kontrolü session'dan değil veritabanından yapıyoruz */}
+                {/* app/page.tsx içindeki kısmı böyle değiştir */}
+{dbUser?.hesapTuru === "SATICI" && (
+  <Link 
+    href="/ilan-ekle" 
+    className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2.5 rounded-xl hover:shadow-md transition-all font-medium text-sm"
+  >
+    <PlusCircle size={18} />
+    İlan Ver
+  </Link>
+)}
+
+                <form action={async () => { "use server"; await signOut({ redirectTo: "/" }) }} className="hidden sm:block">
+                  <button className="text-sm text-gray-500 hover:text-red-500">Çıkış</button>
+                </form>
+                <MobileMenu />
+              </>
+            ) : (
+              <>
+                <div className="hidden sm:block"><AuthButtons /></div>
+                <MobileMenu />
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">Güncel Fırsatlar</h2>
+        <p className="text-gray-500 mb-6">Birlikte alalım, toptan fiyatına alalım.</p>
+        {ilanlar.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-lg">Henüz ilan eklenmemiş.</p>
+            {dbUser?.hesapTuru === "SATICI" && (
+              <Link href="/ilan-ekle" className="mt-4 inline-block text-blue-600 hover:underline">İlk ilanı sen ekle →</Link>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {ilanlar.map(ilan => (
+              <div key={ilan.id} className="bg-white rounded-xl shadow-sm border hover:shadow-md transition p-5">
+                <h3 className="font-bold text-gray-800 text-lg mb-2">{ilan.baslik}</h3>
+                <div className="flex justify-between items-center mb-3">
+                  <div>
+                    <p className="text-sm text-gray-400 line-through">₺{ilan.perakendeFiyat}</p>
+                    <p className="text-xl font-bold text-blue-600">₺{ilan.toptanFiyat}</p>
+                  </div>
+                  <div className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-sm font-medium">
+                    %{Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)} indirim
+                  </div>
+                </div>
+                <div className="text-sm text-gray-500 mb-4">Hedef: <strong>{ilan.hedefSayi} kişi</strong></div>
+                <Link href={`/ilan/${ilan.id}`} className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                  İncele & Katıl
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
 }
 </file>
 
@@ -19089,21 +19003,16 @@ model User {
   adres             String?
   teslimatAdresi    String?
   guvenPuani        Int           @default(100)
-  
-  // Admin yetkisi
   isAdmin           Boolean       @default(false)
-  
-  // Şifre Sıfırlama ve E-posta Onay Kodları
   resetToken        String?
   resetTokenExpiry  DateTime?
   epostaOnaylandi   Boolean       @default(false)
   emailVerifyToken  String?
-  
   createdAt         DateTime      @default(now())
   
   ilanlar           Listing[]
   katilimlar        Participant[]
-  adresler          Address[]      // ✅ EKLENDI: Address modeli ile ilişki
+  adresler          Address[]
 }
 
 model Listing {
@@ -19126,8 +19035,26 @@ model Listing {
   durum             String   @default("aktif")
   saticiId          Int
   satici            User     @relation(fields: [saticiId], references: [id])
-  havuzlar          Pool[]
   olusturmaTarihi   DateTime @default(now())
+  
+  havuzlar          Pool[]
+  baremler          Barem[]
+}
+
+model Barem {
+  id           Int           @id @default(autoincrement())
+  listingId    Int
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sira         Int
+  miktar       Int
+  fiyat        Float
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  katilimcilar Participant[]
+
+  @@unique([listingId, sira])
+  @@index([listingId])
 }
 
 model Pool {
@@ -19137,6 +19064,7 @@ model Pool {
   mevcutKatilim Int           @default(0)
   bitisTarihi   DateTime
   durum         String        @default("bekliyor")
+  
   katilimcilar  Participant[]
 }
 
@@ -19148,6 +19076,8 @@ model Participant {
   havuz        Pool   @relation(fields: [havuzId], references: [id])
   talepMiktari Int
   odemeDurumu  String @default("bekliyor")
+  baremId      Int
+  barem        Barem  @relation(fields: [baremId], references: [id])
 }
 
 enum FaturaTuru {
@@ -19156,31 +19086,24 @@ enum FaturaTuru {
 }
 
 model Address {
-  id                   String     @id @default(cuid()) // Güvenlik için CUID kalmalı!
-  userId               Int        // Senin tespitin: User.id ile eşleşmesi için Int oldu
+  id                   String     @id @default(cuid())
+  userId               Int
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // ... geri kalan alanlar tamamen aynı
-  
-  baslik               String     // Örn: "Ev Adresim", "Merkez Ofis"
-  teslimAlacakKisi     String     // Siparişi teslim alacak kişinin Adı Soyadı
-  telefon              String     // Teslimat irtibat numarası
-  
+  baslik               String
+  teslimAlacakKisi     String
+  telefon              String
   il                   String
   ilce                 String
   mahalle              String?
-  adresSatiri          String     // Sokak, bina, daire no
+  adresSatiri          String
   postaKodu            String?
-  
   isVarsayilanTeslimat Boolean    @default(false)
   isVarsayilanFatura   Boolean    @default(false)
-  
   faturaTuru           FaturaTuru @default(BIREYSEL)
-  tcKimlik             String?    // Bireysel fatura için
-  firmaAdi             String?    // Kurumsal fatura için
+  tcKimlik             String?
+  firmaAdi             String?
   vergiDairesi         String?
   vergiNo              String?
-
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 

@@ -22,12 +22,24 @@ export async function adresEkle(data: {
 }) {
   try {
     const session = await auth()
-    if (!session?.user?.id) {
+    
+    // 1. GÜVENLİK: Session kontrolü
+    if (!session?.user?.email) {
       return { success: false, error: "Oturum açmanız gerekiyor." }
     }
 
-    const userId = parseInt(session.user.id)
+    // 2. KESİN ÇÖZÜM: Kullanıcıyı e-posta ile DB'den bulup GERÇEK ID'sini alıyoruz
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
 
+    if (!dbUser) {
+      return { success: false, error: "Kullanıcı kaydı bulunamadı." }
+    }
+
+    const userId = dbUser.id // Prisma'nın beklediği gerçek Int ID
+
+    // Varsayılanları sıfırlama işlemleri
     if (data.isVarsayilanTeslimat) {
       await prisma.address.updateMany({
         where: { userId, isVarsayilanTeslimat: true },
@@ -41,9 +53,10 @@ export async function adresEkle(data: {
       })
     }
 
+    // 3. ADRES KAYDI
     const yeniAdres = await prisma.address.create({
       data: {
-        userId,
+        userId, // Artık hata vermesi imkansız çünkü DB'den aldık
         baslik: data.baslik,
         teslimAlacakKisi: data.teslimAlacakKisi,
         telefon: data.telefon,
@@ -65,6 +78,6 @@ export async function adresEkle(data: {
     return { success: true, adres: yeniAdres }
   } catch (error) {
     console.error("Adres ekleme hatası:", error)
-    return { success: false, error: "Adres kaydedilirken bir hata oluştu." }
+    return { success: false, error: "Adres kaydedilirken veritabanı hatası oluştu." }
   }
 }
