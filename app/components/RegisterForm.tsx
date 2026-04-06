@@ -149,11 +149,6 @@ export default function RegisterForm() {
             </div>
           )}
 
-          {/* ALICI ÖZEL */}
-          {form.hesapTuru === "ALICI" && (
-            <textarea placeholder="Teslimat Adresiniz (Opsiyonel)" rows={2} className={inputClass} value={form.teslimatAdresi} onChange={e => updateForm("teslimatAdresi", e.target.value)} />
-          )}
-
           {/* KVKK */}
           <div className="flex items-start gap-3 mt-6">
             <input type="checkbox" id="kvkk" required checked={form.kvkk} onChange={e => updateForm("kvkk", e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
