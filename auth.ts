@@ -8,7 +8,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   providers: [
-    // 1. Standart Şifreli Giriş
     Credentials({
       id: "credentials",
       async authorize(credentials) {
@@ -26,29 +25,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
           isAdmin: user.isAdmin,
+          // YENİ EKLEDİĞİMİZ KISIM:
+          onayDurumu: user.onayDurumu, 
         }
       }
     }),
-    // 2. Sihirli Bağlantı Girişi (İsim Giriş Sayfasıyla Aynı: verify-token)
     Credentials({
       id: "verify-token", 
       credentials: { token: { type: "text" } },
       async authorize(credentials) {
-        if (!credentials?.token) return null
-
-        // Token'ı hem emailVerifyToken hem de (varsa) şifre sıfırlama sütununda arayalım ki kaçmasın
         const user = await prisma.user.findFirst({
           where: {
             OR: [
-              { emailVerifyToken: credentials.token as string },
-              { resetToken: credentials.token as string }
+              { emailVerifyToken: credentials?.token as string },
+              { resetToken: credentials?.token as string }
             ]
           }
         })
-
         if (!user) return null
 
-        // Giriş yaptığı an e-posta onayını da true yapalım (Garanti olsun)
         if (!user.epostaOnaylandi) {
           await prisma.user.update({
             where: { id: user.id },
@@ -62,6 +57,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
           isAdmin: user.isAdmin,
+          // YENİ EKLEDİĞİMİZ KISIM:
+          onayDurumu: user.onayDurumu,
         }
       }
     })
@@ -72,6 +69,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.rol = (user as any).rol;
         token.isAdmin = (user as any).isAdmin;
+        // TOKEN'A EKLEDİK:
+        token.onayDurumu = (user as any).onayDurumu;
       }
       return token;
     },
@@ -80,6 +79,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).id = token.id;
         (session.user as any).rol = token.rol;
         (session.user as any).isAdmin = token.isAdmin;
+        // SESSION'A EKLEDİK (SAYFALAR BURADAN OKUYACAK):
+        (session.user as any).onayDurumu = token.onayDurumu;
       }
       return session;
     }
