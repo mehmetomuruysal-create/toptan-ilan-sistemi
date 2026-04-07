@@ -9,9 +9,10 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            // 'unsafe-inline' ve '*' ekleyerek tüm engelleri kaldırıyoruz.
-            // Bu sayede hem giriş sayfan düzelecek hem de Vercel Blob çalışacak.
-            value: "default-src 'self' *; script-src 'self' 'unsafe-inline' 'unsafe-eval' *; style-src 'self' 'unsafe-inline' *; img-src 'self' data: blob: https: *; font-src 'self' data: https: *; connect-src 'self' * blob: data:; frame-src 'self' *;"
+            // connect-src: Hem yerel hem Vercel Blob bağlantılarına izin verir.
+            // img-src: Vercel Blob'dan gelen resimlerin görünmesini sağlar.
+            // style-src ve font-src: Giriş sayfasındaki CSS ve ikon bozulmalarını çözer.
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https: https://*.public.blob.vercel-storage.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://blob.vercel-storage.com https://*.public.blob.vercel-storage.com https://vercel.live wss://*.vercel.live; frame-src 'self' https://vercel.live; base-uri 'self'; form-action 'self';"
           },
           {
             key: "X-Content-Type-Options",
@@ -20,6 +21,10 @@ const nextConfig: NextConfig = {
           {
             key: "X-Frame-Options",
             value: "SAMEORIGIN"
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block"
           },
           {
             key: "Referrer-Policy",
