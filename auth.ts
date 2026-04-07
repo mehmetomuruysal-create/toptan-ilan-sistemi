@@ -25,8 +25,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
           isAdmin: user.isAdmin,
-          // YENİ EKLEDİĞİMİZ KISIM:
-          onayDurumu: user.onayDurumu, 
+          // TypeScript hatasını engellemek için (user as any) kullanıyoruz:
+          onayDurumu: (user as any).onayDurumu, 
         }
       }
     }),
@@ -57,8 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
           isAdmin: user.isAdmin,
-          // YENİ EKLEDİĞİMİZ KISIM:
-          onayDurumu: user.onayDurumu,
+          onayDurumu: (user as any).onayDurumu,
         }
       }
     })
@@ -69,7 +68,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.rol = (user as any).rol;
         token.isAdmin = (user as any).isAdmin;
-        // TOKEN'A EKLEDİK:
         token.onayDurumu = (user as any).onayDurumu;
       }
       return token;
@@ -79,7 +77,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).id = token.id;
         (session.user as any).rol = token.rol;
         (session.user as any).isAdmin = token.isAdmin;
-        // SESSION'A EKLEDİK (SAYFALAR BURADAN OKUYACAK):
         (session.user as any).onayDurumu = token.onayDurumu;
       }
       return session;
