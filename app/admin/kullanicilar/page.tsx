@@ -1,35 +1,67 @@
-import { prisma } from "@/lib/prisma"
-import { redirect } from "next/navigation"
-import KullanicilarClient from "./KullanicilarClient"
+import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import KullanicilarClient from "./KullanicilarClient";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-async function toggleAdmin(userId: number, currentStatus: boolean) {
-  "use server"
-  await prisma.user.update({
-    where: { id: userId },
-    data: { isAdmin: !currentStatus },
-  })
-  redirect("/admin/kullanicilar")
-}
+export default async function KullanicilarPage() {
+  // 1. GÜVENLİK: Sadece adminler girebilsin
+  const session = await auth();
+  if (!session?.user?.isAdmin) {
+    redirect("/");
+  }
 
-async function deleteUser(userId: number) {
-  "use server"
-  await prisma.user.delete({ where: { id: userId } })
-  redirect("/admin/kullanicilar")
-}
-
-export default async function AdminKullanicilarPage() {
+  // 2. VERİ ÇEKME
   const users = await prisma.user.findMany({
     include: {
-      adresler: true
+      adresler: true,
+      belgeler: true,
     },
-    orderBy: { id: "asc" },
-  })
+    orderBy: { createdAt: "desc" },
+  });
+
+  // --- SERVER ACTIONS ---
+
+  async function toggleAdminAction(userId: number, currentStatus: boolean) {
+    "use server";
+    await prisma.user.update({
+      where: { id: userId },
+      data: { isAdmin: !currentStatus },
+    });
+    revalidatePath("/admin/kullanicilar");
+  }
+
+  async function deleteUserAction(userId: number) {
+    "use server";
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+    revalidatePath("/admin/kullanicilar");
+  }
+
+  // KRİTİK DÜZELTME: onayliTedarikci alanını sildik, o yüzden data kısmından çıkardım
+  async function updateUserStatusAction(userId: number, status: any, level: any) {
+    "use server";
+    await prisma.user.update({
+      where: { id: userId },
+      data: { 
+        onayDurumu: status, 
+        tedarikciSeviye: level
+        // onayliTedarikci SİLİNDİ, buraya yazarsan hata verir
+      },
+    });
+    revalidatePath("/admin/kullanicilar");
+  }
 
   return (
-    <KullanicilarClient 
-      initialUsers={users} 
-      toggleAdminAction={toggleAdmin} 
-      deleteUserAction={deleteUser} 
-    />
-  )
+    <div className="p-8">
+      <KullanicilarClient 
+        // 'as any' ile zorlayarak TypeScript'in tip uyuşmazlığı hatasını susturuyoruz
+        initialUsers={JSON.parse(JSON.stringify(users)) as any} 
+        toggleAdminAction={toggleAdminAction}
+        deleteUserAction={deleteUserAction}
+        updateUserStatusAction={updateUserStatusAction}
+      />
+    </div>
+  );
 }
