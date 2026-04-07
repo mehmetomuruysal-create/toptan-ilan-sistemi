@@ -17,20 +17,33 @@ export default function BelgeOnayModal() {
   const [hata, setHata] = useState("");
 
   const handleUpload = async (tip: string, file: File) => {
+    // Güvenlik: Dosya boyutu kontrolü (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setHata("Dosya boyutu 5MB'dan küçük olmalıdır.");
+      return;
+    }
+
     setYukleniyor(tip);
     setHata("");
 
     try {
+      // Vercel Blob Yükleme Başlıyor
       const newBlob = await upload(file.name, file, {
         access: 'public',
-        handleUploadUrl: '/api/upload',
+        handleUploadUrl: '/api/upload', // Eğer api/upload/route.ts dosyan yoksa burada takılır!
       });
 
-      // API tarafında onUploadCompleted zaten veritabanına yazıyor.
+      console.log("Yükleme başarılı:", newBlob.url);
       setTamamlananlar(prev => [...prev, tip]);
-    } catch (error) {
-      setHata("Dosya yüklenirken bir hata oluştu.");
-      console.error(error);
+      
+    } catch (error: any) {
+      // Hatayı daha detaylı yakalıyoruz
+      const hataMesaji = error.message?.includes("token") 
+        ? "Yükleme izni alınamadı (Token hatası)." 
+        : "Sunucu bağlantı hatası oluştu.";
+      
+      setHata(hataMesaji);
+      console.error("Yükleme detayı:", error);
     } finally {
       setYukleniyor(null);
     }
@@ -44,11 +57,13 @@ export default function BelgeOnayModal() {
             <ShieldCheck size={40} />
           </div>
           <h2 className="text-3xl font-black text-gray-900 italic uppercase tracking-tight">Gümüş Onayı Gerekli</h2>
-          <p className="text-gray-500 mt-2 font-medium">İlan verebilmek için kurumsal belgelerinizi yüklemelisiniz.</p>
+          <p className="text-gray-500 mt-2 font-medium leading-relaxed">
+            İlan verebilmek için kurumsal belgelerinizi yüklemelisiniz.
+          </p>
         </div>
 
         {hata && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold">
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100 animate-shake">
             <AlertCircle size={18} /> {hata}
           </div>
         )}
@@ -57,17 +72,17 @@ export default function BelgeOnayModal() {
           {BELGE_TIPLERI.map((belge) => (
             <div key={belge.key} className="group flex items-center justify-between p-5 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-blue-100 transition-all">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${tamamlananlar.includes(belge.key) ? "bg-green-100 text-green-600" : "bg-white text-gray-400"}`}>
+                <div className={`p-3 rounded-xl transition-colors ${tamamlananlar.includes(belge.key) ? "bg-green-100 text-green-600" : "bg-white text-gray-400"}`}>
                   <FileText size={24} />
                 </div>
                 <div>
-                  <span className="text-sm font-black text-gray-800 block">{belge.label}</span>
-                  <span className="text-xs text-gray-400 uppercase font-bold tracking-tighter">Zorunlu Belge</span>
+                  <span className="text-sm font-black text-gray-800 block leading-none mb-1">{belge.label}</span>
+                  <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Gerekli Dosya</span>
                 </div>
               </div>
               
               {tamamlananlar.includes(belge.key) ? (
-                <div className="bg-green-500 text-white p-2 rounded-full shadow-lg shadow-green-100">
+                <div className="bg-green-500 text-white p-2 rounded-full shadow-lg shadow-green-100 animate-in zoom-in">
                   <CheckCircle size={24} />
                 </div>
               ) : (
@@ -76,11 +91,22 @@ export default function BelgeOnayModal() {
                     type="file" 
                     className="hidden" 
                     accept="image/*,.pdf"
-                    onChange={(e) => e.target.files?.[0] && handleUpload(belge.key, e.target.files[0])}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUpload(belge.key, file);
+                    }}
                     disabled={yukleniyor !== null}
                   />
-                  <div className="bg-white border-2 border-gray-100 shadow-sm px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2">
-                    {yukleniyor === belge.key ? <Loader2 className="animate-spin" size={16} /> : <><Upload size={14}/> Seç</>}
+                  <div className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${
+                    yukleniyor === belge.key 
+                    ? "bg-blue-600 text-white shadow-blue-100 animate-pulse" 
+                    : "bg-white border-2 border-gray-100 hover:bg-black hover:text-white"
+                  }`}>
+                    {yukleniyor === belge.key ? (
+                      <><Loader2 className="animate-spin" size={16} /> Yükleniyor...</>
+                    ) : (
+                      <><Upload size={14}/> Seç</>
+                    )}
                   </div>
                 </label>
               )}
@@ -89,16 +115,12 @@ export default function BelgeOnayModal() {
         </div>
 
         <button 
-          onClick={() => window.location.reload()}
+          onClick={() => window.location.assign("/ilan-ekle")} // Reload yerine kesin yönlendirme
           disabled={tamamlananlar.length < 3}
-          className="w-full mt-10 bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+          className="w-full mt-10 bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-sm hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
         >
-          {tamamlananlar.length < 3 ? `En Az ${3 - tamamlananlar.length} Belge Daha` : "İncelemeye Gönder & Bitir"}
+          {tamamlananlar.length < 3 ? `En Az ${3 - tamamlananlar.length} Belge Daha` : "İncelemeye Gönder & Devam Et"}
         </button>
-        
-        <p className="text-center text-[10px] text-gray-400 mt-6 font-bold uppercase tracking-widest">
-          Mingax Güvenlik Ekibi tarafından 24 saat içinde incelenir.
-        </p>
       </div>
     </div>
   );

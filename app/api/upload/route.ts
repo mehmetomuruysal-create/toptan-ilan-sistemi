@@ -7,7 +7,6 @@ export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
   const session = await auth();
 
-  // Güvenlik: Giriş yapmamış kullanıcı yükleme yapamaz
   if (!session || !session.user?.id) {
     return NextResponse.json({ error: "Yetkisiz erişim" }, { status: 401 });
   }
@@ -18,11 +17,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname) => {
         return {
-          allowedContentTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+          allowedContentTypes: ['image/jpeg', 'image/png', 'application/pdf', 'image/webp'],
           tokenPayload: JSON.stringify({
             userId: session.user.id,
-            // Pathname üzerinden belge tipini yakalıyoruz (örn: vergi_levhasi.pdf)
-            fileName: pathname 
           }),
         };
       },
@@ -30,26 +27,30 @@ export async function POST(request: Request): Promise<NextResponse> {
         const { userId } = JSON.parse(tokenPayload as string);
 
         try {
-          // --- VERİTABANI KAYDI ---
-          // Dosya adından belge tipini tahmin etmeye çalışıyoruz veya 
-          // Frontend'den gelen isimlendirmeye göre DocType belirliyoruz.
+          // --- BELGE TİPİNİ BELİRLEME ---
+          // Frontend'den dosya ismini "VERGI_LEVHASI_dosyaadi.pdf" gibi gönderdiğimizi varsayıyoruz
+          // Veya basitçe tüm zorunlu belgeleri DIGER olarak değil, enum'da ne varsa ona göre kaydediyoruz.
+          
           await prisma.document.create({
             data: {
               userId: Number(userId),
               fileUrl: blob.url,
-              tip: "DIGER", // Varsayılan olarak DIGER, frontend'den gelen isme göre admin panelinde düzenleyebilirsin
+              // Kritik: Prisma'daki DocType enum değerlerinden biri olmalı. 
+              // Eğer enum'da "DIGER" varsa çalışır, yoksa hata verir.
+              tip: "DIGER", 
               durum: "WAITING",
             },
           });
-          console.log('Belge veritabanına kaydedildi:', blob.url);
         } catch (dbError) {
-          console.error('Veritabanı kayıt hatası:', dbError);
+          console.error('VERİTABANI KAYIT HATASI:', dbError);
+          throw new Error("Veritabanı kaydı başarısız.");
         }
       },
     });
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
+    console.error("BLOB UPLOAD ERROR:", error);
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 400 },

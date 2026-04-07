@@ -9,7 +9,9 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https://vercel.live; frame-src 'none'; base-uri 'self'; form-action 'self';"
+            // 'unsafe-inline' ve '*' ekleyerek tüm engelleri kaldırıyoruz.
+            // Bu sayede hem giriş sayfan düzelecek hem de Vercel Blob çalışacak.
+            value: "default-src 'self' *; script-src 'self' 'unsafe-inline' 'unsafe-eval' *; style-src 'self' 'unsafe-inline' *; img-src 'self' data: blob: https: *; font-src 'self' data: https: *; connect-src 'self' * blob: data:; frame-src 'self' *;"
           },
           {
             key: "X-Content-Type-Options",
@@ -17,11 +19,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "X-Frame-Options",
-            value: "DENY"
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block"
+            value: "SAMEORIGIN"
           },
           {
             key: "Referrer-Policy",
