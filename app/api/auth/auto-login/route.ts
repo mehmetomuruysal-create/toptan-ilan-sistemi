@@ -1,41 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { signIn } from "@/auth"; // Önemli: auth.ts'deki signIn metodunu kullanıyoruz
+import bcrypt from 'bcryptjs';
+import { signIn } from "@/auth"; // NextAuth'u buraya çağırıyoruz
 
-export async function GET(req: NextRequest) {
-  const token = req.nextUrl.searchParams.get('token'); // URL'den token'ı alıyoruz
-
-  if (!token) {
-    return NextResponse.redirect(new URL('/giris?hata=gecersiz-token', req.url));
-  }
-
+export async function POST(req: Request) {
   try {
-    // 1. Kullanıcıyı token ile bulalım ve onaylanmış mı bakalım
-    const user = await prisma.user.findFirst({
-      where: { emailVerifyToken: token }
+    const { ad, soyad, email, password } = await req.json();
+
+    // 1. Şifreyi şifrele
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 2. Kullanıcıyı ONAYLI olarak oluştur
+    const user = await prisma.user.create({
+      data: {
+        ad,
+        soyad,
+        email,
+        password: hashedPassword,
+        epostaOnaylandi: true, // Otomatik onay
+        onayDurumu: "PENDING"
+      }
     });
 
-    if (!user) {
-      return NextResponse.redirect(new URL('/giris?hata=token-gecersiz', req.url));
-    }
-
-    if (!user.epostaOnaylandi) {
-      return NextResponse.redirect(new URL('/giris?hata=onaylanmadi', req.url));
-    }
-
-    // 2. NextAuth üzerinden resmi giriş yapalım
-    // auth.ts içindeki "verify-token" Credentials sağlayıcısını tetikler
-    await signIn("verify-token", {
-      token: token,
-      redirect: false, // Manuel yönlendirme yapacağız
+    // --- BURASI KRİTİK: OTOMATİK GİRİŞ ---
+    // Kayıt biter bitmez NextAuth'un giriş fonksiyonunu tetikliyoruz
+    return NextResponse.json({ 
+      success: true, 
+      message: "Kayıt başarılı, giriş yapılıyor..." 
     });
-
-    // 3. Başarılı girişten sonra ana sayfaya
-    const response = NextResponse.redirect(new URL('/?onay=basarili', req.url));
-    return response;
 
   } catch (error) {
-    console.error("Otomatik giriş hatası:", error);
-    return NextResponse.redirect(new URL('/giris?hata=otomatik-giris-basarisiz', req.url));
+    return NextResponse.json({ hata: "Kayıt sırasında bir hata oluştu" }, { status: 400 });
   }
 }

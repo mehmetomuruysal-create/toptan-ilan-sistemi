@@ -24,46 +24,106 @@ enum ListingStatus {
   PENDING
   COMPLETED
   CANCELLED
-  SUSPENDED // Admin veya kullanıcı tarafından dondurulan ilanlar
+  SUSPENDED
+  REJECTED
 }
 
 enum ParticipationStatus {
   PENDING
   CONFIRMED
   CANCELLED
-  SUSPENDED // Kullanıcı dondurulduğunda talepler bu duruma geçer
+  SUSPENDED
+}
+
+// --- YENİ EKLENEN ENUMLAR (DOĞRULAMA İÇİN) ---
+
+enum SupplierLevel {
+  NONE
+  BRONZ
+  GUMUS
+  ALTIN
+}
+
+enum UserStatus {
+  PENDING   // Onay Bekliyor
+  APPROVED  // Onaylandı
+  REJECTED  // Reddedildi (Belge eksik/hatalı)
+}
+
+enum DocType {
+  VERGI_LEVHASI
+  TICARI_SICIL
+  IMZA_SIRKULERI
+  FAALIYET_BELGESI
+  IBAN_BELGESI
+  SOZLESME
+  BAKANLIK_IZNI
+  DIGER
+}
+
+enum DocStatus {
+  WAITING   // İnceleme Bekliyor
+  APPROVED  // Onaylandı
+  REJECTED  // Reddedildi
 }
 
 // --- MODELLER ---
 
 model User {
-  id                Int           @id @default(autoincrement())
+  id                Int       @id @default(autoincrement())
   ad                String
   soyad             String
-  email             String        @unique
-  ulkeKodu          String        @default("+90")
-  telefon           String?       @unique
+  email             String    @unique
+  ulkeKodu          String    @default("+90")
+  telefon           String?   @unique
   password          String
-  cinsiyet          String?       
-  kampanyaOnay      Boolean       @default(false)
-  hesapTuru          HesapTuru     @default(ALICI)
+  cinsiyet          String?
+  kampanyaOnay      Boolean   @default(false)
+  hesapTuru         HesapTuru @default(ALICI)
+  
+  // Şirket ve Onay Bilgileri (Aşama 1: Temel Bilgiler)
   onayliTedarikci   Boolean       @default(false)
+  onayDurumu        UserStatus    @default(PENDING)
+  tedarikciSeviye   SupplierLevel @default(NONE)
+  
   firmaAdi          String?
-  vergiNo           String?
+  vergiNo           String?       @unique
   vergiDairesi      String?
+  tcKimlikNo        String?       // Yetkili kişi TC
+  
   adres             String?
   teslimatAdresi    String?
   guvenPuani        Int           @default(100)
   isAdmin           Boolean       @default(false)
+  
+  // Auth ve Onay
   resetToken        String?
   resetTokenExpiry  DateTime?
-  epostaOnaylandi   Boolean       @default(false)
+  epostaOnaylandi   Boolean       @default(true)
   emailVerifyToken  String?
   createdAt         DateTime      @default(now())
   
+  // İlişkiler
   ilanlar           Listing[]
   katilimlar        Participant[]
   adresler          Address[]
+  belgeler          Document[]    // Tedarikçi belgeleri (Aşama 2: Evraklar)
+}
+
+model Document {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tip           DocType
+  fileUrl       String   // Vercel Blob/S3 linki
+  durum         DocStatus @default(WAITING)
+  redNedeni     String?  // Red durumunda admin notu
+  
+  yuklemeTarihi DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Listing {
@@ -77,14 +137,15 @@ model Listing {
   hedefSayi         Int
   hedefKitle        String        @default("hepsi")
   minMiktarBireysel Int           @default(1)
-  minMiktarKobi      Int           @default(5)
+  minMiktarKobi     Int           @default(5)
   minMiktarKurumsal Int           @default(20)
   bitisTarihi       DateTime
   teslimatYontemi   String        @default("kargo")
   indirimOrani      Int           @default(10)
-  depozitoOrani      Int           @default(30)
+  depozitoOrani     Int           @default(30)
   
-  durum             ListingStatus @default(ACTIVE)
+  // İlanlar varsayılan olarak admin onayı bekler
+  durum             ListingStatus @default(PENDING)
   
   saticiId          Int
   satici            User          @relation(fields: [saticiId], references: [id], onDelete: Cascade)
@@ -95,14 +156,14 @@ model Listing {
 }
 
 model Barem {
-  id           Int          @id @default(autoincrement())
-  listingId    Int
-  listing      Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  sira         Int
-  miktar       Int
-  fiyat        Float
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id          Int      @id @default(autoincrement())
+  listingId   Int
+  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sira        Int
+  miktar      Int
+  fiyat       Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   
   katilimcilar Participant[]
 
@@ -111,12 +172,12 @@ model Barem {
 }
 
 model Pool {
-  id            Int           @id @default(autoincrement())
+  id            Int      @id @default(autoincrement())
   ilanId        Int
-  ilan          Listing       @relation(fields: [ilanId], references: [id], onDelete: Cascade)
-  mevcutKatilim Int           @default(0)
+  ilan          Listing  @relation(fields: [ilanId], references: [id], onDelete: Cascade)
+  mevcutKatilim Int      @default(0)
   bitisTarihi   DateTime
-  durum         String        @default("bekliyor")
+  durum         String   @default("bekliyor")
   
   katilimcilar  Participant[]
 }

@@ -5,18 +5,26 @@ import { auth } from "@/auth"
 export async function POST(req: Request) {
   const session = await auth()
 
+  // 1. OTURUM KONTROLÜ
   if (!session || !session.user?.email) {
     return NextResponse.json({ hata: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 })
   }
 
-  // 1. ÖNCE KULLANICIYI VERİTABANINDAN ÇEKİYORUZ
+  // 2. KULLANICIYI VE ONAY DURUMUNU ÇEKİYORUZ
   const kullanici = await prisma.user.findUnique({
     where: { email: session.user.email }
   })
 
-  // 2. YETKİ KONTROLÜNÜ VERİTABANINDAKİ "hesapTuru" İLE YAPIYORUZ
-  if (!kullanici || kullanici.hesapTuru !== "SATICI") {
-    return NextResponse.json({ hata: "Yetkisiz erişim. Sadece satıcı yetkisine sahip kullanıcılar ilan ekleyebilir." }, { status: 401 })
+  if (!kullanici) {
+    return NextResponse.json({ hata: "Kullanıcı bulunamadı." }, { status: 404 })
+  }
+
+  // 3. KRİTİK KİLİT: GÜMÜŞ TEDARİKÇİ VE SATICI ROLÜ KONTROLÜ
+  // Sadece SATICI olan ve onayDurumu 'APPROVED' (Onaylanmış) olanlar geçebilir
+  if (kullanici.hesapTuru !== "SATICI" || kullanici.onayDurumu !== "APPROVED") {
+    return NextResponse.json({ 
+      hata: "Yetkisiz erişim. İlan verebilmek için 'Satıcı' profilinizin onaylanmış (Gümüş Seviye) olması gerekir." 
+    }, { status: 403 })
   }
 
   const body = await req.json()
@@ -27,6 +35,7 @@ export async function POST(req: Request) {
     baremler
   } = body
 
+  // Alan Kontrolleri
   if (!baslik || !perakendeFiyat || !bitisTarihi) {
     return NextResponse.json({ hata: "Zorunlu alanlar eksik" }, { status: 400 })
   }
@@ -36,21 +45,25 @@ export async function POST(req: Request) {
   }
 
   const enYuksekBarem = baremler[baremler.length - 1]
-  const toptanFiyat = enYuksekBarem.fiyat
-  const hedefSayi = enYuksekBarem.miktar
+  const toptanFiyat = Number(enYuksekBarem.fiyat)
+  const hedefSayi = Number(enYuksekBarem.miktar)
 
-  if (toptanFiyat >= perakendeFiyat) {
-    return NextResponse.json({ hata: "Toptan fiyat (Barem fiyatı), perakende fiyattan düşük olmalıdır." }, { status: 400 })
+  if (toptanFiyat >= Number(perakendeFiyat)) {
+    return NextResponse.json({ hata: "Toptan fiyat, perakende fiyattan düşük olmalıdır." }, { status: 400 })
   }
 
   try {
     const ilan = await prisma.listing.create({
       data: {
         saticiId: kullanici.id,
-        baslik, aciklama, urunUrl, kategori,
+        baslik, 
+        aciklama, 
+        urunUrl, 
+        kategori,
         perakendeFiyat: Number(perakendeFiyat),
-        toptanFiyat: Number(toptanFiyat),
-        hedefSayi: Number(hedefSayi),
+        toptanFiyat: toptanFiyat,
+        hedefSayi: hedefSayi,
+        durum: "PENDING", // YENİ: İlan otomatik yayınlanmaz, admin onayı bekler
         hedefKitle: hedefKitle || "hepsi", 
         minMiktarBireysel: Number(minMiktarBireysel || 1), 
         minMiktarKobi: Number(minMiktarKobi || 5), 
@@ -70,7 +83,11 @@ export async function POST(req: Request) {
       }
     })
 
-    return NextResponse.json(ilan, { status: 201 })
+    return NextResponse.json({ 
+      mesaj: "İlan başarıyla oluşturuldu ve incelemeye alındı.", 
+      ilanId: ilan.id 
+    }, { status: 201 })
+
   } catch (error) {
     console.error("İlan ekleme hatası:", error)
     return NextResponse.json({ hata: "İlan eklenirken sistemsel bir hata oluştu" }, { status: 500 })
