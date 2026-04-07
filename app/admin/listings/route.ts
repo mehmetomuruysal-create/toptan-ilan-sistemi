@@ -1,33 +1,33 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { auth } from "@/auth";
 
-const prisma = new PrismaClient();
+/**
+ * GÜVENLİK NOTU: 
+ * Bu dosyadaki toplu silme ve askıya alma işlemleri, 
+ * veri güvenliğini korumak amacıyla devre dışı bırakılmıştır.
+ * Yanlışlıkla tüm veritabanının silinmesini önlemek için 
+ * bu uç noktalar sadece "Yetkisiz İşlem" hatası döndürür.
+ */
 
-// TÜM İLANLARI SİL (Kalıcı Silme)
 export async function DELETE() {
-  try {
-    // deleteMany parametresiz çağrıldığında tablodaki tüm kayıtları siler
-    await prisma.listing.deleteMany({});
-    
-    return NextResponse.json({ message: "Tüm ilanlar kalıcı olarak silindi." }, { status: 200 });
-  } catch (error) {
-    console.error("Silme hatası:", error);
-    return NextResponse.json({ error: "İlanlar silinirken bir hata oluştu." }, { status: 500 });
-  }
+  const session = await auth();
+  
+  // Önce yetki kontrolü (olsa bile kapalı tutuyoruz)
+  console.warn(`[GÜVENLİK] ${session?.user?.email} tarafından toplu silme isteği engellendi.`);
+
+  return NextResponse.json(
+    { error: "Bu işlem güvenlik nedeniyle devre dışı bırakılmıştır. Lütfen veritabanı yöneticisi ile iletişime geçin." }, 
+    { status: 403 }
+  );
 }
 
-// TÜM İLANLARI ASKIYA AL (Durum Güncelleme)
 export async function PATCH() {
-  try {
-    await prisma.listing.updateMany({
-      data: {
-        durum: "SUSPENDED" // Enum'daki SUSPENDED değerini kullanıyoruz
-      }
-    });
+  const session = await auth();
 
-    return NextResponse.json({ message: "Tüm ilanlar askıya alındı." }, { status: 200 });
-  } catch (error) {
-    console.error("Askıya alma hatası:", error);
-    return NextResponse.json({ error: "İlanlar askıya alınırken bir hata oluştu." }, { status: 500 });
-  }
+  console.warn(`[GÜVENLİK] ${session?.user?.email} tarafından toplu askıya alma isteği engellendi.`);
+
+  return NextResponse.json(
+    { error: "Toplu güncelleme işlemi güvenlik nedeniyle kapatılmıştır." }, 
+    { status: 403 }
+  );
 }

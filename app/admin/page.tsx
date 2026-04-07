@@ -20,9 +20,6 @@ export default async function AdminDashboard() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Gösterge Paneli</h1>
 
-      {/* --- YENİ EKLENEN AKSİYON BUTONLARI --- */}
-      <AdminActions />
-      {/* -------------------------------------- */}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded shadow border-t-4 border-blue-500">
