@@ -12,10 +12,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       id: "credentials",
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+        
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string }
         })
+
         if (!user || !user.password) return null
+        
         const isMatch = await bcrypt.compare(credentials.password as string, user.password)
         if (!isMatch) return null
         
@@ -25,8 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: `${user.ad} ${user.soyad}`.trim(),
           rol: user.hesapTuru,
           isAdmin: user.isAdmin,
-          // TypeScript hatasını engellemek için (user as any) kullanıyoruz:
-          onayDurumu: (user as any).onayDurumu, 
+          onayDurumu: (user as any).onayDurumu, // Kritik: Sütun adın onayDurumu ise bu çalışır
         }
       }
     }),
@@ -34,22 +36,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       id: "verify-token", 
       credentials: { token: { type: "text" } },
       async authorize(credentials) {
+        if (!credentials?.token) return null
+
         const user = await prisma.user.findFirst({
           where: {
             OR: [
-              { emailVerifyToken: credentials?.token as string },
-              { resetToken: credentials?.token as string }
+              { emailVerifyToken: credentials.token as string },
+              { resetToken: credentials.token as string }
             ]
           }
         })
-        if (!user) return null
 
-        if (!user.epostaOnaylandi) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { epostaOnaylandi: true }
-          })
-        }
+        if (!user) return null
 
         return {
           id: String(user.id),
@@ -68,7 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.rol = (user as any).rol;
         token.isAdmin = (user as any).isAdmin;
-        token.onayDurumu = (user as any).onayDurumu;
+        token.onayDurumu = (user as any).onayDurumu; // JWT token içine mühürledik
       }
       return token;
     },
@@ -77,7 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).id = token.id;
         (session.user as any).rol = token.rol;
         (session.user as any).isAdmin = token.isAdmin;
-        (session.user as any).onayDurumu = token.onayDurumu;
+        (session.user as any).onayDurumu = token.onayDurumu; // Session'a aktardık
       }
       return session;
     }
