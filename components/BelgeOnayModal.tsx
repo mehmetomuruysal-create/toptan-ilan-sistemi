@@ -34,15 +34,15 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
-      // ÇÖZÜM BURASI: Dosya adındaki boşlukları ve sorunlu karakterleri tireye (-) çeviriyoruz
+      // 1. GÜVENLİK: Dosya adındaki boşlukları ve sorunlu karakterleri tireye (-) çeviriyoruz
       const temizDosyaAdi = file.name
-        .replace(/[^a-zA-Z0-9.\-]/g, '-') // Harf, rakam, nokta ve tire dışındaki her şeyi tire yap
-        .replace(/-+/g, '-'); // Yan yana çoklu tireleri tek tire yap
+        .replace(/[^a-zA-Z0-9.\-]/g, '-') 
+        .replace(/-+/g, '-'); 
 
-      // API rotası ile haberleşip dosyayı Vercel Blob'a atar
+      // 2. YÜKLEME: Client üzerinden güvenli yükleme yapıyoruz
       const newBlob = await upload(temizDosyaAdi, file, {
         access: 'public',
-        handleUploadUrl: '/api/upload',
+        handleUploadUrl: '/api/upload', // API rotamızdan onay alıyoruz
       });
       
       setTamamlananlar(prev => [...prev, tip]);
