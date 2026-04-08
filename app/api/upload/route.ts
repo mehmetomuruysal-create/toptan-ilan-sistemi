@@ -5,15 +5,17 @@ import { auth } from '@/auth';
 
 export const runtime = 'nodejs';
 
-export async function POST(request: Request): Promise<NextResponse> {
-  try {
-    // 1. Olası çökme noktalarını try-catch içine aldık!
-    const body = (await request.json()) as HandleUploadBody;
-    const session = await auth();
+// ÇÖZÜM BURASI: POST fonksiyonunu auth() ile sarıyoruz
+export const POST = auth(async (request) => {
+  // Oturumu artık request.auth üzerinden alıyoruz
+  const session = request.auth;
 
-    if (!session || !session.user?.id) {
-      return NextResponse.json({ error: "Yetkisiz erişim. Lütfen giriş yapın." }, { status: 401 });
-    }
+  if (!session || !session.user?.id) {
+    return NextResponse.json({ error: "Yetkisiz erişim. Lütfen giriş yapın." }, { status: 401 });
+  }
+
+  try {
+    const body = (await request.json()) as HandleUploadBody;
 
     const jsonResponse = await handleUpload({
       body,
@@ -21,7 +23,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async (pathname) => {
         return {
           allowedContentTypes: ['image/jpeg', 'image/png', 'application/pdf', 'image/webp'],
-          tokenPayload: JSON.stringify({ userId: session.user.id, originalFilename: pathname }),
+          tokenPayload: JSON.stringify({ userId: session.user.id }),
         };
       },
       onUploadCompleted: async ({ blob, tokenPayload }) => {
@@ -49,11 +51,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error: any) {
-    console.error("🔥 BÜYÜK ÇÖKME HATASI:", error);
-    // Artık kod çökse bile ekrana bu hatayı yazdıracak!
+    console.error("🔥 YÜKLEME HATASI:", error);
     return NextResponse.json(
-      { error: error.message || "Bilinmeyen bir sunucu hatası oluştu." },
+      { error: error.message || "Bilinmeyen bir hata oluştu." },
       { status: 400 }
     );
   }
-}
+});
