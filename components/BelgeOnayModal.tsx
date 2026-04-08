@@ -34,17 +34,20 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
-      // 1. GÜVENLİK: Dosya adındaki boşlukları ve sorunlu karakterleri tireye (-) çeviriyoruz
+      // Dosya adı temizleme
       const temizDosyaAdi = file.name
-        .replace(/[^a-zA-Z0-9.\-]/g, '-') 
-        .replace(/-+/g, '-'); 
+        .replace(/[^a-zA-Z0-9.\-]/g, '-')
+        .replace(/-+/g, '-');
 
-      // 2. YÜKLEME: Client üzerinden güvenli yükleme yapıyoruz
+      // Kendi sitemizin adresini al (örn: https://sitem.com)
+      const host = window.location.origin;
+
+      // Yükleme isteği, tam URL ile yapılır
       const newBlob = await upload(temizDosyaAdi, file, {
         access: 'public',
-        handleUploadUrl: '/api/upload', // API rotamızdan onay alıyoruz
+        handleUploadUrl: `${host}/api/upload`, // Artık tam adres
       });
-      
+
       setTamamlananlar(prev => [...prev, tip]);
     } catch (error: any) {
       setHata("Dosya yüklenirken bir hata oluştu: " + (error.message || "Bilinmeyen Hata"));
