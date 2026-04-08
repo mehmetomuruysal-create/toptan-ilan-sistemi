@@ -1,7 +1,10 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/auth'; // Auth.ts yolunun projenle uyuştuğundan emin ol (örn: '@/auth' veya '@/app/api/auth/[...nextauth]/route' vs.)
+import { auth } from '@/auth'; // Auth.ts yolunun projenle uyuştuğundan emin ol
+
+// EKLENEN SİHİRLİ SATIR: Vercel'e bu dosyayı Prisma ile uyumlu standart sunucuda çalıştırmasını söyler
+export const runtime = 'nodejs';
 
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
@@ -18,7 +21,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         // İsteğe bağlı: Frontend'den dosya tipi (VERGI_LEVHASI vb.) gönderildiyse clientPayload içinden alabiliriz.
-        // Şu an modal kodunda clientPayload göndermiyoruz, o yüzden güvenli bir tokenPayload hazırlayalım.
         return {
           allowedContentTypes: ['image/jpeg', 'image/png', 'application/pdf', 'image/webp'],
           tokenPayload: JSON.stringify({
@@ -31,7 +33,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         try {
           // TokenPayload string olarak gelir, parse ediyoruz.
-          // Eğer tokenPayload boşsa hata almamak için güvenli parse edelim.
           const payloadString = tokenPayload || "{}";
           const payload = JSON.parse(payloadString);
           const userId = payload.userId;
@@ -43,17 +44,15 @@ export async function POST(request: Request): Promise<NextResponse> {
           console.log(`✅ Vercel Blob'a Yüklendi. URL: ${blob.url}, UserID: ${userId}`);
 
           // --- PRISMA VERİTABANI KAYDI ---
-          // 'tip' enum değerinin şemanda "DIGER" veya geçerli bir değer olduğuna emin ol.
-         // --- PRISMA VERİTABANI KAYDI ---
-         await prisma.document.create({
-          data: {
-            // String yerine Number() kullanıyoruz ki Prisma'nın beklediği Int tipiyle eşleşsin
-            userId: Number(userId), 
-            fileUrl: blob.url,
-            tip: "DIGER", 
-            durum: "WAITING",
-          },
-        });
+          await prisma.document.create({
+            data: {
+              // String yerine Number() kullanıyoruz ki Prisma'nın beklediği Int tipiyle eşleşsin
+              userId: Number(userId), 
+              fileUrl: blob.url,
+              tip: "DIGER", 
+              durum: "WAITING",
+            },
+          });
           
           console.log("💾 Veritabanına belge kaydı başarılı.");
 
