@@ -2,9 +2,9 @@ import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { PlusCircle, ShieldAlert, ChevronRight } from "lucide-react"
-import AuthButtons from "./components/AuthButtons"
-import MobileMenu from "./components/MobileMenu"
-import AddressButton from "./components/AddressButton"
+import AuthButtons from "../components/AuthButtons"
+import MobileMenu from "../components/MobileMenu"
+import AddressButton from "../components/AddressButton"
 
 export default async function Home() {
   const session = await auth()

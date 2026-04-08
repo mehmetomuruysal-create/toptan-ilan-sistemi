@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { CreditCard, MapPin, ShoppingBag, ArrowRight, CheckCircle2, Plus } from "lucide-react"
 // Doğru yol ve doğru dosya adı (küçük harf address-modal)
-import AddressModal from "../../components/AddressModal"
+import AddressModal from "../../../components/AddressModal"
 
 export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler }: any) {
   const [step, setStep] = useState(1)
