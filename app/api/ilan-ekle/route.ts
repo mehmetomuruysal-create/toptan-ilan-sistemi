@@ -1,58 +1,49 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { auth } from "@/auth"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 
 export async function POST(req: Request) {
-  const session = await auth()
+  const session = await auth();
 
   // 1. OTURUM KONTROLÜ
   if (!session || !session.user?.email) {
-    return NextResponse.json({ hata: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 })
+    return NextResponse.json({ hata: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 });
   }
 
-  // 2. KULLANICIYI VE ONAY DURUMUNU ÇEKİYORUZ
+  // 2. KULLANICI VE ONAY DURUMU KONTROLÜ
   const kullanici = await prisma.user.findUnique({
     where: { email: session.user.email }
-  })
+  });
 
   if (!kullanici) {
-    return NextResponse.json({ hata: "Kullanıcı bulunamadı." }, { status: 404 })
+    return NextResponse.json({ hata: "Kullanıcı bulunamadı." }, { status: 404 });
   }
 
-  // 3. KRİTİK KİLİT: GÜMÜŞ TEDARİKÇİ VE SATICI ROLÜ KONTROLÜ
-  // Sadece SATICI olan ve onayDurumu 'APPROVED' (Onaylanmış) olanlar geçebilir
   if (kullanici.hesapTuru !== "SATICI" || kullanici.onayDurumu !== "APPROVED") {
     return NextResponse.json({ 
-      hata: "Yetkisiz erişim. İlan verebilmek için 'Satıcı' profilinizin onaylanmış (Gümüş Seviye) olması gerekir." 
-    }, { status: 403 })
-  }
-
-  const body = await req.json()
-  const {
-    baslik, aciklama, urunUrl, kategori, perakendeFiyat,
-    hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
-    bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani,
-    baremler
-  } = body
-
-  // Alan Kontrolleri
-  if (!baslik || !perakendeFiyat || !bitisTarihi) {
-    return NextResponse.json({ hata: "Zorunlu alanlar eksik" }, { status: 400 })
-  }
-
-  if (!baremler || baremler.length === 0) {
-    return NextResponse.json({ hata: "İlan oluşturmak için en az 1 adet barem girmelisiniz." }, { status: 400 })
-  }
-
-  const enYuksekBarem = baremler[baremler.length - 1]
-  const toptanFiyat = Number(enYuksekBarem.fiyat)
-  const hedefSayi = Number(enYuksekBarem.miktar)
-
-  if (toptanFiyat >= Number(perakendeFiyat)) {
-    return NextResponse.json({ hata: "Toptan fiyat, perakende fiyattan düşük olmalıdır." }, { status: 400 })
+      hata: "Yetkisiz erişim. İlan verebilmek için 'Satıcı' profilinizin onaylanmış olması gerekir." 
+    }, { status: 403 });
   }
 
   try {
+    const body = await req.json();
+    const {
+      baslik, aciklama, urunUrl, kategori, perakendeFiyat,
+      hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
+      bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani,
+      baremler
+    } = body;
+
+    // Alan Kontrolleri
+    if (!baslik || !perakendeFiyat || !bitisTarihi || !baremler || baremler.length === 0) {
+      return NextResponse.json({ hata: "Zorunlu alanlar ve en az 1 barem gereklidir." }, { status: 400 });
+    }
+
+    // En son baremi hedef olarak belirle
+    const enYuksekBarem = baremler[baremler.length - 1];
+    const toptanFiyat = Number(enYuksekBarem.fiyat);
+    const hedefSayi = Number(enYuksekBarem.miktar);
+
     const ilan = await prisma.listing.create({
       data: {
         saticiId: kullanici.id,
@@ -63,7 +54,7 @@ export async function POST(req: Request) {
         perakendeFiyat: Number(perakendeFiyat),
         toptanFiyat: toptanFiyat,
         hedefSayi: hedefSayi,
-        durum: "PENDING", // YENİ: İlan otomatik yayınlanmaz, admin onayı bekler
+        durum: "PENDING", // İlan önce admin onayı bekler
         hedefKitle: hedefKitle || "hepsi", 
         minMiktarBireysel: Number(minMiktarBireysel || 1), 
         minMiktarKobi: Number(minMiktarKobi || 5), 
@@ -81,15 +72,15 @@ export async function POST(req: Request) {
           }))
         }
       }
-    })
+    });
 
     return NextResponse.json({ 
       mesaj: "İlan başarıyla oluşturuldu ve incelemeye alındı.", 
       ilanId: ilan.id 
-    }, { status: 201 })
+    }, { status: 201 });
 
-  } catch (error) {
-    console.error("İlan ekleme hatası:", error)
-    return NextResponse.json({ hata: "İlan eklenirken sistemsel bir hata oluştu" }, { status: 500 })
+  } catch (error: any) {
+    console.error("İlan ekleme hatası:", error);
+    return NextResponse.json({ hata: "Sistemsel hata: " + error.message }, { status: 500 });
   }
 }
