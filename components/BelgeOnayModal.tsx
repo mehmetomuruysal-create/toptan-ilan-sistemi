@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { upload } from "@vercel/blob/client";
-import { useSession } from "next-auth/react"; // Session'ı ekledik
+import { useSession } from "next-auth/react";
 import { FileText, Upload, CheckCircle, Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 
 const BELGE_TIPLERI = [
@@ -14,7 +14,7 @@ const BELGE_TIPLERI = [
 ];
 
 export default function BelgeOnayModal() {
-  const { data: session } = useSession(); // Kullanıcı bilgilerini buradan alıyoruz
+  const { data: session } = useSession();
   const [mounted, setMounted] = useState(false);
   const [yukleniyor, setYukleniyor] = useState<string | null>(null);
   const [tamamlananlar, setTamamlananlar] = useState<string[]>([]);
@@ -27,7 +27,7 @@ export default function BelgeOnayModal() {
   }, []);
 
   const handleUpload = async (tip: string, file: File) => {
-    // Oturum kontrolü
+    // 1. Güvenlik Kontrolü
     if (!session?.user?.id) {
       setHata("Dosya yüklemek için giriş yapmış olmanız gerekir.");
       return;
@@ -42,15 +42,19 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
+      // 2. Dosya adını temizle
       const temizDosyaAdi = file.name
         .replace(/[^a-zA-Z0-9.\-]/g, '-')
         .replace(/-+/g, '-');
 
-      // Vercel Blob Yükleme
-      const newBlob = await upload(temizDosyaAdi, file, {
+      // 3. Benzersiz dosya adı oluştur (TypeScript hatası veren addRandomSuffix yerine manuel çözüm)
+      const benzersizAd = `${Date.now()}-${temizDosyaAdi}`;
+
+      // 4. Vercel Blob Yükleme
+      const newBlob = await upload(benzersizAd, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
-        // 🔥 BURASI ÇOK KRİTİK: Sunucuya kim olduğumuzu ve belge tipini söylüyoruz
+        // Sunucuya kullanıcı bilgisini ve belge tipini paketleyip gönderiyoruz
         clientPayload: JSON.stringify({ 
           userId: session.user.id,
           belgeTipi: tip 
@@ -72,7 +76,7 @@ export default function BelgeOnayModal() {
 
   const modalContent = (
     <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="max-w-2xl w-full bg-white border border-gray-100 shadow-2xl rounded-[2.5rem] p-8 md:p-12 my-8">
+      <div className="max-w-2xl w-full bg-white border border-gray-100 shadow-2xl rounded-[2.5rem] p-8 md:p-12 my-8 animate-in zoom-in-95 duration-300">
         <div className="text-center mb-10">
           <div className="bg-blue-50 text-blue-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
             <ShieldCheck size={40} />
