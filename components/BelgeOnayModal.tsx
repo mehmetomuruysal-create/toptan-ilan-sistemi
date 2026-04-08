@@ -34,24 +34,30 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
-      // Dosya adı temizleme
+      // 1. Dosya adı temizleme (Boşlukları ve garip karakterleri atar)
       const temizDosyaAdi = file.name
         .replace(/[^a-zA-Z0-9.\-]/g, '-')
         .replace(/-+/g, '-');
 
-      // Kendi sitemizin adresini al (örn: https://sitem.com)
+      // 2. Kendi sitemizin tam adresini belirle
       const host = window.location.origin;
+      const apiEndpoint = `${host}/api/upload`;
 
-      // Yükleme isteği, tam URL ile yapılır
+      console.log("🚀 Yükleme başlatılıyor adrese:", apiEndpoint);
+
+      // 3. Vercel Blob Yükleme (Tam URL zorlamasıyla)
       const newBlob = await upload(temizDosyaAdi, file, {
         access: 'public',
-        handleUploadUrl: `${host}/api/upload`, // Artık tam adres
+        handleUploadUrl: apiEndpoint, // Tarayıcıyı kendi API rotamıza zorluyoruz
       });
-
+      
+      console.log("✅ Başarıyla yüklendi:", newBlob.url);
       setTamamlananlar(prev => [...prev, tip]);
     } catch (error: any) {
-      setHata("Dosya yüklenirken bir hata oluştu: " + (error.message || "Bilinmeyen Hata"));
-      console.error("Yükleme Hatası:", error);
+      // Hata mesajını daha detaylı gösterelim
+      const mesaj = error.message || "Bilinmeyen bir ağ hatası oluştu.";
+      setHata(`Yükleme başarısız: ${mesaj}`);
+      console.error("❌ Blob Upload Hatası:", error);
     } finally {
       setYukleniyor(null);
     }
@@ -71,7 +77,7 @@ export default function BelgeOnayModal() {
         </div>
 
         {hata && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100">
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100 animate-shake">
             <AlertCircle size={18} /> {hata}
           </div>
         )}
@@ -99,12 +105,16 @@ export default function BelgeOnayModal() {
                     type="file" 
                     className="hidden" 
                     accept="image/*,.pdf"
-                    onChange={(e) => e.target.files?.[0] && handleUpload(belge.key, e.target.files[0])}
+                    onChange={(e) => {
+                      const selectedFile = e.target.files?.[0];
+                      if (selectedFile) handleUpload(belge.key, selectedFile);
+                      e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için reset
+                    }}
                     disabled={yukleniyor !== null}
                   />
                   <div className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 justify-center ${
                     yukleniyor === belge.key 
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200 animate-pulse" 
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200" 
                     : "bg-white border-2 border-gray-200 hover:bg-black hover:text-white shadow-sm hover:border-black"
                   }`}>
                     {yukleniyor === belge.key ? <Loader2 className="animate-spin" size={16} /> : <><Upload size={14}/> Seç & Yükle</>}
