@@ -11,7 +11,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const payload = JSON.parse(clientPayload || '{}');
-        
         return {
           allowedContentTypes: ['image/jpeg', 'image/png', 'application/pdf'],
           tokenPayload: JSON.stringify({ 
@@ -23,21 +22,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       onUploadCompleted: async ({ blob, tokenPayload }) => {
         try {
           const { userId, belgeTipi } = JSON.parse(tokenPayload || '{}');
-
           if (userId) {
-            // ŞEMANA UYGUN ŞEKİLDE DÜZENLENDİ:
             await prisma.document.create({
               data: {
-                fileUrl: blob.url,         // 'url' yerine 'fileUrl'
+                fileUrl: blob.url,
                 userId: Number(userId),
-                tip: belgeTipi || "DIGER", // 'type' yerine 'tip'
-                durum: "WAITING",          // 'status' yerine 'durum'
+                tip: belgeTipi || "DIGER",
+                durum: "WAITING",
               },
             });
-            console.log(`✅ Veritabanına kaydedildi: User ${userId}`);
           }
         } catch (dbError) {
-          console.error("❌ Veritabanı kayıt hatası:", dbError);
+          console.error("❌ DB Kayıt Hatası:", dbError);
         }
       },
     });

@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { upload } from "@vercel/blob/client";
-import { useSession } from "next-auth/react";
 import { FileText, Upload, CheckCircle, Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 
 const BELGE_TIPLERI = [
@@ -13,8 +12,7 @@ const BELGE_TIPLERI = [
   { key: "IBAN_BELGESI", label: "IBAN Doğrulama Belgesi" },
 ];
 
-export default function BelgeOnayModal() {
-  const { data: session } = useSession();
+export default function BelgeOnayModal({ userId }: { userId: number }) {
   const [mounted, setMounted] = useState(false);
   const [yukleniyor, setYukleniyor] = useState<string | null>(null);
   const [tamamlananlar, setTamamlananlar] = useState<string[]>([]);
@@ -27,12 +25,6 @@ export default function BelgeOnayModal() {
   }, []);
 
   const handleUpload = async (tip: string, file: File) => {
-    // 1. Güvenlik Kontrolü
-    if (!session?.user?.id) {
-      setHata("Dosya yüklemek için giriş yapmış olmanız gerekir.");
-      return;
-    }
-
     if (file.size > 5 * 1024 * 1024) {
       setHata("Dosya boyutu 5MB'dan küçük olmalıdır.");
       return;
@@ -42,31 +34,20 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
-      // 2. Dosya adını temizle
-      const temizDosyaAdi = file.name
-        .replace(/[^a-zA-Z0-9.\-]/g, '-')
-        .replace(/-+/g, '-');
-
-      // 3. Benzersiz dosya adı oluştur (TypeScript hatası veren addRandomSuffix yerine manuel çözüm)
+      const temizDosyaAdi = file.name.replace(/[^a-zA-Z0-9.\-]/g, '-').replace(/-+/g, '-');
+      // Dosya çakışmasını önlemek için zaman damgası ekliyoruz
       const benzersizAd = `${Date.now()}-${temizDosyaAdi}`;
 
-      // 4. Vercel Blob Yükleme
-      const newBlob = await upload(benzersizAd, file, {
+      await upload(benzersizAd, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
-        // Sunucuya kullanıcı bilgisini ve belge tipini paketleyip gönderiyoruz
-        clientPayload: JSON.stringify({ 
-          userId: session.user.id,
-          belgeTipi: tip 
-        }),
+        clientPayload: JSON.stringify({ userId, belgeTipi: tip }),
       });
       
-      console.log("✅ Başarıyla yüklendi:", newBlob.url);
       setTamamlananlar(prev => [...prev, tip]);
     } catch (error: any) {
-      const mesaj = error.message || "Bilinmeyen bir ağ hatası oluştu.";
-      setHata(`Yükleme başarısız: ${mesaj}`);
-      console.error("❌ Blob Upload Hatası:", error);
+      setHata("Yükleme başarısız oldu.");
+      console.error(error);
     } finally {
       setYukleniyor(null);
     }
@@ -74,59 +55,42 @@ export default function BelgeOnayModal() {
 
   if (!mounted) return null;
 
-  const modalContent = (
-    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="max-w-2xl w-full bg-white border border-gray-100 shadow-2xl rounded-[2.5rem] p-8 md:p-12 my-8 animate-in zoom-in-95 duration-300">
+  return createPortal(
+    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl">
         <div className="text-center mb-10">
-          <div className="bg-blue-50 text-blue-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
-            <ShieldCheck size={40} />
+          <div className="bg-blue-50 text-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <ShieldCheck size={32} />
           </div>
-          <h2 className="text-3xl font-black text-gray-900 italic uppercase tracking-tight">Gümüş Onayı Gerekli</h2>
-          <p className="text-gray-500 mt-2 font-medium">İlan verebilmek için kurumsal belgelerinizi yüklemelisiniz.</p>
+          <h2 className="text-2xl font-black uppercase italic tracking-tight">Gümüş Onayı Gerekli</h2>
+          <p className="text-gray-500 text-sm mt-1 font-medium">İlan verebilmek için belgeleri yüklemelisiniz.</p>
         </div>
 
         {hata && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100">
-            <AlertCircle size={18} /> {hata}
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 flex items-center gap-2">
+            <AlertCircle size={16} /> {hata}
           </div>
         )}
 
         <div className="space-y-3">
           {BELGE_TIPLERI.map((belge) => (
-            <div key={belge.key} className="group flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-blue-100 transition-all gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl transition-colors ${tamamlananlar.includes(belge.key) ? "bg-green-100 text-green-600" : "bg-white text-gray-400 shadow-sm"}`}>
-                  <FileText size={24} />
-                </div>
-                <div>
-                  <span className="text-sm font-black text-gray-800 block">{belge.label}</span>
-                  <span className="text-xs text-gray-400 uppercase font-bold tracking-tighter">Zorunlu Belge</span>
-                </div>
+            <div key={belge.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border hover:border-blue-100 transition-all">
+              <div className="flex items-center gap-3">
+                <FileText size={20} className={tamamlananlar.includes(belge.key) ? "text-green-500" : "text-gray-400"} />
+                <span className="text-sm font-bold text-gray-700">{belge.label}</span>
               </div>
               
               {tamamlananlar.includes(belge.key) ? (
-                <div className="bg-green-500 text-white p-2.5 rounded-full shadow-lg shadow-green-200 self-end sm:self-auto">
-                  <CheckCircle size={20} />
-                </div>
+                <CheckCircle size={20} className="text-green-500" />
               ) : (
-                <label className="relative cursor-pointer self-end sm:self-auto">
+                <label className="cursor-pointer">
                   <input 
-                    type="file" 
-                    className="hidden" 
-                    accept="image/*,.pdf"
-                    onChange={(e) => {
-                      const selectedFile = e.target.files?.[0];
-                      if (selectedFile) handleUpload(belge.key, selectedFile);
-                      e.target.value = ''; 
-                    }}
+                    type="file" className="hidden" accept="image/*,.pdf"
+                    onChange={(e) => e.target.files?.[0] && handleUpload(belge.key, e.target.files[0])}
                     disabled={yukleniyor !== null}
                   />
-                  <div className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 justify-center ${
-                    yukleniyor === belge.key 
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-200" 
-                    : "bg-white border-2 border-gray-200 hover:bg-black hover:text-white shadow-sm hover:border-black"
-                  }`}>
-                    {yukleniyor === belge.key ? <Loader2 className="animate-spin" size={16} /> : <><Upload size={14}/> Seç & Yükle</>}
+                  <div className="bg-white border-2 border-gray-200 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-black hover:text-white transition-all">
+                    {yukleniyor === belge.key ? <Loader2 className="animate-spin" size={14} /> : "Seç & Yükle"}
                   </div>
                 </label>
               )}
@@ -137,13 +101,12 @@ export default function BelgeOnayModal() {
         <button 
           onClick={() => window.location.assign("/ilan-ekle")}
           disabled={tamamlananlar.length < 3}
-          className="w-full mt-10 bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+          className="w-full mt-8 bg-blue-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest disabled:bg-gray-200 disabled:text-gray-400 transition-all"
         >
-          {tamamlananlar.length < 3 ? `En Az ${3 - tamamlananlar.length} Belge Daha` : "İncelemeye Gönder & Bitir"}
+          {tamamlananlar.length < 3 ? `En Az ${3 - tamamlananlar.length} Belge Gerekli` : "İncelemeye Gönder & Bitir"}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
-
-  return createPortal(modalContent, document.body);
 }
