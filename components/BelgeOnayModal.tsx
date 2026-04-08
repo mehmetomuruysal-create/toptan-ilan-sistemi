@@ -34,11 +34,17 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
+      // ÇÖZÜM BURASI: Dosya adındaki boşlukları ve sorunlu karakterleri tireye (-) çeviriyoruz
+      const temizDosyaAdi = file.name
+        .replace(/[^a-zA-Z0-9.\-]/g, '-') // Harf, rakam, nokta ve tire dışındaki her şeyi tire yap
+        .replace(/-+/g, '-'); // Yan yana çoklu tireleri tek tire yap
+
       // API rotası ile haberleşip dosyayı Vercel Blob'a atar
-      const newBlob = await upload(file.name, file, {
+      const newBlob = await upload(temizDosyaAdi, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
       });
+      
       setTamamlananlar(prev => [...prev, tip]);
     } catch (error: any) {
       setHata("Dosya yüklenirken bir hata oluştu: " + (error.message || "Bilinmeyen Hata"));
