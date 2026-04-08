@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { upload } from "@vercel/blob/client";
+import { useSession } from "next-auth/react"; // Session'ı ekledik
 import { FileText, Upload, CheckCircle, Loader2, ShieldCheck, AlertCircle } from "lucide-react";
 
 const BELGE_TIPLERI = [
@@ -13,6 +14,7 @@ const BELGE_TIPLERI = [
 ];
 
 export default function BelgeOnayModal() {
+  const { data: session } = useSession(); // Kullanıcı bilgilerini buradan alıyoruz
   const [mounted, setMounted] = useState(false);
   const [yukleniyor, setYukleniyor] = useState<string | null>(null);
   const [tamamlananlar, setTamamlananlar] = useState<string[]>([]);
@@ -25,6 +27,12 @@ export default function BelgeOnayModal() {
   }, []);
 
   const handleUpload = async (tip: string, file: File) => {
+    // Oturum kontrolü
+    if (!session?.user?.id) {
+      setHata("Dosya yüklemek için giriş yapmış olmanız gerekir.");
+      return;
+    }
+
     if (file.size > 5 * 1024 * 1024) {
       setHata("Dosya boyutu 5MB'dan küçük olmalıdır.");
       return;
@@ -34,27 +42,24 @@ export default function BelgeOnayModal() {
     setHata("");
 
     try {
-      // 1. Dosya adı temizleme (Boşlukları ve garip karakterleri atar)
       const temizDosyaAdi = file.name
         .replace(/[^a-zA-Z0-9.\-]/g, '-')
         .replace(/-+/g, '-');
 
-      // 2. Kendi sitemizin tam adresini belirle
-      const host = window.location.origin;
-      const apiEndpoint = `${host}/api/upload`;
-
-      console.log("🚀 Yükleme başlatılıyor adrese:", apiEndpoint);
-
-      // 3. Vercel Blob Yükleme (Tam URL zorlamasıyla)
+      // Vercel Blob Yükleme
       const newBlob = await upload(temizDosyaAdi, file, {
         access: 'public',
-        handleUploadUrl: apiEndpoint, // Tarayıcıyı kendi API rotamıza zorluyoruz
+        handleUploadUrl: '/api/upload',
+        // 🔥 BURASI ÇOK KRİTİK: Sunucuya kim olduğumuzu ve belge tipini söylüyoruz
+        clientPayload: JSON.stringify({ 
+          userId: session.user.id,
+          belgeTipi: tip 
+        }),
       });
       
       console.log("✅ Başarıyla yüklendi:", newBlob.url);
       setTamamlananlar(prev => [...prev, tip]);
     } catch (error: any) {
-      // Hata mesajını daha detaylı gösterelim
       const mesaj = error.message || "Bilinmeyen bir ağ hatası oluştu.";
       setHata(`Yükleme başarısız: ${mesaj}`);
       console.error("❌ Blob Upload Hatası:", error);
@@ -67,7 +72,7 @@ export default function BelgeOnayModal() {
 
   const modalContent = (
     <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md z-[99999] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="max-w-2xl w-full bg-white border border-gray-100 shadow-2xl rounded-[2.5rem] p-8 md:p-12 my-8 animate-in zoom-in-95 duration-300">
+      <div className="max-w-2xl w-full bg-white border border-gray-100 shadow-2xl rounded-[2.5rem] p-8 md:p-12 my-8">
         <div className="text-center mb-10">
           <div className="bg-blue-50 text-blue-600 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
             <ShieldCheck size={40} />
@@ -77,7 +82,7 @@ export default function BelgeOnayModal() {
         </div>
 
         {hata && (
-          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100 animate-shake">
+          <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-bold border border-red-100">
             <AlertCircle size={18} /> {hata}
           </div>
         )}
@@ -108,7 +113,7 @@ export default function BelgeOnayModal() {
                     onChange={(e) => {
                       const selectedFile = e.target.files?.[0];
                       if (selectedFile) handleUpload(belge.key, selectedFile);
-                      e.target.value = ''; // Aynı dosyayı tekrar seçebilmek için reset
+                      e.target.value = ''; 
                     }}
                     disabled={yukleniyor !== null}
                   />
