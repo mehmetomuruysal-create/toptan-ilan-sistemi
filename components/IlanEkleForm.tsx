@@ -43,17 +43,36 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
 
   // --- JSON VERİLERİNİ ÇEK VE AYIKLA ---
   useEffect(() => {
-    Promise.all([
-      fetch("/data/il.json").then(res => res.json()),
-      fetch("/data/ilce.json").then(res => res.json())
-    ]).then(([ilRes, ilceRes]) => {
-      // PHPMyAdmin formatında asıl veriyi 'type: table' olan objenin 'data' kısmından buluyoruz
-      const ilTablosu = ilRes.find((item: any) => item.type === "table" && item.name === "il");
-      const ilceTablosu = ilceRes.find((item: any) => item.type === "table" && item.name === "ilce");
-      
-      if (ilTablosu) setIller(ilTablosu.data.sort((a: any, b: any) => a.name.localeCompare(b.name)));
-      if (ilceTablosu) setTumIlceler(ilceTablosu.data);
-    }).catch(err => console.error("Konum verileri yüklenemedi:", err));
+    const veriCek = async () => {
+      try {
+        const [ilRes, ilceRes] = await Promise.all([
+          fetch("/data/il.json").then(res => res.json()),
+          fetch("/data/ilce.json").then(res => res.json())
+        ]);
+  
+        // Veriyi bulmak için daha esnek bir arama (Dizi içinde dizi olsa bile bulur)
+        const ilData = (Array.isArray(ilRes[0]) ? ilRes[0] : ilRes)
+          .find((item: any) => item.type === "table")?.data;
+  
+        const ilceData = (Array.isArray(ilceRes[0]) ? ilceRes[0] : ilceRes)
+          .find((item: any) => item.type === "table")?.data;
+  
+        if (ilData) {
+          setIller(ilData.sort((a: any, b: any) => a.name.localeCompare(b.name, 'tr')));
+          console.log("✅ İller yüklendi:", ilData.length);
+        }
+        if (ilceData) {
+          setTumIlceler(ilceData);
+          console.log("✅ İlçeler yüklendi:", ilceData.length);
+        }
+  
+      } catch (err) {
+        console.error("❌ Veri çekme hatası:", err);
+        setHata("Şehir verileri yüklenemedi. Lütfen dosyaları kontrol edin.");
+      }
+    };
+  
+    veriCek();
   }, []);
 
   // Seçilen İl'e göre ilçeleri filtrele
