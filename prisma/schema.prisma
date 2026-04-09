@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ENUMLAR ---
+// --- ENUMLAR (Sistem Kararlılığı İçin Hepsi Korundu) ---
 
 enum HesapTuru {
   ALICI
@@ -34,8 +34,6 @@ enum ParticipationStatus {
   CANCELLED
   SUSPENDED
 }
-
-// --- YENİ EKLENEN ENUMLAR (DOĞRULAMA İÇİN) ---
 
 enum SupplierLevel {
   NONE
@@ -67,58 +65,63 @@ enum DocStatus {
   REJECTED  // Reddedildi
 }
 
+// 🚚 YENİ: Adım 2 için Teslimat Yöntemleri
+enum DeliveryMethod {
+  KARGO
+  MERKEZI_TESLIM
+  NAKLIYE
+}
+
 // --- MODELLER ---
 
 model User {
-  id                Int       @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   ad                String
   soyad             String
-  email             String    @unique
-  ulkeKodu          String    @default("+90")
-  telefon           String?   @unique
+  email             String          @unique
+  ulkeKodu          String          @default("+90")
+  telefon           String?         @unique
   password          String
   cinsiyet          String?
-  kampanyaOnay      Boolean   @default(false)
-  hesapTuru         HesapTuru @default(ALICI)
+  kampanyaOnay      Boolean         @default(false)
+  hesapTuru         HesapTuru       @default(ALICI)
   
-  // Şirket ve Onay Bilgileri (Aşama 1: Temel Bilgiler)
-  onayliTedarikci   Boolean       @default(false)
-  onayDurumu        UserStatus    @default(PENDING)
-  tedarikciSeviye   SupplierLevel @default(NONE)
+  onayDurumu        UserStatus      @default(PENDING)
+  tedarikciSeviye   SupplierLevel   @default(NONE)
   
   firmaAdi          String?
-  vergiNo           String?       @unique
+  vergiNo           String?         @unique
   vergiDairesi      String?
-  tcKimlikNo        String?       // Yetkili kişi TC
+  tcKimlikNo        String?         // Yetkili kişi TC
   
   adres             String?
   teslimatAdresi    String?
-  guvenPuani        Int           @default(100)
-  isAdmin           Boolean       @default(false)
+  guvenPuani        Int             @default(100)
+  isAdmin           Boolean         @default(false)
   
-  // Auth ve Onay
   resetToken        String?
   resetTokenExpiry  DateTime?
-  epostaOnaylandi   Boolean       @default(true)
+  epostaOnaylandi   Boolean         @default(true)
   emailVerifyToken  String?
-  createdAt         DateTime      @default(now())
+  createdAt         DateTime        @default(now())
   
-  // İlişkiler
+  // İlişkiler (Hepsi Korundu)
   ilanlar           Listing[]
   katilimlar        Participant[]
   adresler          Address[]
-  belgeler          Document[]    // Tedarikçi belgeleri (Aşama 2: Evraklar)
+  belgeler          Document[]      // Tedarikçi kurumsal belgeleri
 }
 
+// Tedarikçinin onay için yüklediği belgeler
 model Document {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   userId        Int
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   tip           DocType
-  fileUrl       String   // Vercel Blob/S3 linki
+  fileUrl       String
   durum         DocStatus @default(WAITING)
-  redNedeni     String?  // Red durumunda admin notu
+  redNedeni     String?
   
   yuklemeTarihi DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -127,32 +130,59 @@ model Document {
 }
 
 model Listing {
-  id                Int           @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   baslik            String
   aciklama          String?
   urunUrl           String?
-  kategori          String        @default("diger")
+  kategori          String          @default("diger")
   perakendeFiyat    Float
   toptanFiyat       Float
   hedefSayi         Int
-  hedefKitle        String        @default("hepsi")
-  minMiktarBireysel Int           @default(1)
-  minMiktarKobi     Int           @default(5)
-  minMiktarKurumsal Int           @default(20)
+  
+  // 📍 Adım 2: Bölge ve Teslimat (Yeni Eklenenler)
+  bolge             String?         
+  il                String?         
+  ilce              String?         
+  teslimatYontemleri DeliveryMethod[] 
+  
+  // Mevcut Ayarlar (Korundu)
+  hedefKitle        String          @default("hepsi")
+  minMiktarBireysel Int             @default(1)
+  minMiktarKobi     Int             @default(5)
+  minMiktarKurumsal Int             @default(20)
   bitisTarihi       DateTime
-  teslimatYontemi   String        @default("kargo")
-  indirimOrani      Int           @default(10)
-  depozitoOrani     Int           @default(30)
+  teslimatYontemi   String          @default("kargo") // Eski alan, uyumluluk için duruyor
+  indirimOrani      Int             @default(10)
+  depozitoOrani     Int             @default(30)
   
-  // İlanlar varsayılan olarak admin onayı bekler
-  durum             ListingStatus @default(PENDING)
-  
+  durum             ListingStatus   @default(PENDING)
   saticiId          Int
-  satici            User          @relation(fields: [saticiId], references: [id], onDelete: Cascade)
-  olusturmaTarihi   DateTime      @default(now())
+  satici            User            @relation(fields: [saticiId], references: [id], onDelete: Cascade)
+  olusturmaTarihi   DateTime        @default(now())
+  
+  // 🖼️ Adım 1: Çoklu Görsel ve Döküman İlişkileri (Yeni)
+  images            ListingImage[]
+  documents         ListingDocument[]
   
   havuzlar          Pool[]
   baremler          Barem[]
+}
+
+// 📸 Yeni: İlan Görselleri (Adım 1)
+model ListingImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+// 📂 Yeni: İlan Dökümanları (Adım 1)
+model ListingDocument {
+  id        Int     @id @default(autoincrement())
+  url       String
+  name      String
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
 model Barem {

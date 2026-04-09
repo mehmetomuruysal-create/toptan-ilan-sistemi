@@ -5,65 +5,70 @@ import { auth } from "@/auth";
 export async function POST(req: Request) {
   const session = await auth();
 
-  // 1. OTURUM KONTROLÜ
+  // 1. OTURUM VE YETKİ KONTROLÜ
   if (!session || !session.user?.email) {
-    return NextResponse.json({ hata: "Oturum bulunamadı, lütfen giriş yapın." }, { status: 401 });
+    return NextResponse.json({ hata: "Oturum bulunamadı." }, { status: 401 });
   }
 
-  // 2. KULLANICI VE ONAY DURUMU KONTROLÜ
   const kullanici = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { email: session.user.email },
+    select: { id: true, onayDurumu: true, hesapTuru: true }
   });
 
-  if (!kullanici) {
-    return NextResponse.json({ hata: "Kullanıcı bulunamadı." }, { status: 404 });
-  }
-
-  if (kullanici.hesapTuru !== "SATICI" || kullanici.onayDurumu !== "APPROVED") {
-    return NextResponse.json({ 
-      hata: "Yetkisiz erişim. İlan verebilmek için 'Satıcı' profilinizin onaylanmış olması gerekir." 
-    }, { status: 403 });
+  if (!kullanici || kullanici.onayDurumu !== "APPROVED" || kullanici.hesapTuru !== "SATICI") {
+    return NextResponse.json({ hata: "İlan verme yetkiniz bulunmuyor." }, { status: 403 });
   }
 
   try {
     const body = await req.json();
     const {
       baslik, aciklama, urunUrl, kategori, perakendeFiyat,
-      hedefKitle, minMiktarBireysel, minMiktarKobi, minMiktarKurumsal,
-      bitisTarihi, teslimatYontemi, indirimOrani, depozitoOrani,
-      baremler
+      bolge, il, ilce, teslimatYontemleri, baremler,
+      resimler, dokumanlar // Frontend'den gelen URL dizileri
     } = body;
 
-    // Alan Kontrolleri
-    if (!baslik || !perakendeFiyat || !bitisTarihi || !baremler || baremler.length === 0) {
-      return NextResponse.json({ hata: "Zorunlu alanlar ve en az 1 barem gereklidir." }, { status: 400 });
+    // Temel Validasyon
+    if (!baslik || !perakendeFiyat || !baremler || baremler.length === 0) {
+      return NextResponse.json({ hata: "Zorunlu alanlar eksik." }, { status: 400 });
     }
 
-    // En son baremi hedef olarak belirle
+    // Baremlerden toptan fiyat ve hedef sayıyı belirle (Son barem baz alınır)
     const enYuksekBarem = baremler[baremler.length - 1];
     const toptanFiyat = Number(enYuksekBarem.fiyat);
     const hedefSayi = Number(enYuksekBarem.miktar);
 
+    // İLAN OLUŞTURMA (Nested Create yapısı ile)
     const ilan = await prisma.listing.create({
       data: {
         saticiId: kullanici.id,
-        baslik, 
-        aciklama, 
-        urunUrl, 
+        baslik,
+        aciklama,
+        urunUrl,
         kategori,
         perakendeFiyat: Number(perakendeFiyat),
-        toptanFiyat: toptanFiyat,
-        hedefSayi: hedefSayi,
-        durum: "PENDING", // İlan önce admin onayı bekler
-        hedefKitle: hedefKitle || "hepsi", 
-        minMiktarBireysel: Number(minMiktarBireysel || 1), 
-        minMiktarKobi: Number(minMiktarKobi || 5), 
-        minMiktarKurumsal: Number(minMiktarKurumsal || 20),
-        bitisTarihi: new Date(bitisTarihi), 
-        teslimatYontemi: teslimatYontemi || "kargo", 
-        indirimOrani: Number(indirimOrani || 10), 
-        depozitoOrani: Number(depozitoOrani || 30),
-        
+        toptanFiyat,
+        hedefSayi,
+        bolge,
+        il,
+        ilce,
+        teslimatYontemleri, // Enum array [KARGO, NAKLIYE] vb.
+        durum: "PENDING",
+        bitisTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Varsayılan 30 gün
+
+        // 🖼️ Çoklu Görselleri Kaydet
+        images: {
+          create: resimler.map((url: string) => ({ url }))
+        },
+
+        // 📂 Dökümanları Kaydet
+        documents: {
+          create: dokumanlar.map((doc: { url: string; name: string }) => ({
+            url: doc.url,
+            name: doc.name
+          }))
+        },
+
+        // 📊 Baremleri Kaydet
         baremler: {
           create: baremler.map((b: any, index: number) => ({
             sira: index + 1,
@@ -75,12 +80,12 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ 
-      mesaj: "İlan başarıyla oluşturuldu ve incelemeye alındı.", 
+      mesaj: "İlan başarıyla oluşturuldu ve yönetici onayına gönderildi.", 
       ilanId: ilan.id 
     }, { status: 201 });
 
   } catch (error: any) {
-    console.error("İlan ekleme hatası:", error);
-    return NextResponse.json({ hata: "Sistemsel hata: " + error.message }, { status: 500 });
+    console.error("İlan Kayıt Hatası:", error);
+    return NextResponse.json({ hata: "Sistemsel bir hata oluştu: " + error.message }, { status: 500 });
   }
 }
