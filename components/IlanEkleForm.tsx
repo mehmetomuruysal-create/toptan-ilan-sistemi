@@ -145,74 +145,132 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       )}
 
       {/* --- ADIM 1: ÜRÜN BİLGİSİ --- */}
-      {step === 1 && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-2">İlan Başlığı *</label>
-              <input 
-                value={formData.baslik}
-                onChange={(e) => setFormData({...formData, baslik: e.target.value})}
-                placeholder="Örn: %100 Pamuklu Toptan Havlu"
-                className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Kategori</label>
-              <select 
-                value={formData.kategori}
-                onChange={(e) => setFormData({...formData, kategori: e.target.value})}
-                className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold outline-none"
+{step === 1 && (
+  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">İlan Başlığı *</label>
+        <input 
+          value={formData.baslik}
+          onChange={(e) => setFormData({...formData, baslik: e.target.value})}
+          placeholder="Örn: %100 Pamuklu Toptan Havlu"
+          className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold transition-all"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Kategori</label>
+        <select 
+          value={formData.kategori}
+          onChange={(e) => setFormData({...formData, kategori: e.target.value})}
+          className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl font-bold outline-none"
+        >
+          {KATEGORILER.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+    </div>
+
+    {/* AÇIKLAMA VE EVRAK YÜKLEME BÖLÜMÜ */}
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">İlan Açıklaması</label>
+        <textarea 
+          value={formData.aciklama}
+          onChange={(e) => setFormData({...formData, aciklama: e.target.value})}
+          placeholder="Ürününüzü detaylıca tanıtın, alıcıların merak edebileceği noktaları belirtin..."
+          rows={4}
+          className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-medium transition-all resize-none"
+        />
+      </div>
+
+      {/* ÜRÜN DÖKÜMANLARI (PDF, WORD, EXCEL) */}
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ürün Özellikleri / Teknik Evrak (Max 3)</label>
+        <div className="flex flex-wrap gap-3">
+          {dokumanDosyalari.map((file, i) => (
+            <div key={i} className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 animate-in zoom-in-95">
+              <FileText size={16} />
+              <span className="text-[11px] font-bold truncate max-w-[150px]">{file.name}</span>
+              <button 
+                onClick={() => setDokumanDosyalari(dokumanDosyalari.filter((_, idx) => idx !== i))}
+                className="hover:text-red-500 transition-colors"
               >
-                {KATEGORILER.map(k => <option key={k} value={k}>{k}</option>)}
-              </select>
+                <X size={14} />
+              </button>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ürün Görselleri (Max 5)</label>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              {resimOnizlemeler.map((url, i) => (
-                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-blue-100">
-                  <img src={url} alt="önizleme" className="w-full h-full object-cover" />
-                  <button onClick={() => resimSil(i)} className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-lg">
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-              {resimDosyalari.length < 5 && (
-                <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-all">
-                  <Upload className="text-gray-300 mb-2" />
-                  <span className="text-[10px] font-bold text-gray-400">Resim Ekle</span>
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleResimSec} />
-                </label>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Perakende Fiyat (₺) *</label>
+          ))}
+          
+          {dokumanDosyalari.length < 3 && (
+            <label className="flex items-center gap-2 bg-white border-2 border-dashed border-gray-200 px-4 py-2 rounded-xl cursor-pointer hover:bg-gray-50 hover:border-blue-400 transition-all text-gray-400 hover:text-blue-600">
+              <Upload size={16} />
+              <span className="text-[11px] font-black uppercase tracking-tighter">Evrak Yükle</span>
               <input 
-                type="number"
-                value={formData.perakendeFiyat}
-                onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})}
-                placeholder="0.00"
-                className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold"
+                type="file" 
+                className="hidden" 
+                accept=".pdf,.doc,.docx,.xls,.xlsx" 
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (dokumanDosyalari.length + files.length > 3) {
+                    alert("En fazla 3 döküman yükleyebilirsiniz.");
+                    return;
+                  }
+                  setDokumanDosyalari([...dokumanDosyalari, ...files]);
+                }}
               />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ürün URL (Opsiyonel)</label>
-              <input 
-                value={formData.urunUrl}
-                onChange={(e) => setFormData({...formData, urunUrl: e.target.value})}
-                placeholder="https://..."
-                className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold"
-              />
-            </div>
-          </div>
+            </label>
+          )}
         </div>
-      )}
+        <p className="text-[9px] text-gray-400 ml-2 font-medium italic">* PDF, Word veya Excel formatında teknik özellikler ekleyebilirsiniz.</p>
+      </div>
+    </div>
+
+    {/* RESİM YÜKLEME BÖLÜMÜ (Mevcut yapı) */}
+    <div className="space-y-2">
+      <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ürün Görselleri (Max 5)</label>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {resimOnizlemeler.map((url, i) => (
+          <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border-2 border-blue-100 group">
+            <img src={url} alt="önizleme" className="w-full h-full object-cover" />
+            <button 
+              onClick={() => resimSil(i)} 
+              className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+        {resimDosyalari.length < 5 && (
+          <label className="aspect-square rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-blue-400 transition-all group">
+            <Upload className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+            <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-500 mt-2 uppercase tracking-tighter">Resim Ekle</span>
+            <input type="file" multiple accept="image/*" className="hidden" onChange={handleResimSec} />
+          </label>
+        )}
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Perakende Fiyat (₺) *</label>
+        <input 
+          type="number"
+          value={formData.perakendeFiyat}
+          onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})}
+          placeholder="0.00"
+          className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Ürün URL (Dış Bağlantı)</label>
+        <input 
+          value={formData.urunUrl}
+          onChange={(e) => setFormData({...formData, urunUrl: e.target.value})}
+          placeholder="https://..."
+          className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-blue-500 rounded-2xl outline-none font-bold"
+        />
+      </div>
+    </div>
+  </div>
+)}
 
       {/* --- ADIM 2: FİYAT & TESLİMAT --- */}
       {step === 2 && (
