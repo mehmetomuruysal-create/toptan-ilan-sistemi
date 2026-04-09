@@ -27,7 +27,7 @@ export default async function IlanEklePage() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl font-black uppercase italic mb-8">Yeni İlan <span className="text-blue-600">Oluştur</span></h1>
           <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-2xl border border-gray-100">
-            <ListingForm saticiId={Number(session.user.id)} />
+            <IlanEkleForm saticiId={Number(session.user.id)} />
           </div>
         </div>
       </div>
