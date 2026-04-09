@@ -61,12 +61,11 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     return tumIlceler.filter(i => i.il_id === goruntulenenIlId).sort((a, b) => a.name.localeCompare(b.name, 'tr'));
   }, [goruntulenenIlId, tumIlceler]);
 
-  // --- CHECKBOX TOGGLE MANTIĞI ---
   const handleToggleLokasyon = (il: string, ilce: string) => {
     let yeniListe = [...formData.lokasyonlar];
-    const isSecili = yeniListe.some(l => l.il === il && l.ilce === ilce);
+    const isZatenSecili = yeniListe.some(l => l.il === il && l.ilce === ilce);
 
-    if (isSecili) {
+    if (isZatenSecili) {
       yeniListe = yeniListe.filter(l => !(l.il === il && l.ilce === ilce));
     } else {
       if (il === "TÜM TÜRKİYE") {
@@ -110,10 +109,11 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
 
   const sonrakiAdim = () => {
     setHata("");
-    if (step === 1 && (!formData.baslik || !formData.perakendeFiyat)) {
-      setHata("Başlık ve Perakende Fiyat zorunludur."); return;
+    if (step === 1 && !formData.baslik) {
+      setHata("Başlık alanı zorunludur."); return;
     }
     if (step === 2) {
+      if (!formData.perakendeFiyat) { setHata("Perakende Fiyat zorunludur."); return; }
       if (formData.lokasyonlar.length === 0) { setHata("En az bir gönderim bölgesi seçin."); return; }
       if (!validateBaremler()) return;
       if (!formData.bitisTarihi) { setHata("Bitiş tarihini seçiniz."); return; }
@@ -148,7 +148,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
         <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -z-10 -translate-y-1/2"></div>
         {STEPS.map((s) => (
           <div key={s.id} className="flex flex-col items-center bg-gray-50 px-2">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${step >= s.id ? "bg-blue-600 text-white" : "bg-white border-2 text-gray-300"}`}>
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${step >= s.id ? "bg-blue-600 text-white shadow-xl shadow-blue-200" : "bg-white border-2 text-gray-300"}`}>
               {step > s.id ? "✓" : s.icon}
             </div>
             <span className={`text-[10px] font-black uppercase mt-3 tracking-widest ${step >= s.id ? "text-blue-600" : "text-gray-400"}`}>{s.label}</span>
@@ -160,18 +160,17 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
 
       {/* ADIM 1: ÜRÜN BİLGİSİ */}
       {step === 1 && (
-        <div className="space-y-8 animate-in fade-in">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input value={formData.baslik} onChange={(e) => setFormData({...formData, baslik: e.target.value})} placeholder="İlan Başlığı *" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none focus:border-blue-500" />
+            <input value={formData.baslik} onChange={(e) => setFormData({...formData, baslik: e.target.value})} placeholder="İlan Başlığı *" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all" />
             <select value={formData.kategori} onChange={(e) => setFormData({...formData, kategori: e.target.value})} className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none">
               {KATEGORILER.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
 
           <div className="space-y-4">
-            <textarea value={formData.aciklama} onChange={(e) => setFormData({...formData, aciklama: e.target.value})} placeholder="Ürün açıklaması..." rows={4} className="w-full p-4 bg-gray-50 border-2 rounded-2xl outline-none focus:border-blue-500 font-medium" />
+            <textarea value={formData.aciklama} onChange={(e) => setFormData({...formData, aciklama: e.target.value})} placeholder="Ürününüzü detaylıca tanıtın..." rows={4} className="w-full p-4 bg-gray-50 border-2 rounded-2xl outline-none focus:border-blue-500 font-medium transition-all" />
             
-            {/* EVRAK YÜKLEME */}
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Teknik Şartname / Evrak (Maks. 3)</label>
               <div className="flex flex-wrap gap-2">
@@ -191,19 +190,17 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <input type="number" value={formData.perakendeFiyat} onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})} placeholder="Perakende Fiyat (₺) *" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold" />
-            <input value={formData.urunUrl} onChange={(e) => setFormData({...formData, urunUrl: e.target.value})} placeholder="Ürün URL (Opsiyonel)" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold" />
+          <div className="w-full">
+            <input value={formData.urunUrl} onChange={(e) => setFormData({...formData, urunUrl: e.target.value})} placeholder="Ürün URL (Opsiyonel)" className="w-full p-4 bg-gray-50 border-2 rounded-2xl font-bold" />
           </div>
 
-          {/* RESİM YÜKLEME VE BİLGİ NOTU */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 ml-2">
               <label className="text-[10px] font-black uppercase text-gray-400">Ürün Görselleri (Maks. 5)</label>
               <div className="group relative">
-                <Info size={14} className="text-gray-300 cursor-help hover:text-blue-500" />
-                <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-gray-900 text-white text-[10px] rounded-2xl opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-none shadow-xl">
-                   İpucu: Net ve farklı açılardan çekilmiş fotoğraflar satış şansını %60 artırır.
+                <Info size={14} className="text-gray-300 cursor-help hover:text-blue-500 transition-colors" />
+                <div className="absolute bottom-full left-0 mb-2 w-56 p-3 bg-gray-900 text-white text-[10px] rounded-2xl opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-none leading-relaxed shadow-xl">
+                   İpucu: Net ve farklı açılardan çekilmiş fotoğraflar alıcıların güvenini %60 oranında artırır.
                 </div>
               </div>
             </div>
@@ -215,8 +212,9 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
                 </div>
               ))}
               {resimDosyalari.length < 5 && (
-                <label className="aspect-square border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer text-gray-300 hover:text-blue-600 hover:border-blue-600 transition-all">
-                  <Plus size={32} /> <span className="text-[10px] font-black uppercase mt-1">Görsel Ekle</span>
+                <label className="aspect-square border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer text-gray-300 hover:text-blue-600 hover:border-blue-600 transition-all group">
+                  <Plus size={32} className="group-hover:scale-110 transition-transform" /> 
+                  <span className="text-[10px] font-black uppercase mt-1">Görsel Ekle</span>
                   <input type="file" className="hidden" multiple accept="image/*" onChange={(e) => {
                     const files = Array.from(e.target.files || []);
                     setResimDosyalari([...resimDosyalari, ...files].slice(0, 5));
@@ -229,29 +227,52 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
         </div>
       )}
 
-      {/* ADIM 2: FİYAT & TESLİMAT (KUTUCUKLU SEÇİM) */}
+      {/* ADIM 2: FİYAT & TESLİMAT */}
       {step === 2 && (
-        <div className="space-y-8 animate-in fade-in">
-          {/* BAREMLER */}
-          <div className="p-6 bg-blue-50/50 rounded-[2.5rem] border-2 border-dashed border-blue-200">
-            <h3 className="text-sm font-black uppercase italic text-blue-900 mb-6">Satış Baremleri</h3>
-            {formData.baremler.map((b, i) => (
-              <div key={i} className="flex gap-4 mb-4 animate-in slide-in-from-right-2">
-                <input placeholder="Adet" type="number" value={b.miktar} onChange={(e) => {const n = [...formData.baremler]; n[i].miktar = e.target.value; setFormData({...formData, baremler: n})}} className="flex-1 p-4 rounded-2xl border-2 font-bold focus:border-blue-500 outline-none" />
-                <input placeholder="Fiyat (₺)" type="number" value={b.fiyat} onChange={(e) => {const n = [...formData.baremler]; n[i].fiyat = e.target.value; setFormData({...formData, baremler: n})}} className="flex-1 p-4 rounded-2xl border-2 font-bold focus:border-blue-500 outline-none" />
-                {i > 0 && <Trash2 className="text-red-400 cursor-pointer self-center" onClick={() => setFormData({...formData, baremler: formData.baremler.filter((_, idx) => idx !== i)})} />}
-              </div>
-            ))}
-            <button onClick={() => setFormData({...formData, baremler: [...formData.baremler, {miktar: "", fiyat: ""}]})} className="text-blue-600 font-black uppercase text-[10px] mt-2">+ Barem Ekle</button>
+        <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+          
+          {/* PERAKENDE FİYAT (BURAYA ALINDI) */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase text-gray-400 ml-4 italic">Piyasa Perakende Fiyatı</label>
+            <input 
+              type="number" 
+              value={formData.perakendeFiyat} 
+              onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})} 
+              placeholder="Perakende Satış Fiyatı (₺) *" 
+              className="w-full p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl font-bold focus:border-blue-500 outline-none shadow-sm" 
+            />
+            <p className="text-[9px] text-blue-400 ml-4">Baremlerdeki adet fiyatları bu fiyattan düşük olmalıdır.</p>
           </div>
 
-          <div className="space-y-6">
-            <div className="flex justify-between items-center px-4">
-               <h3 className="text-[10px] font-black uppercase text-gray-400 italic">Gönderim Bölgeleri</h3>
-               <input type="date" value={formData.bitisTarihi} onChange={(e) => setFormData({...formData, bitisTarihi: e.target.value})} className="p-3 bg-white border-2 rounded-2xl text-xs font-bold shadow-sm" />
+          {/* BAREMLER */}
+          <div className="p-6 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-black uppercase italic text-gray-900">Toplu Satış Baremleri</h3>
+              <button onClick={() => {
+                const last = formData.baremler[formData.baremler.length - 1];
+                if (!last.miktar || !last.fiyat) { setHata("Mevcut baremi doldurmadan yeni barem eklenemez."); return; }
+                setFormData({...formData, baremler: [...formData.baremler, {miktar: "", fiyat: ""}]});
+              }} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-blue-100 transition-transform active:scale-95">+ Barem Ekle</button>
             </div>
+            {formData.baremler.map((b, i) => (
+              <div key={i} className="flex gap-4 mb-4 animate-in slide-in-from-right-2">
+                <input placeholder="Adet" type="number" value={b.miktar} onChange={(e) => {const n = [...formData.baremler]; n[i].miktar = e.target.value; setFormData({...formData, baremler: n})}} className="flex-1 p-4 rounded-2xl border-2 font-bold focus:border-blue-500 outline-none shadow-sm" />
+                <input placeholder="Birim Fiyat" type="number" value={b.fiyat} onChange={(e) => {const n = [...formData.baremler]; n[i].fiyat = e.target.value; setFormData({...formData, baremler: n})}} className="flex-1 p-4 rounded-2xl border-2 font-bold focus:border-blue-500 outline-none shadow-sm" />
+                {i > 0 && <Trash2 className="text-red-400 cursor-pointer self-center hover:text-red-600 transition-colors" onClick={() => setFormData({...formData, baremler: formData.baremler.filter((_, idx) => idx !== i)})} />}
+              </div>
+            ))}
+          </div>
 
-            {/* TÜM TÜRKİYE CHECKBOX */}
+          {/* ÇOKLU LOKASYON YÖNETİMİ */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-2">
+              <h3 className="text-[10px] font-black uppercase text-gray-400 italic">Gönderim Bölgeleri</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black text-gray-400 uppercase">İlan Bitiş:</span>
+                <input type="date" value={formData.bitisTarihi} onChange={(e) => setFormData({...formData, bitisTarihi: e.target.value})} className="p-2 bg-white border-2 rounded-xl text-xs font-bold outline-none shadow-sm" />
+              </div>
+            </div>
+            
             <div 
               onClick={() => handleToggleLokasyon("TÜM TÜRKİYE", "HEPSİ")}
               className={`mx-4 p-5 rounded-[2rem] border-2 flex items-center gap-4 cursor-pointer transition-all ${isSecili("TÜM TÜRKİYE", "HEPSİ") ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-200" : "bg-white border-gray-100 text-gray-500"}`}
@@ -260,32 +281,27 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
               <span className="font-black uppercase text-sm tracking-tight italic">Tüm Türkiye'ye Gönderim Yapıyorum</span>
             </div>
 
-            {/* İL VE İLÇE PANELİ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 px-4">
-               {/* ŞEHİRLER */}
-               <div className="bg-gray-50 rounded-[2.5rem] p-6 border-2 border-gray-100 max-h-[400px] overflow-y-auto">
+               <div className="bg-gray-50 rounded-[2.5rem] p-6 border-2 border-gray-100 max-h-[300px] overflow-y-auto">
                   <span className="text-[10px] font-black text-gray-400 uppercase block mb-4 tracking-widest">Şehirler</span>
                   <div className="space-y-2">
                     {iller.map(il => (
                       <div key={il.id} onClick={() => setGoruntulenenIlId(il.id)} className={`p-4 rounded-2xl flex justify-between items-center cursor-pointer transition-all ${goruntulenenIlId === il.id ? "bg-white shadow-md border-blue-200 border" : "hover:bg-gray-100"}`}>
-                        <span className="font-bold text-gray-700">{il.name}</span>
+                        <span className="font-bold text-gray-700 text-sm">{il.name}</span>
                         {formData.lokasyonlar.some(l => l.il === il.name) && <div className="w-2 h-2 bg-blue-500 rounded-full"></div>}
                       </div>
                     ))}
                   </div>
                </div>
 
-               {/* İLÇELER (KUTUCUKLU) */}
-               <div className="bg-white rounded-[2.5rem] p-6 border-2 border-gray-100 max-h-[400px] overflow-y-auto shadow-inner">
+               <div className="bg-white rounded-[2.5rem] p-6 border-2 border-gray-100 max-h-[300px] overflow-y-auto shadow-inner">
                   {goruntulenenIlId ? (
                     <div className="space-y-2">
                        <span className="text-[10px] font-black text-gray-400 uppercase block mb-4 italic leading-none">{iller.find(i => i.id === goruntulenenIlId)?.name} Seçenekleri</span>
-                       
                        <div onClick={() => handleToggleLokasyon(iller.find(i => i.id === goruntulenenIlId)!.name, "HEPSİ")} className={`p-4 rounded-xl flex items-center gap-3 cursor-pointer border-2 transition-all ${isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, "HEPSİ") ? "bg-blue-50 border-blue-200 text-blue-700 font-bold" : "border-transparent text-gray-400"}`}>
                           {isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, "HEPSİ") ? <CheckSquare size={20}/> : <Square size={20}/>}
                           <span className="text-xs uppercase">TÜM İLÇELER (HEPSİ)</span>
                        </div>
-
                        {aktifIlceler.map(ilce => (
                          <div key={ilce.id} onClick={() => handleToggleLokasyon(iller.find(i => i.id === goruntulenenIlId)!.name, ilce.name)} className={`p-4 rounded-xl flex items-center gap-3 cursor-pointer border-2 transition-all ${isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, ilce.name) || isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, "HEPSİ") ? "bg-gray-50 border-gray-100 text-gray-900 font-bold" : "border-transparent text-gray-500"}`}>
                             {isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, ilce.name) || isSecili(iller.find(i => i.id === goruntulenenIlId)!.name, "HEPSİ") ? <CheckSquare size={20} className="text-blue-500"/> : <Square size={20}/>}
@@ -294,12 +310,11 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
                        ))}
                     </div>
                   ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-300 gap-3 font-black uppercase text-[10px]"><MapPin size={40} /> Önce Şehir Seçin</div>
+                    <div className="h-full flex flex-col items-center justify-center text-gray-300 gap-3 font-black uppercase text-[10px]"><MapPin size={40} /> Şehir Seçin</div>
                   )}
                </div>
             </div>
 
-            {/* ÖZET CHIPS (SİYAH PANEL) */}
             <div className="mx-4 flex flex-wrap gap-2 p-5 bg-gray-900 rounded-[2.5rem] shadow-2xl">
                {formData.lokasyonlar.length === 0 ? <span className="text-[10px] text-gray-500 font-bold italic m-auto uppercase">Bölge seçilmedi</span> : (
                  formData.lokasyonlar.map((l, i) => (
@@ -320,11 +335,11 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
           <div className="bg-gray-50 p-10 rounded-[3.5rem] border-2 border-dashed border-gray-200 shadow-inner">
             <h2 className="text-4xl font-black italic uppercase text-gray-900 mb-8 leading-none tracking-tighter">{formData.baslik}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-sm">
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Bitiş</span><b>{formData.bitisTarihi}</b></div>
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Perakende</span><b className="text-blue-600 text-lg">{formData.perakendeFiyat} ₺</b></div>
+              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">İlan Bitiş Tarihi</span><b>{formData.bitisTarihi}</b></div>
+              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Perakende Satış Fiyatı</span><b className="text-blue-600 text-lg">{formData.perakendeFiyat} ₺</b></div>
             </div>
             <div className="space-y-3">
-              <span className="text-[10px] font-black text-gray-400 uppercase block ml-4">Fiyat Baremleri</span>
+              <span className="text-[10px] font-black text-gray-400 uppercase block ml-4">Grup Alım Fiyat Baremleri</span>
               {formData.baremler.map((b, i) => (
                 <div key={i} className="flex justify-between items-center bg-white p-6 rounded-[1.8rem] shadow-sm font-bold border border-gray-50 hover:border-blue-100 transition-all">
                   <span className="text-gray-700 text-lg">{b.miktar}+ Adet</span>
@@ -336,7 +351,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
         </div>
       )}
 
-      {/* NAV BUTONLARI */}
+      {/* FOOTER NAV */}
       <div className="flex gap-4 pt-10 px-4">
         {step > 1 && <button onClick={() => setStep(step - 1)} className="flex-1 bg-white border-2 p-6 rounded-[2.5rem] font-black uppercase text-gray-400 hover:bg-gray-50 transition-all shadow-sm">Geri</button>}
         {step < 3 ? (
