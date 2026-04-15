@@ -2,7 +2,11 @@
 
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { revalidatePath } from "next/cache" // 👈 UI'ın anında güncellenmesi için gerekli
 
+/**
+ * Yeni adres ekleme fonksiyonu
+ */
 export async function adresEkle(data: {
   baslik: string
   teslimAlacakKisi: string
@@ -23,12 +27,11 @@ export async function adresEkle(data: {
   try {
     const session = await auth()
     
-    // 1. GÜVENLİK: Session kontrolü
     if (!session?.user?.email) {
       return { success: false, error: "Oturum açmanız gerekiyor." }
     }
 
-    // 2. KESİN ÇÖZÜM: Kullanıcıyı e-posta ile DB'den bulup GERÇEK ID'sini alıyoruz
+    // Kullanıcıyı bulup gerçek ID'sini alıyoruz
     const dbUser = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
@@ -37,9 +40,9 @@ export async function adresEkle(data: {
       return { success: false, error: "Kullanıcı kaydı bulunamadı." }
     }
 
-    const userId = dbUser.id // Prisma'nın beklediği gerçek Int ID
+    const userId = dbUser.id
 
-    // Varsayılanları sıfırlama işlemleri
+    // Varsayılan adres mantığını yönetme (Eğer bu adres varsayılan seçildiyse eskileri sıfırla)
     if (data.isVarsayilanTeslimat) {
       await prisma.address.updateMany({
         where: { userId, isVarsayilanTeslimat: true },
@@ -53,10 +56,10 @@ export async function adresEkle(data: {
       })
     }
 
-    // 3. ADRES KAYDI
+    // Adres Kaydı
     const yeniAdres = await prisma.address.create({
       data: {
-        userId, // Artık hata vermesi imkansız çünkü DB'den aldık
+        userId,
         baslik: data.baslik,
         teslimAlacakKisi: data.teslimAlacakKisi,
         telefon: data.telefon,
@@ -75,9 +78,32 @@ export async function adresEkle(data: {
       }
     })
 
+    // Adreslerim sayfasını tazele
+    revalidatePath("/adreslerim")
     return { success: true, adres: yeniAdres }
+
   } catch (error) {
     console.error("Adres ekleme hatası:", error)
-    return { success: false, error: "Adres kaydedilirken veritabanı hatası oluştu." }
+    return { success: false, error: "Sistemsel bir hata oluştu." }
+  }
+}
+
+/**
+ * Adres silme fonksiyonu
+ */
+export async function adresSil(addressId: string) {
+  try {
+    const session = await auth()
+    if (!session) return { success: false, error: "Yetkiniz yok." }
+
+    await prisma.address.delete({
+      where: { id: addressId }
+    })
+
+    revalidatePath("/adreslerim")
+    return { success: true }
+  } catch (error) {
+    console.error("Adres silme hatası:", error)
+    return { success: false, error: "Adres silinemedi." }
   }
 }

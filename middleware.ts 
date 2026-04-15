@@ -1,26 +1,47 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt'; // NextAuth'un güvenli token kontrolü
 
+// Hafıza sızıntısını önlemek için basit bir temizleme mekanizması ekleyebiliriz
+// Ama şimdilik basit kalsın, büyük projede Redis kullanılır.
 const rateLimitMap = new Map();
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // 1. ADIM: Hız Sınırı (Rate Limiting) - Bot Koruması
   const ip = request.ip ?? '127.0.0.1';
-  const path = request.nextUrl.pathname;
-  const key = `${ip}-${path}`;
+  const key = `${ip}-${pathname}`;
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1 dakika
-  const maxRequests = 30; // maksimum 30 istek
+  const windowMs = 60 * 1000;
+  const maxRequests = 40; // API için biraz daha esnettik
 
   const timestamps = rateLimitMap.get(key) || [];
-  const recent = timestamps.filter(ts => now - ts < windowMs);
+  const recent = timestamps.filter((ts: number) => now - ts < windowMs);
+  
   if (recent.length >= maxRequests) {
-    return new NextResponse('Too Many Requests', { status: 429 });
+    return new NextResponse('Sakin ol şampiyon, çok hızlı gidiyorsun. (429)', { status: 429 });
   }
   recent.push(now);
   rateLimitMap.set(key, recent);
+
+  // 2. ADIM: Yetki Kontrolü (RBAC) - Admin Koruması
+  // Kullanıcının "kimlik kartına" (JWT token) bakıyoruz
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+  // Eğer kullanıcı /admin ile başlayan bir yere girmeye çalışıyorsa
+  if (pathname.startsWith('/admin')) {
+    // Giriş yapmamışsa veya Admin değilse doğrudan ana sayfaya şutla!
+    if (!token || token.isAdmin !== true) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
+// 3. ADIM: Matcher (Hangi sayfaları kontrol edelim?)
 export const config = {
-  matcher: '/api/:path*', // Sadece API yollarını koru
+  // Hem API'leri botlardan koru, hem /admin sayfalarını yetkisizlerden koru
+  matcher: ['/api/:path*', '/admin/:path*'],
 };

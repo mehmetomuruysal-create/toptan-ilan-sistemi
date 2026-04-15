@@ -5,13 +5,13 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 export default async function KullanicilarPage() {
-  // 1. GÜVENLİK: Sadece adminler girebilsin
+  // 1. GÜVENLİK: Sadece admin yetkisi olanlar bu sayfayı görebilir
   const session = await auth();
   if (!session?.user?.isAdmin) {
     redirect("/");
   }
 
-  // 2. VERİ ÇEKME
+  // 2. VERİ ÇEKME: Tüm kullanıcıları ve onlara bağlı belgeleri çekiyoruz
   const users = await prisma.user.findMany({
     include: {
       adresler: true,
@@ -20,7 +20,17 @@ export default async function KullanicilarPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // --- SERVER ACTIONS ---
+  // 📊 3. İSTATİSTİKLER: Admin paneli üstündeki özet kartlar için hesaplama
+  const stats = {
+    toplam: users.length,
+    alicilar: users.filter((u) => u.hesapTuru === "ALICI").length,
+    saticilar: users.filter((u) => u.hesapTuru === "SATICI").length,
+    onayBekleyenSaticilar: users.filter(
+      (u) => u.hesapTuru === "SATICI" && u.onayDurumu === "PENDING"
+    ).length,
+  };
+
+  // --- SERVER ACTIONS (Sunucu Tarafı İşlemleri) ---
 
   async function toggleAdminAction(userId: number, currentStatus: boolean) {
     "use server";
@@ -39,7 +49,6 @@ export default async function KullanicilarPage() {
     revalidatePath("/admin/kullanicilar");
   }
 
-  // KRİTİK DÜZELTME: onayliTedarikci alanını sildik, o yüzden data kısmından çıkardım
   async function updateUserStatusAction(userId: number, status: any, level: any) {
     "use server";
     await prisma.user.update({
@@ -47,17 +56,18 @@ export default async function KullanicilarPage() {
       data: { 
         onayDurumu: status, 
         tedarikciSeviye: level
-        // onayliTedarikci SİLİNDİ, buraya yazarsan hata verir
+        // Not: onayliTedarikci alanı şemadan kaldırıldığı için buraya eklemiyoruz.
       },
     });
     revalidatePath("/admin/kullanicilar");
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
       <KullanicilarClient 
-        // 'as any' ile zorlayarak TypeScript'in tip uyuşmazlığı hatasını susturuyoruz
-        initialUsers={JSON.parse(JSON.stringify(users)) as any} 
+        // JSON serileştirme ile TypeScript'in karmaşık tip hatalarını (Date objeleri vb.) önlüyoruz
+        initialUsers={JSON.parse(JSON.stringify(users))} 
+        stats={stats} // 👈 Yeni hesapladığımız istatistikleri gönderdik
         toggleAdminAction={toggleAdminAction}
         deleteUserAction={deleteUserAction}
         updateUserStatusAction={updateUserStatusAction}

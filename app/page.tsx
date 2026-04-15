@@ -2,14 +2,12 @@ import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import { PlusCircle, ShieldAlert, ChevronRight } from "lucide-react"
-import AuthButtons from "../components/AuthButtons"
 import MobileMenu from "../components/MobileMenu"
 import AddressButton from "../components/AddressButton"
 
 export default async function Home() {
   const session = await auth()
   
-  // Kullanıcı verisini her sayfa yenilendiğinde veritabanından çekiyoruz (En güvenli yol)
   let dbUser = null
   if (session?.user?.email) {
     dbUser = await prisma.user.findUnique({
@@ -25,59 +23,17 @@ export default async function Home() {
 
   const ilanlar = await prisma.listing.findMany({
     include: { satici: true },
-    where: { durum: "ACTIVE" } // Sadece onaylanmış ilanları gösterir
+    where: { durum: "ACTIVE" }
   })
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-2xl font-black text-blue-600 tracking-tighter uppercase italic">
-            Mingax
-          </Link>
-          
-          <div className="flex items-center gap-3">
-            {/* 1. KONTROL: Giriş yapılmış mı? */}
-            {session ? (
-              <>
-                <div className="hidden md:flex flex-col items-end mr-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Hoş geldin</span>
-                  <span className="text-sm font-bold text-gray-900">{dbUser?.ad} {dbUser?.soyad}</span>
-                </div>
-                
-                <AddressButton />
-                
-                {/* 2. KONTROL: Sadece SATICI olanlar "İlan Ver" butonunu görür */}
-                {dbUser?.hesapTuru === "SATICI" && (
-                  <Link 
-                    href="/ilan-ekle" 
-                    className="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-2xl hover:bg-blue-600 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-blue-100"
-                  >
-                    <PlusCircle size={18} />
-                    İlan Ver
-                  </Link>
-                )}
-
-                <form action={async () => { "use server"; await signOut({ redirectTo: "/" }) }} className="hidden sm:block">
-                  <button className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition">
-                    <ChevronRight size={20} />
-                  </button>
-                </form>
-                <MobileMenu />
-              </>
-            ) : (
-              /* GİRİŞ YAPMAYANLAR SADECE BURAYI GÖRÜR */
-              <>
-                <div className="hidden sm:block"><AuthButtons /></div>
-                <MobileMenu />
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* NOT: Buradaki <nav> bloğu tamamen kaldırıldı çünkü RootLayout 
+          içindeki global Navbar zaten bu görevi üstleniyor. 
+      */}
 
       <main className="max-w-6xl mx-auto px-4 py-12">
-        {/* 3. KONTROL: SATICI olup da APPROVED (Onaylı) olmayanlara uyarı bannerı */}
+        {/* Onay Bekleyen Satıcılar İçin Uyarı Bannerı */}
         {dbUser?.hesapTuru === "SATICI" && dbUser?.onayDurumu !== "APPROVED" && (
           <div className="mb-8 p-6 bg-orange-50 border border-orange-200 rounded-[2rem] flex items-center gap-4 text-orange-800 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="bg-orange-100 p-3 rounded-2xl text-orange-600">
