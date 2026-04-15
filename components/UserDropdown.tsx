@@ -6,7 +6,6 @@ import {
   User, 
   MapPin, 
   PlusCircle, 
-  LayoutDashboard, 
   LogOut, 
   ChevronDown,
   ShieldCheck
@@ -16,6 +15,9 @@ export default function UserDropdown() {
   const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Menüyü kapatmak için yardımcı fonksiyon
+  const closeDropdown = () => setIsOpen(false)
 
   // Dışarı tıklayınca kapatma
   useEffect(() => {
@@ -30,7 +32,6 @@ export default function UserDropdown() {
 
   if (!session) return null
 
-  // Admin kontrolü (NextAuth session içindeki isAdmin bilgisini kullanır)
   const isAdmin = (session.user as any)?.isAdmin === true
 
   return (
@@ -59,12 +60,12 @@ export default function UserDropdown() {
             <p className="text-sm font-black text-gray-800 truncate">{session.user?.email}</p>
           </div>
 
-          <div className="px-2 space-y-1">
+          {/* 🎯 Tıklama Yakalayıcı div: İçindeki herhangi bir Link'e basıldığında menüyü kapatır */}
+          <div className="px-2 space-y-1" onClick={closeDropdown}>
             <MenuLink href="/profil" icon={<User size={18} />} label="Profilim" />
             <MenuLink href="/adreslerim" icon={<MapPin size={18} />} label="Adreslerim" />
             <MenuLink href="/ilan-ekle" icon={<PlusCircle size={18} />} label="İlan Ekle" />
             
-            {/* Sadece Admin Görür */}
             {isAdmin && (
               <MenuLink 
                 href="/admin" 
@@ -77,7 +78,10 @@ export default function UserDropdown() {
 
           <div className="mt-4 pt-2 border-t border-gray-50 px-2">
             <button 
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={() => {
+                closeDropdown();
+                signOut({ callbackUrl: "/" });
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-colors"
             >
               <LogOut size={18} />
@@ -90,7 +94,6 @@ export default function UserDropdown() {
   )
 }
 
-// Menü Link Bileşeni (Tekrarı önlemek için)
 function MenuLink({ href, icon, label, extraClass = "" }: { href: string, icon: any, label: string, extraClass?: string }) {
   return (
     <Link 
