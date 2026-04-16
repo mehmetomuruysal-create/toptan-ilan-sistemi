@@ -1,139 +1,160 @@
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
+import { auth } from "@/auth" // Session kontrolü için ekledik
 import Link from "next/link"
-import BaremSecici from "./BaremSecici" // Yeni oluşturacağımız istemci bileşeni
+import BaremSecici from "./BaremSecici"
+import { ShieldCheck, Timer, ChevronLeft, Award, Truck, ShieldAlert } from "lucide-react"
 
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
+  // 🚀 Şemana %100 uyumlu sorgu
   const ilan = await prisma.listing.findUnique({
     where: { id: parseInt(id) },
     include: { 
       satici: true,
-      baremler: { orderBy: { sira: 'asc' } } // Baremleri sırasıyla çekiyoruz
+      images: true, 
+      baremler: { 
+        orderBy: { miktar: 'asc' } // ❌ 'minAdet' değil, şemanda 'miktar' olarak geçiyor
+      } 
     }
   })
 
   if (!ilan) notFound()
 
-  // En düşük fiyatlı (en son) baremi bulalım
-  const enDusukFiyat = ilan.baremler.length > 0 
+  // 🛡️ Güvenlik: Barem yoksa hata vermemesi için fallback ekledik
+  const enDusukBaremFiyati = ilan.baremler.length > 0 
     ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
     : ilan.toptanFiyat;
 
-  const indirimYuzde = Math.round((1 - enDusukFiyat / ilan.perakendeFiyat) * 100)
+  const indirimYuzde = Math.round((1 - enDusukBaremFiyati / ilan.perakendeFiyat) * 100)
   const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
-          <Link href="/" className="text-blue-600 font-bold text-xl flex items-center gap-2">
-            <span>←</span> Toptan İlan
+    <div className="min-h-screen bg-white">
+      {/* --- MINGAX ÜST NAV --- */}
+      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-50">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <Link href="/" className="group flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-all font-black uppercase text-[10px] tracking-widest italic">
+            <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Geri Dön
           </Link>
-          <div className="text-xs text-gray-400 hidden sm:block">
-            İlan ID: #{ilan.id} | Bitiş: {new Date(ilan.bitisTarihi).toLocaleDateString('tr-TR')}
+          <div className="flex items-center gap-4">
+             <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest hidden md:block italic">İlan Ref: #{ilan.id}</span>
+             <div className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                <Timer size={14} /> {kalanGun <= 0 ? "SÜRE DOLDU" : `${kalanGun} GÜN KALDI`}
+             </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
 
-          {/* Sol Kolon: Ürün Detayları */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6 sm:p-8">
-              <div className="flex items-start justify-between mb-6">
-                <div>
-                  <nav className="flex gap-2 text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
-                    <span className="bg-blue-50 px-2 py-1 rounded">{ilan.kategori}</span>
-                  </nav>
-                  <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-tight">
-                    {ilan.baslik}
-                  </h1>
-                </div>
-                <div className="hidden sm:flex flex-col items-end text-right">
-                  <span className="text-sm text-gray-400 line-through">₺{ilan.perakendeFiyat}</span>
-                  <span className="text-2xl font-black text-green-600">-%{indirimYuzde}</span>
-                </div>
+          {/* SOL KOLON */}
+          <div className="lg:col-span-7 space-y-12">
+            
+            {/* Galeri */}
+            <div className="space-y-4">
+               <div className="aspect-[4/3] rounded-[3.5rem] bg-gray-50 overflow-hidden border border-gray-100 group shadow-sm">
+                  {ilan.images[0] ? (
+                    <img src={ilan.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={ilan.baslik} />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 font-black italic">GÖRSEL YOK</div>
+                  )}
+               </div>
+               <div className="grid grid-cols-4 gap-4">
+                  {ilan.images.map((img) => (
+                    <div key={img.id} className="aspect-square rounded-3xl overflow-hidden border-2 border-gray-50 hover:border-blue-600 transition-all cursor-pointer shadow-sm">
+                       <img src={img.url} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+               </div>
+            </div>
+
+            {/* Başlık ve Açıklama */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                 <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest italic">{ilan.kategori}</span>
+                 {indirimYuzde > 0 && (
+                   <span className="text-green-600 font-black text-xs italic">-%{indirimYuzde}'ye Varan Tasarruf</span>
+                 )}
               </div>
-
-              {ilan.aciklama && (
-                <div className="prose prose-blue max-w-none text-gray-600 mb-8 leading-relaxed">
-                  {ilan.aciklama}
-                </div>
-              )}
-
-              {/* Hedef Kitle Kılavuzu */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 text-center">
-                  <span className="block text-2xl mb-1">👤</span>
-                  <span className="block text-xs font-bold text-blue-800 uppercase">Bireysel</span>
-                  <span className="text-sm font-medium text-blue-600">Min. {ilan.minMiktarBireysel} Adet</span>
-                </div>
-                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-center">
-                  <span className="block text-2xl mb-1">🏪</span>
-                  <span className="block text-xs font-bold text-indigo-800 uppercase">KOBİ</span>
-                  <span className="text-sm font-medium text-indigo-600">Min. {ilan.minMiktarKobi} Adet</span>
-                </div>
-                <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 text-center">
-                  <span className="block text-2xl mb-1">🏢</span>
-                  <span className="block text-xs font-bold text-purple-800 uppercase">Kurumsal</span>
-                  <span className="text-sm font-medium text-purple-600">Min. {ilan.minMiktarKurumsal} Adet</span>
-                </div>
-              </div>
-
-              {/* Güvenlik Paneli */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl">🚚</div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase">Teslimat</p>
-                    <p className="text-sm font-semibold text-gray-700">
-                      {ilan.teslimatYontemi === "kargo" ? "Adrese Kargo" : "Merkezi Teslimat"}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-green-50/50 rounded-2xl border border-green-100">
-                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl">🛡️</div>
-                  <div>
-                    <p className="text-xs font-bold text-green-700 uppercase">Koruma</p>
-                    <p className="text-sm font-semibold text-green-800">24 Saat İade Garantisi</p>
-                  </div>
-                </div>
+              <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{ilan.baslik}</h1>
+              <div className="prose prose-lg max-w-none text-gray-500 font-medium leading-relaxed whitespace-pre-line">
+                {ilan.aciklama}
               </div>
             </div>
 
-            {/* Tedarikçi Kartı */}
-            <div className="bg-white rounded-2xl shadow-sm border p-6 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg">
-                  {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
+            {/* Güvenlik Kutuları */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex gap-5 items-center">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600"><Truck size={28} /></div>
+                  <div>
+                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Teslimat Modeli</p>
+                     <p className="text-sm font-black text-gray-800 uppercase italic">
+                       {ilan.teslimatYontemi === "kargo" ? "Adrese Sigortalı Kargo" : "Merkezi Dağıtım"}
+                     </p>
+                  </div>
+               </div>
+               <div className="p-8 bg-green-50/30 rounded-[2.5rem] border border-green-100 flex gap-5 items-center">
+                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-green-600"><ShieldCheck size={28} /></div>
+                  <div>
+                     <p className="text-[10px] font-black text-green-700/50 uppercase tracking-widest mb-1">Güvence</p>
+                     <p className="text-sm font-black text-green-800 uppercase italic">Mingax Havuz Sistemi</p>
+                  </div>
+               </div>
+            </div>
+
+            {/* Satıcı Kartı */}
+            <div className="p-8 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-5">
+                <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center text-white text-xl font-black italic">
+                   {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                    {ilan.satici.ad} {ilan.satici.soyad}
-                    <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase">Onaylı</span>
-                  </h3>
-                  <p className="text-sm text-gray-500">Güven Puanı: <span className="text-yellow-500 font-bold">★ {ilan.satici.guvenPuani}</span></p>
+                   <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-black text-gray-900 text-lg uppercase italic tracking-tighter">
+                        {ilan.satici.ad} {ilan.satici.soyad}
+                      </h3>
+                      <Award size={18} className="text-blue-600" />
+                   </div>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">
+                     {ilan.satici.firmaAdi || "Bireysel Onaylı Satıcı"}
+                   </p>
                 </div>
               </div>
-              <button className="hidden sm:block text-sm font-bold text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-xl transition-all">
-                Satıcı Profilini Gör
-              </button>
+              <div className="flex items-center gap-6 border-l border-gray-100 pl-6 h-full">
+                 <div className="text-center">
+                    <p className="text-xs font-black text-gray-900 leading-none">{ilan.satici.guvenPuani}/100</p>
+                    <p className="text-[8px] font-black text-gray-400 uppercase mt-1">Skor</p>
+                 </div>
+                 <button className="bg-gray-50 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all italic">Profil</button>
+              </div>
             </div>
           </div>
 
-          {/* Sağ Kolon: Dinamik Barem Seçici */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 space-y-4">
-               {/* Baremleri yönetecek client bileşeni buraya geliyor */}
+          {/* SAĞ KOLON: BAREM SEÇİCİ */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-32">
+               {/* 🚀 Verileri temiz bir şekilde JSON serileştirmesiyle geçiyoruz */}
                <BaremSecici 
-                  baremler={ilan.baremler} 
+                  baremler={JSON.parse(JSON.stringify(ilan.baremler))} 
                   perakendeFiyat={ilan.perakendeFiyat} 
                   depozitoOrani={ilan.depozitoOrani}
                   kalanGun={kalanGun}
+                  minMiktarlar={{ 
+                    bireysel: ilan.minMiktarBireysel, 
+                    kobi: ilan.minMiktarKobi, 
+                    kurumsal: ilan.minMiktarKurumsal 
+                  }}
                />
+               
+               <div className="mt-6 px-6 py-4 bg-orange-50 rounded-2xl border border-orange-100 flex gap-3">
+                  <ShieldAlert className="text-orange-600 shrink-0" size={18} />
+                  <p className="text-[10px] font-bold text-orange-800 leading-relaxed uppercase">
+                     Önemli: Hedef sayıya ulaşılamazsa depozito tutarınız kesintisiz iade edilir.
+                  </p>
+               </div>
             </div>
           </div>
 
