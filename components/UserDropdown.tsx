@@ -18,14 +18,9 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const closeDropdown = () => setIsOpen(false)
-
-  // Dışarı tıklayınca kapatma mantığı
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setIsOpen(false)
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
@@ -33,11 +28,11 @@ export default function UserDropdown() {
 
   if (!session) return null
 
+  // 🚀 MÜHÜR: session.user içindeki isAdmin kontrolü
   const isAdmin = (session.user as any)?.isAdmin === true
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* TETİKLEYİCİ BUTON - Daha Mingax Tarzı */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-3 bg-gray-900 text-white px-5 py-2.5 rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-xl shadow-gray-200 group"
@@ -52,37 +47,21 @@ export default function UserDropdown() {
         <ChevronDown size={14} className={`text-white/50 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* DROPDOWN MENÜ */}
       {isOpen && (
         <div className="absolute right-0 mt-4 w-72 bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-6 z-[9999] animate-in fade-in zoom-in-95 duration-200">
-          
-          {/* ÜST BİLGİ */}
           <div className="px-8 pb-4 border-b border-gray-50 mb-4">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mb-1">Hesap Detayı</p>
             <p className="text-xs font-bold text-gray-800 truncate">{session.user?.email}</p>
           </div>
 
-          {/* LİNKLER - Anayasa'ya Uygun */}
-          <div className="px-3 space-y-1" onClick={closeDropdown}>
-            <MenuLink href="/profil" icon={<LayoutDashboard size={18} />} label="Genel Bakış" />
-            
-            {/* 🚀 CÜZDAN: Alıcının en çok kullanacağı yer */}
-            <MenuLink 
-              href="/cuzdan" 
-              icon={<Wallet size={18} className="text-blue-600" />} 
-              label="Cüzdanım" 
-            />
-
-            {/* 🚀 TALEP OLUŞTUR: "İlan Ekle" yerine "Anayasa" kuralı olan Talep sistemi */}
-            <MenuLink 
-              href="/talep/yeni" 
-              icon={<MessageSquarePlus size={18} className="text-green-600" />} 
-              label="Yeni İlan Talebi" 
-            />
-
+          <div className="px-3 space-y-1" onClick={() => setIsOpen(false)}>
+            <MenuLink href="/panel" icon={<LayoutDashboard size={18} />} label="Genel Bakış" />
+            <MenuLink href="/cuzdan" icon={<Wallet size={18} className="text-blue-600" />} label="Cüzdanım" />
+            <MenuLink href="/talep/yeni" icon={<MessageSquarePlus size={18} className="text-green-600" />} label="Yeni İlan Talebi" />
             <MenuLink href="/adreslerim" icon={<MapPin size={18} />} label="Adreslerim" />
             <MenuLink href="/profil/ayarlar" icon={<User size={18} />} label="Profil Ayarları" />
             
+            {/* 🚀 ADMIN MÜHRÜ */}
             {isAdmin && (
               <div className="pt-2">
                 <MenuLink 
@@ -95,17 +74,12 @@ export default function UserDropdown() {
             )}
           </div>
 
-          {/* ÇIKIŞ BUTONU */}
           <div className="mt-6 pt-4 border-t border-gray-50 px-4">
             <button 
-              onClick={() => {
-                closeDropdown();
-                signOut({ callbackUrl: "/" });
-              }}
+              onClick={() => signOut({ callbackUrl: "/" })}
               className="w-full flex items-center gap-4 px-6 py-4 text-[11px] font-black uppercase italic tracking-[0.2em] text-red-500 hover:bg-red-50 rounded-[1.5rem] transition-all"
             >
-              <LogOut size={18} />
-              Güvenli Çıkış
+              <LogOut size={18} /> Güvenli Çıkış
             </button>
           </div>
         </div>
@@ -120,8 +94,7 @@ function MenuLink({ href, icon, label, extraClass = "" }: { href: string, icon: 
       href={href} 
       className={`flex items-center gap-4 px-6 py-4 text-[11px] font-black uppercase italic tracking-[0.15em] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-[1.5rem] transition-all group ${extraClass}`}
     >
-      <span className="group-hover:scale-110 transition-transform">{icon}</span>
-      {label}
+      <span className="group-hover:scale-110 transition-transform">{icon}</span> {label}
     </Link>
   )
 }

@@ -26,9 +26,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: String(user.id),
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
-          rol: user.hesapTuru,
+          hesapTuru: user.hesapTuru,
           isAdmin: user.isAdmin,
-          onayDurumu: (user as any).onayDurumu, // Kritik: Sütun adın onayDurumu ise bu çalışır
+          onayDurumu: user.onayDurumu,
+          rol: user.hesapTuru, // TS susturucu
         }
       }
     }),
@@ -53,32 +54,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: String(user.id),
           email: user.email,
           name: `${user.ad} ${user.soyad}`.trim(),
-          rol: user.hesapTuru,
+          hesapTuru: user.hesapTuru,
           isAdmin: user.isAdmin,
-          onayDurumu: (user as any).onayDurumu,
+          onayDurumu: user.onayDurumu,
+          rol: user.hesapTuru, // TS susturucu
         }
       }
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    // 🚀 Parametrelere : any ekleyerek TS'yi susturduk
+    async jwt({ token, user }: any) {
       if (user) {
         token.id = user.id;
-        token.rol = (user as any).rol;
-        token.isAdmin = (user as any).isAdmin;
-        token.onayDurumu = (user as any).onayDurumu; // JWT token içine mühürledik
+        token.isAdmin = user.isAdmin;
+        token.onayDurumu = user.onayDurumu;
+        token.hesapTuru = user.hesapTuru;
       }
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session.user && token) {
         (session.user as any).id = token.id;
-        (session.user as any).rol = token.rol;
         (session.user as any).isAdmin = token.isAdmin;
-        (session.user as any).onayDurumu = token.onayDurumu; // Session'a aktardık
+        (session.user as any).onayDurumu = token.onayDurumu;
+        (session.user as any).hesapTuru = token.hesapTuru;
       }
       return session;
     }
   },
-  pages: { signIn: "/giris" }
+  pages: { 
+    signIn: "/giris" 
+  }
 })
