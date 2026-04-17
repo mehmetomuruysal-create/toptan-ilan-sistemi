@@ -2,10 +2,10 @@
 
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
-import { revalidatePath } from "next/cache" // 👈 UI'ın anında güncellenmesi için gerekli
+import { revalidatePath } from "next/cache"
 
 /**
- * Yeni adres ekleme fonksiyonu
+ * Yeni adres ekleme fonksiyonu - Tüm ticari ve bireysel alanlar dahil
  */
 export async function adresEkle(data: {
   baslik: string
@@ -42,13 +42,15 @@ export async function adresEkle(data: {
 
     const userId = dbUser.id
 
-    // Varsayılan adres mantığını yönetme (Eğer bu adres varsayılan seçildiyse eskileri sıfırla)
+    // 🔄 Varsayılan Teslimat Adresi Mantığı
     if (data.isVarsayilanTeslimat) {
       await prisma.address.updateMany({
         where: { userId, isVarsayilanTeslimat: true },
         data: { isVarsayilanTeslimat: false }
       })
     }
+
+    // 🔄 Varsayılan Fatura Adresi Mantığı (Build hatasına neden olan kısım - Şemada olmalı!)
     if (data.isVarsayilanFatura) {
       await prisma.address.updateMany({
         where: { userId, isVarsayilanFatura: true },
@@ -56,7 +58,7 @@ export async function adresEkle(data: {
       })
     }
 
-    // Adres Kaydı
+    // 📝 Adres Kaydı - Hiçbir alan eksiltilmedi
     const yeniAdres = await prisma.address.create({
       data: {
         userId,
@@ -71,6 +73,7 @@ export async function adresEkle(data: {
         isVarsayilanTeslimat: data.isVarsayilanTeslimat ?? false,
         isVarsayilanFatura: data.isVarsayilanFatura ?? false,
         faturaTuru: data.faturaTuru,
+        // Bireysel/Kurumsal ayrımına göre verileri mühürle
         tcKimlik: data.faturaTuru === "BIREYSEL" ? data.tcKimlik : null,
         firmaAdi: data.faturaTuru === "KURUMSAL" ? data.firmaAdi : null,
         vergiDairesi: data.faturaTuru === "KURUMSAL" ? data.vergiDairesi : null,
@@ -78,7 +81,7 @@ export async function adresEkle(data: {
       }
     })
 
-    // Adreslerim sayfasını tazele
+    // UI'ı anında güncelle
     revalidatePath("/adreslerim")
     return { success: true, adres: yeniAdres }
 
@@ -89,15 +92,25 @@ export async function adresEkle(data: {
 }
 
 /**
- * Adres silme fonksiyonu
+ * Adres silme fonksiyonu - Güvenlik mühürlü
  */
 export async function adresSil(addressId: string) {
   try {
     const session = await auth()
-    if (!session) return { success: false, error: "Yetkiniz yok." }
+    if (!session?.user?.email) return { success: false, error: "Yetkiniz yok." }
+
+    // Silme işleminde kullanıcı doğrulaması yaparak güvenliği mühürle
+    const dbUser = await prisma.user.findUnique({
+      where: { email: session.user.email }
+    })
+
+    if (!dbUser) return { success: false, error: "Kullanıcı bulunamadı." }
 
     await prisma.address.delete({
-      where: { id: addressId }
+      where: { 
+        id: addressId,
+        userId: dbUser.id 
+      }
     })
 
     revalidatePath("/adreslerim")

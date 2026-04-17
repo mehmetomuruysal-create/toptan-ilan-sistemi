@@ -261,10 +261,27 @@ model Address {
   id                   String     @id @default(cuid())
   userId               Int
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  baslik               String     
+  
+  baslik               String     // Ev, İş, Depo vb.
+  teslimAlacakKisi     String     // Ad Soyad
+  telefon              String
   il                   String
   ilce                 String
+  mahalle              String?
   adresSatiri          String
+  postaKodu            String?
+
+  // 🚀 Varsayılan Ayarları (Build hatasını çözen yer)
   isVarsayilanTeslimat Boolean    @default(false)
+  isVarsayilanFatura   Boolean    @default(false) 
+
+  // 📄 Fatura Bilgileri
   faturaTuru           FaturaTuru @default(BIREYSEL)
+  tcKimlik             String?    // Bireysel için
+  firmaAdi             String?    // Kurumsal için
+  vergiDairesi         String?    // Kurumsal için
+  vergiNo              String?    // Kurumsal için
+
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 }
