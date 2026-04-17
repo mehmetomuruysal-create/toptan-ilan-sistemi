@@ -110,7 +110,7 @@ model User {
   onayDurumu        UserStatus         @default(PENDING)
   tedarikciSeviye   SupplierLevel      @default(NONE)
   
-  // 🚀 TİCARİ BİLGİLER
+  // 🚀 TİCARİ BİLGİLER (Sayfa hatalarını çözen kritik alanlar)
   firmaAdi          String?
   vergiNo           String?            @unique
   vergiDairesi      String?
@@ -275,7 +275,7 @@ model Address {
   adresSatiri          String
   postaKodu            String?
 
-  // 🚀 Varsayılan Ayarları
+  // 🚀 Varsayılan Ayarları (Build hatasını çözen yer)
   isVarsayilanTeslimat Boolean    @default(false)
   isVarsayilanFatura   Boolean    @default(false) 
 
