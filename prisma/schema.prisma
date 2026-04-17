@@ -110,12 +110,16 @@ model User {
   onayDurumu        UserStatus         @default(PENDING)
   tedarikciSeviye   SupplierLevel      @default(NONE)
   
-  // 🚀 TİCARİ BİLGİLER (Sayfa hatalarını çözen kritik alanlar)
+  // 🚀 TİCARİ BİLGİLER
   firmaAdi          String?
   vergiNo           String?            @unique
   vergiDairesi      String?
   tcKimlikNo        String?
   guvenPuani        Int                @default(100)
+  
+  // 🔐 ŞİFRE SIFIRLAMA VE GÜVENLİK (Build hatasını çözen alanlar)
+  resetToken        String?
+  resetTokenExpiry  DateTime?
   
   isAdmin           Boolean            @default(false)
   pointsBalance     Float              @default(0) // Harcanabilir MP
@@ -271,7 +275,7 @@ model Address {
   adresSatiri          String
   postaKodu            String?
 
-  // 🚀 Varsayılan Ayarları (Build hatasını çözen yer)
+  // 🚀 Varsayılan Ayarları
   isVarsayilanTeslimat Boolean    @default(false)
   isVarsayilanFatura   Boolean    @default(false) 
 
