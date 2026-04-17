@@ -87,45 +87,45 @@ enum DemandStatus {
 // --- SİSTEM AYARLARI (Admin Panelinden Yönetilir) ---
 
 model SystemSettings {
-  id                Int     @id @default(1)
-  defaultTotalComm  Float   @default(15.0) // Toplam Kesinti %
-  defaultMingaxNet  Float   @default(12.0) // Mingax Kârı %
-  defaultInitRatio  Float   @default(0.75) // Başlatan Payı %
-  defaultRefRatio   Float   @default(2.25) // Davet Payı %
+  id               Int   @id @default(1)
+  defaultTotalComm Float @default(15.0) // Toplam Kesinti %
+  defaultMingaxNet Float @default(12.0) // Mingax Kârı %
+  defaultInitRatio Float @default(0.75) // Başlatan Payı %
+  defaultRefRatio  Float @default(2.25) // Davet Payı %
 }
 
 // --- MODELLER ---
 
 model User {
-  id                Int                @id @default(autoincrement())
-  ad                String
-  soyad             String
-  email             String             @unique
-  ulkeKodu          String             @default("+90")
-  telefon           String?            @unique
-  password          String
-  cinsiyet          String?
-  kampanyaOnay      Boolean            @default(false)
-  hesapTuru         HesapTuru          @default(ALICI)
-  onayDurumu        UserStatus         @default(PENDING)
-  tedarikciSeviye   SupplierLevel      @default(NONE)
+  id               Int           @id @default(autoincrement())
+  ad               String
+  soyad            String
+  email            String        @unique
+  ulkeKodu         String        @default("+90")
+  telefon          String?       @unique
+  password         String
+  cinsiyet         String?
+  kampanyaOnay     Boolean       @default(false)
+  hesapTuru        HesapTuru     @default(ALICI)
+  onayDurumu       UserStatus    @default(PENDING)
+  tedarikciSeviye  SupplierLevel @default(NONE)
   
-  // 🚀 TİCARİ BİLGİLER (Sayfa hatalarını çözen kritik alanlar)
-  firmaAdi          String?
-  vergiNo           String?            @unique
-  vergiDairesi      String?
-  tcKimlikNo        String?
-  guvenPuani        Int                @default(100)
+  // 🚀 TİCARİ BİLGİLER
+  firmaAdi         String?
+  vergiNo          String?       @unique
+  vergiDairesi     String?
+  tcKimlikNo       String?
+  guvenPuani       Int           @default(100)
   
-  // 🔐 GÜVENLİK VE ONAY SİSTEMİ (Yeni eklenen alanlar)
-  epostaOnaylandi   Boolean            @default(false)
-  emailVerifyToken  String?
-  resetToken        String?
-  resetTokenExpiry  DateTime?
+  // 🔐 GÜVENLİK VE ONAY SİSTEMİ
+  epostaOnaylandi  Boolean       @default(false)
+  emailVerifyToken String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
   
-  isAdmin           Boolean            @default(false)
-  pointsBalance     Float              @default(0) // Harcanabilir MP
-  createdAt         DateTime           @default(now())
+  isAdmin          Boolean       @default(false)
+  pointsBalance    Float         @default(0) // Harcanabilir MP
+  createdAt        DateTime      @default(now())
 
   // İlişkiler
   ilanlar           Listing[]          @relation("SellerRelation")
@@ -135,109 +135,109 @@ model User {
   referredUsers     Participant[]      @relation("ReferrerRelation")
   pointTransactions PointTransaction[]
   adresler          Address[]
-  belgeler          Document[]
+  belgeler          Document[]         // 🚀 ADMİN PANELİ İÇİN KRİTİK İSİM
 }
 
 model Category {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  slug        String    @unique
-  commRatio   Float?    // Kategoriye özel toplam komisyon
-  initRatio   Float?    // Kategoriye özel başlatan payı
-  refRatio    Float?    // Kategoriye özel davet payı
-  listings    Listing[]
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  commRatio Float?    // Kategoriye özel toplam komisyon
+  initRatio Float?    // Kategoriye özel başlatan payı
+  refRatio  Float?    // Kategoriye özel davet payı
+  listings  Listing[]
 }
 
 model Demand {
-  id              Int          @id @default(autoincrement())
-  userId          Int
-  user            User         @relation(fields: [userId], references: [id])
-  urunAdi         String
-  aciklama        String?
-  markaTercihi    String?
-  tahminiAdet     Int?
-  durum           DemandStatus @default(PENDING)
-  createdAt       DateTime     @default(now())
-  convertedListingId Int?      @unique
+  id                 Int          @id @default(autoincrement())
+  userId             Int
+  user               User         @relation(fields: [userId], references: [id])
+  urunAdi            String
+  aciklama           String?
+  markaTercihi       String?
+  tahminiAdet        Int?
+  durum              DemandStatus @default(PENDING)
+  createdAt          DateTime     @default(now())
+  convertedListingId Int?         @unique
 }
 
 model Listing {
-  id                Int               @id @default(autoincrement())
-  baslik            String
-  aciklama          String?
-  urunUrl           String?
+  id                 Int              @id @default(autoincrement())
+  baslik             String
+  aciklama           String?
+  urunUrl            String?
   
   // 📍 Bölge ve Lojistik
-  bolge               String?
-  il                  String?
-  ilce                String?
-  teslimatYontemleri  DeliveryMethod[] 
+  bolge              String?
+  il                 String?
+  ilce               String?
+  teslimatYontemleri DeliveryMethod[] 
 
-  categoryId        Int?
-  category          Category?         @relation(fields: [categoryId], references: [id])
+  categoryId         Int?
+  category           Category?        @relation(fields: [categoryId], references: [id])
   
-  // 💰 Finansal Temel (Yeni alanlar eklendi)
-  perakendeFiyat    Float             // "Tasarruf Farkı" hesabı için şart
-  toptanFiyat       Float?            // Hızlı listeleme için eklendi
-  hedefSayi         Int?              // Hızlı listeleme için eklendi
-  depozitoOrani     Int               @default(30) // %30 Kapora
-  bitisTarihi       DateTime
+  // 💰 Finansal Temel
+  perakendeFiyat     Float            
+  toptanFiyat        Float?           
+  hedefSayi          Int?             
+  depozitoOrani      Int              @default(30)
+  bitisTarihi        DateTime
   
-  // ⚡ Dinamik Oranlar (Kampanya Modu)
-  isCampaign        Boolean           @default(false)
-  specialComm       Float?
-  specialInit       Float?
-  specialRef        Float?
+  // ⚡ Dinamik Oranlar
+  isCampaign         Boolean          @default(false)
+  specialComm        Float?
+  specialInit        Float?
+  specialRef         Float?
 
   // 👤 Roller
-  saticiId          Int
-  satici            User              @relation("SellerRelation", fields: [saticiId], references: [id])
-  initiatorId       Int?              
-  initiator         User?             @relation("InitiatorRelation", fields: [initiatorId], references: [id])
+  saticiId           Int
+  satici             User             @relation("SellerRelation", fields: [saticiId], references: [id])
+  initiatorId        Int?             
+  initiator          User?            @relation("InitiatorRelation", fields: [initiatorId], references: [id])
 
-  durum             ListingStatus     @default(PENDING)
-  baremler          Barem[]
-  images            ListingImage[]
-  documents         ListingDocument[]
-  olusturmaTarihi   DateTime          @default(now())
+  durum              ListingStatus    @default(PENDING)
+  baremler           Barem[]
+  images             ListingImage[]
+  documents          ListingDocument[]
+  olusturmaTarihi    DateTime         @default(now())
 }
 
 model Barem {
   id           Int           @id @default(autoincrement())
   listingId    Int
   listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  sira         Int           // 1, 2, 3...
-  miktar       Int           // Adet eşiği
-  fiyat        Float         // Birim fiyat
+  sira         Int           
+  miktar       Int           
+  fiyat        Float         
   katilimcilar Participant[]
 
   @@unique([listingId, sira])
 }
 
 model Participant {
-  id            Int                 @id @default(autoincrement())
-  kullaniciId   Int
-  kullanici     User                @relation(fields: [kullaniciId], references: [id])
-  baremId       Int
-  barem         Barem               @relation(fields: [baremId], references: [id])
+  id           Int                 @id @default(autoincrement())
+  kullaniciId  Int
+  kullanici    User                @relation(fields: [kullaniciId], references: [id])
+  baremId      Int
+  barem        Barem               @relation(fields: [baremId], references: [id])
   
   // 🔗 Davet Zinciri
-  referrerId    Int?                
-  referrer      User?               @relation("ReferrerRelation", fields: [referrerId], references: [id])
+  referrerId   Int?                
+  referrer     User?               @relation("ReferrerRelation", fields: [referrerId], references: [id])
   
-  talepMiktari  Int
-  durum         ParticipationStatus @default(PENDING)
-  createdAt     DateTime            @default(now())
+  talepMiktari Int
+  durum        ParticipationStatus @default(PENDING)
+  createdAt    DateTime            @default(now())
 }
 
 model PointTransaction {
-  id            Int              @id @default(autoincrement())
-  userId        Int
-  user          User             @relation(fields: [userId], references: [id])
-  amount        Float            
-  type          PointType
-  status        DocStatus        @default(WAITING)
-  createdAt     DateTime         @default(now())
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  amount    Float     
+  type      PointType
+  status    DocStatus @default(WAITING)
+  createdAt DateTime  @default(now())
 }
 
 model Document {
@@ -266,30 +266,30 @@ model ListingDocument {
 }
 
 model Address {
-  id                   String     @id @default(cuid())
-  userId               Int
-  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                 String     @id @default(cuid())
+  userId             Int
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  baslik               String     // Ev, İş, Depo vb.
-  teslimAlacakKisi     String     // Ad Soyad
-  telefon              String
-  il                   String
-  ilce                 String
-  mahalle              String?
-  adresSatiri          String
-  postaKodu            String?
+  baslik             String     
+  teslimAlacakKisi   String     
+  telefon            String
+  il                 String
+  ilce               String
+  mahalle            String?
+  adresSatiri        String
+  postaKodu          String?
 
-  // 🚀 Varsayılan Ayarları (Build hatasını çözen yer)
-  isVarsayilanTeslimat Boolean    @default(false)
-  isVarsayilanFatura   Boolean    @default(false) 
+  // 🚀 Varsayılan Ayarları
+  isVarsayilanTeslimat Boolean  @default(false)
+  isVarsayilanFatura   Boolean  @default(false) 
 
   // 📄 Fatura Bilgileri
-  faturaTuru           FaturaTuru @default(BIREYSEL)
-  tcKimlik             String?    // Bireysel için
-  firmaAdi             String?    // Kurumsal için
-  vergiDairesi         String?    // Kurumsal için
-  vergiNo              String?    // Kurumsal için
+  faturaTuru         FaturaTuru @default(BIREYSEL)
+  tcKimlik           String?    
+  firmaAdi           String?    
+  vergiDairesi       String?    
+  vergiNo            String?    
 
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 }

@@ -19,7 +19,7 @@ interface User {
   vergiDairesi?: string;
   tcKimlikNo?: string;
   adresler: any[];
-  belgeler: any[];
+  belgeler: any[]; // 🚀 Modalda kullanılacak kritik array
 }
 
 export default function KullanicilarClient({ 
@@ -39,7 +39,7 @@ export default function KullanicilarClient({
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // 1. Filtreleme Mantığı
+  // 1. Filtreleme Mantığı (Senin yazdığın kod aynen korundu)
   const filteredUsers = useMemo(() => {
     return initialUsers
       .filter(user => user.hesapTuru === activeTab)
@@ -143,67 +143,70 @@ export default function KullanicilarClient({
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
-  <div className="flex justify-end gap-2">
-    
-    {/* 🟢 ALICI HIZLI ONAY BUTONU */}
-    {user.hesapTuru === "ALICI" && user.onayDurumu !== "APPROVED" && (
-      <button 
-        onClick={async () => {
-          if(confirm(`${user.ad} isimli alıcıyı onaylamak istiyor musunuz?`)) {
-            await updateUserStatusAction(user.id, "APPROVED", "NONE");
-          }
-        }}
-        className="p-2.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all flex items-center gap-2 pr-4"
-        title="Alıcıyı Onayla"
-      >
-        <CheckCircle size={20} />
-        <span className="text-xs font-bold uppercase tracking-widest">Hızlı Onay</span>
-      </button>
-    )}
+                    <div className="flex justify-end gap-2">
+                      
+                      {/* 🟢 ALICI HIZLI ONAY BUTONU */}
+                      {user.hesapTuru === "ALICI" && user.onayDurumu !== "APPROVED" && (
+                        <button 
+                          onClick={async () => {
+                            if(confirm(`${user.ad} isimli alıcıyı onaylamak istiyor musunuz?`)) {
+                              await updateUserStatusAction(user.id, "APPROVED", "NONE");
+                            }
+                          }}
+                          className="p-2.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all flex items-center gap-2 pr-4"
+                          title="Alıcıyı Onayla"
+                        >
+                          <CheckCircle size={20} />
+                          <span className="text-xs font-bold uppercase tracking-widest">Hızlı Onay</span>
+                        </button>
+                      )}
 
-    {/* 📄 SATICI BELGE İNCELEME (Zaten vardı) */}
-    {user.hesapTuru === "SATICI" && (
-      <button 
-        onClick={() => setSelectedUser(user)} 
-        className="p-2.5 bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-        title="Belgeleri İncele"
-      >
-        <FileText size={20} />
-      </button>
-    )}
+                      {/* 📄 SATICI BELGE İNCELEME */}
+                      {user.hesapTuru === "SATICI" && (
+                        <button 
+                          onClick={() => setSelectedUser(user)} 
+                          className="p-2.5 bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          title="Belgeleri İncele"
+                        >
+                          <FileText size={20} />
+                        </button>
+                      )}
 
-    {/* 🔑 ADMIN YETKİSİ (Zaten vardı) */}
-    <button 
-      onClick={() => toggleAdminAction(user.id, user.isAdmin)} 
-      className={`p-2.5 rounded-xl transition-all ${user.isAdmin ? "bg-orange-50 text-orange-500" : "bg-gray-50 text-gray-400 hover:text-orange-500 hover:bg-orange-50"}`}
-      title="Admin Yetkisi"
-    >
-      <Award size={20} />
-    </button>
+                      {/* 🔑 ADMIN YETKİSİ */}
+                      <button 
+                        onClick={() => toggleAdminAction(user.id, user.isAdmin)} 
+                        className={`p-2.5 rounded-xl transition-all ${user.isAdmin ? "bg-orange-50 text-orange-500" : "bg-gray-50 text-gray-400 hover:text-orange-500 hover:bg-orange-50"}`}
+                        title="Admin Yetkisi"
+                      >
+                        <Award size={20} />
+                      </button>
 
-    {/* 🗑️ SİLME (Zaten vardı) */}
-    <button 
-      onClick={() => { if(confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) deleteUserAction(user.id) }} 
-      className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-    >
-      <Trash2 size={20} />
-    </button>
-  </div>
-</td>
+                      {/* 🗑️ SİLME */}
+                      <button 
+                        onClick={() => { if(confirm("Bu kullanıcıyı silmek istediğinize emin misiniz?")) deleteUserAction(user.id) }} 
+                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      >
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {filteredUsers.length === 0 && (
+             <div className="text-center py-12 text-gray-400 font-medium text-sm">Arama kriterlerine uygun kullanıcı bulunamadı.</div>
+          )}
         </div>
       </div>
 
-      {/* 🚀 BELGE İNCELEME MODALI (SADECE SATICILAR İÇİN) */}
+      {/* 🚀 BELGE İNCELEME MODALI (Senin yazdığın mükemmel UI korundu) */}
       {selectedUser && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
           <div className="bg-white rounded-[3rem] max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
             <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
               <div>
-                <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tight">{selectedUser.firmaAdi || "Firma Bilgisi"}</h2>
+                <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tight">{selectedUser.firmaAdi || "Firma Bilgisi Bekleniyor"}</h2>
                 <p className="text-sm text-gray-500 font-medium">{selectedUser.ad} {selectedUser.soyad} • {selectedUser.email}</p>
               </div>
               <button onClick={() => setSelectedUser(null)} className="w-10 h-10 bg-white shadow-sm border border-gray-100 flex items-center justify-center rounded-full hover:bg-gray-50 transition-colors"><X size={20} /></button>
@@ -221,15 +224,16 @@ export default function KullanicilarClient({
 
               <div className="space-y-8">
                 <h3 className="font-black text-blue-600 uppercase text-xs tracking-widest">Yüklenen Belgeler</h3>
-                {selectedUser.belgeler?.length > 0 ? (
+                {selectedUser.belgeler && selectedUser.belgeler.length > 0 ? (
                   <div className="space-y-3">
                     {selectedUser.belgeler.map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-3xl hover:border-blue-200 transition-all shadow-sm">
                         <div className="flex items-center gap-4">
                           <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><FileText size={20} /></div>
-                          <span className="text-sm font-bold text-gray-700">{doc.tip}</span>
+                          {/* Prisma'daki DOC Enum ismini düzgün formata çevirdik */}
+                          <span className="text-sm font-bold text-gray-700">{doc.tip.replace(/_/g, ' ')}</span>
                         </div>
-                        <a href={doc.fileUrl} target="_blank" className="bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all">AÇ</a>
+                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 transition-all">AÇ</a>
                       </div>
                     ))}
                   </div>

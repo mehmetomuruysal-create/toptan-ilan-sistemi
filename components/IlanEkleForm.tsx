@@ -2,8 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
   Package, Tag, Eye, Save, Trash2, MapPin,
-  ChevronRight, ChevronLeft, Upload, FileText, X, 
-  AlertCircle, Loader2, Calendar, Plus, Info,
+  Upload, FileText, X, AlertCircle, Loader2, Plus, Info,
   CheckSquare, Square
 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
@@ -125,6 +124,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     setYukleniyor(true);
     try {
       const imgUrls = await Promise.all(resimDosyalari.map(async f => {
+        // İlan resimleri Vercel'e atılırken API akıllı köprü olarak çalışacak
         const b = await upload(`ilan/${Date.now()}-${f.name}`, f, { access: 'public', handleUploadUrl: '/api/upload' });
         return b.url;
       }));
@@ -134,6 +134,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       }));
       const res = await fetch("/api/ilan-ekle", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...formData, saticiId, resimler: imgUrls, dokumanlar: docUrls }),
       });
       if (!res.ok) throw new Error("Kayıt başarısız.");
@@ -235,21 +236,41 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       {step === 2 && (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
           
-          {/* PERAKENDE FİYAT */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-gray-400 ml-4 italic">Piyasa Perakende Fiyatı</label>
-            <input 
-              type="number" 
-              value={formData.perakendeFiyat} 
-              onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})} 
-              placeholder="Perakende Satış Fiyatı (₺) *" 
-              className="w-full p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl font-bold focus:border-blue-500 outline-none shadow-sm" 
-            />
-            <p className="text-[9px] text-blue-400 ml-4">Baremlerdeki adet fiyatları bu fiyattan düşük olmalıdır.</p>
+          {/* 🚀 YENİ LOKASYON: FİYAT VE TARİH YAN YANA DEV GİBİ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* PERAKENDE FİYAT */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase text-gray-400 ml-4 italic">Piyasa Perakende Fiyatı (₺)</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  value={formData.perakendeFiyat} 
+                  onChange={(e) => setFormData({...formData, perakendeFiyat: e.target.value})} 
+                  placeholder="0.00" 
+                  className="w-full p-5 pl-6 bg-blue-50 border-2 border-blue-200 rounded-[2rem] text-xl font-black text-blue-700 focus:border-blue-500 outline-none shadow-sm transition-all placeholder:text-blue-200" 
+                />
+                <span className="absolute right-6 top-1/2 -translate-y-1/2 text-blue-300 font-black text-xl">₺</span>
+              </div>
+              <p className="text-[9px] text-blue-400 ml-4 font-bold uppercase tracking-widest">Toptan fiyatlar bu fiyattan düşük olmalıdır.</p>
+            </div>
+
+            {/* İLAN BİTİŞ TARİHİ */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-black uppercase text-gray-400 ml-4 italic">İlan Bitiş Tarihi</label>
+              <input 
+                type="date" 
+                value={formData.bitisTarihi} 
+                onChange={(e) => setFormData({...formData, bitisTarihi: e.target.value})} 
+                className="w-full p-5 bg-orange-50 border-2 border-orange-200 rounded-[2rem] text-xl font-black text-orange-700 focus:border-orange-500 outline-none shadow-sm transition-all" 
+              />
+              <p className="text-[9px] text-orange-400 ml-4 font-bold uppercase tracking-widest">İlanın tekliflere kapanacağı tarih.</p>
+            </div>
+
           </div>
 
           {/* BAREMLER */}
-          <div className="p-6 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200">
+          <div className="p-6 bg-gray-50 rounded-[2.5rem] border-2 border-dashed border-gray-200 mt-4">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm font-black uppercase italic text-gray-900">Toplu Satış Baremleri</h3>
               <button onClick={() => {
@@ -269,13 +290,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
 
           {/* ÇOKLU LOKASYON YÖNETİMİ */}
           <div className="space-y-4">
-            <div className="flex justify-between items-center px-2">
-              <h3 className="text-[10px] font-black uppercase text-gray-400 italic">Gönderim Bölgeleri</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black text-gray-400 uppercase">İlan Bitiş:</span>
-                <input type="date" value={formData.bitisTarihi} onChange={(e) => setFormData({...formData, bitisTarihi: e.target.value})} className="p-2 bg-white border-2 rounded-xl text-xs font-bold outline-none shadow-sm" />
-              </div>
-            </div>
+            <h3 className="text-[11px] font-black uppercase text-gray-400 italic ml-4">Gönderim Bölgeleri</h3>
             
             <div 
               onClick={() => handleToggleLokasyon("TÜM TÜRKİYE", "HEPSİ")}
@@ -339,7 +354,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
           <div className="bg-gray-50 p-10 rounded-[3.5rem] border-2 border-dashed border-gray-200 shadow-inner">
             <h2 className="text-4xl font-black italic uppercase text-gray-900 mb-8 leading-none tracking-tighter">{formData.baslik}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-sm">
-              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">İlan Bitiş Tarihi</span><b>{formData.bitisTarihi}</b></div>
+              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">İlan Bitiş Tarihi</span><b className="text-orange-600 text-lg">{formData.bitisTarihi}</b></div>
               <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Perakende Satış Fiyatı</span><b className="text-blue-600 text-lg">{formData.perakendeFiyat} ₺</b></div>
             </div>
             <div className="space-y-3">

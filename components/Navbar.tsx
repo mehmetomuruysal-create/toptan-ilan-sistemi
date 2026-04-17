@@ -3,9 +3,9 @@ import { useState } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { PlusCircle, ShieldAlert } from "lucide-react"
-import UserDropdown from "./UserDropdown"
-import LoginModal from "./LoginModal"
-import RegisterModal from "./RegisterModal"
+import UserDropdown from "@/components/UserDropdown"
+import LoginModal from "@/components/LoginModal"
+import RegisterModal from "@/components/RegisterModal"
 
 export default function Navbar() {
   const { data: session, status } = useSession()
@@ -29,12 +29,15 @@ export default function Navbar() {
               MINGAX
             </Link>
 
-            {/* 🚀 SATICI ONAY UYARISI (Küçük Etiket) */}
+            {/* 🚀 SATICI ONAY UYARISI - Tıklanabilir Linke Dönüştürüldü */}
             {isSatici && !isApproved && (
-              <div className="hidden lg:flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-full border border-orange-100 animate-pulse">
+              <Link 
+                href="/ilan-ekle" 
+                className="hidden lg:flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-full border border-orange-100 animate-pulse hover:bg-orange-100 hover:scale-105 transition-all cursor-pointer"
+              >
                 <ShieldAlert size={14} />
                 <span className="text-[10px] font-black uppercase italic tracking-widest">Onay Bekleniyor</span>
-              </div>
+              </Link>
             )}
           </div>
 
@@ -43,10 +46,10 @@ export default function Navbar() {
               <>
                 {session ? (
                   <div className="flex items-center gap-4">
-                    {/* 🚀 İLAN VER BUTONU (Sadece Satıcılar Görür) */}
+                    {/* 🚀 İLAN VER BUTONU - /ilan-ekle yoluna yönlendirildi */}
                     {isSatici && (
                       <Link 
-                        href="/talep/yeni" 
+                        href="/ilan-ekle" 
                         className="hidden sm:flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-[11px] uppercase italic tracking-widest hover:bg-gray-900 transition-all shadow-lg shadow-blue-100 active:scale-95"
                       >
                         <PlusCircle size={16} />
