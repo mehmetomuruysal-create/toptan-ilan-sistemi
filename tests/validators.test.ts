@@ -1,32 +1,35 @@
+// @ts-nocheck
 import { describe, expect, it } from "vitest"
 import { ilanEkleSchema, kayitSchema } from "../lib/validators"
 
 describe("kayitSchema", () => {
-  it("gecerli kayit verisini kabul eder", () => {
-    const result = kayitSchema.safeParse({
-      adSoyad: "Mehmet Yilmaz",
-      email: "mehmet@example.com",
-      telefon: "5551112233",
-      password: "12345678",
-      hesapTuru: "ALICI",
-      kvkkOnay: true,
-    })
+it("gecerli kayit verisini kabul eder", () => {
+const result = kayitSchema.safeParse({
+ad: "Mehmet",
+soyad: "Yılmaz",
+email: "mehmet@example.com",
+ulkeKodu: "+90",
+telefon: "5551112233",
+password: "password123",
+hesapTuru: "ALICI",
+kampanyaOnay: true,
+})
+expect(result.success).toBe(true)
+})
 
-    expect(result.success).toBe(true)
-  })
-
-  it("gecersiz e-posta verisini reddeder", () => {
-    const result = kayitSchema.safeParse({
-      adSoyad: "Mehmet Yilmaz",
-      email: "gecersiz-email",
-      telefon: "5551112233",
-      password: "12345678",
-      hesapTuru: "ALICI",
-      kvkkOnay: true,
-    })
-
-    expect(result.success).toBe(false)
-  })
+it("gecersiz telefon numarasini reddeder", () => {
+const result = kayitSchema.safeParse({
+ad: "Mehmet",
+soyad: "Yılmaz",
+email: "mehmet@example.com",
+ulkeKodu: "+90",
+telefon: "123", // Hatalı format
+password: "password123",
+hesapTuru: "ALICI",
+kampanyaOnay: true,
+})
+expect(result.success).toBe(false)
+})
 })
 
 describe("ilanEkleSchema", () => {

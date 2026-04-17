@@ -117,7 +117,9 @@ model User {
   tcKimlikNo        String?
   guvenPuani        Int                @default(100)
   
-  // 🔐 ŞİFRE SIFIRLAMA VE GÜVENLİK (Build hatasını çözen alanlar)
+  // 🔐 GÜVENLİK VE ONAY SİSTEMİ (Yeni eklenen alanlar)
+  epostaOnaylandi   Boolean            @default(false)
+  emailVerifyToken  String?
   resetToken        String?
   resetTokenExpiry  DateTime?
   
@@ -174,8 +176,10 @@ model Listing {
   categoryId        Int?
   category          Category?         @relation(fields: [categoryId], references: [id])
   
-  // 💰 Finansal Temel
+  // 💰 Finansal Temel (Yeni alanlar eklendi)
   perakendeFiyat    Float             // "Tasarruf Farkı" hesabı için şart
+  toptanFiyat       Float?            // Hızlı listeleme için eklendi
+  hedefSayi         Int?              // Hızlı listeleme için eklendi
   depozitoOrani     Int               @default(30) // %30 Kapora
   bitisTarihi       DateTime
   

@@ -29,7 +29,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     baslik: "",
     aciklama: "",
     urunUrl: "",
-    kategori: "Tekstil",
+    categoryId: "Tekstil",
     perakendeFiyat: "",
     bitisTarihi: "",
     lokasyonlar: [] as { il: string, ilce: string }[],
@@ -163,7 +163,11 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <input value={formData.baslik} onChange={(e) => setFormData({...formData, baslik: e.target.value})} placeholder="İlan Başlığı *" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all" />
-            <select value={formData.kategori} onChange={(e) => setFormData({...formData, kategori: e.target.value})} className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none">
+            <select 
+              value={formData.categoryId} 
+              onChange={(e) => setFormData({...formData, categoryId: e.target.value})} 
+              className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none"
+            >
               {KATEGORILER.map(k => <option key={k} value={k}>{k}</option>)}
             </select>
           </div>
@@ -231,7 +235,7 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       {step === 2 && (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
           
-          {/* PERAKENDE FİYAT (BURAYA ALINDI) */}
+          {/* PERAKENDE FİYAT */}
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase text-gray-400 ml-4 italic">Piyasa Perakende Fiyatı</label>
             <input 

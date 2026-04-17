@@ -33,7 +33,7 @@ export const ilanEkleSchema = z.object({
   baslik: z.string().trim().min(2),
   aciklama: z.string().optional(),
   urunUrl: z.string().url().optional().or(z.literal("")),
-  kategori: z.string().default("diger"),
+  categoryId: z.string().default("diger"),
   perakendeFiyat: z.number().positive(),
   toptanFiyat: z.number().positive(),
   hedefSayi: z.number().int().positive(),

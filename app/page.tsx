@@ -21,7 +21,7 @@ export default async function Home() {
     })
   }
 
-  // 🚀 Şemana göre tüm ilişkileri çekiyoruz
+  // 🚀 Şemana göre tüm ilişkileri çekiyoruz (barem ve listing isimleri mühürlü)
   const ilanlar = await prisma.listing.findMany({
     where: { durum: "ACTIVE" },
     include: { 
@@ -31,7 +31,7 @@ export default async function Home() {
         include: {
           katilimcilar: true 
         },
-        orderBy: { miktar: 'asc' } // En düşük baremden en yükseğe
+        orderBy: { miktar: 'asc' }
       }
     },
     orderBy: { olusturmaTarihi: "desc" },
@@ -117,31 +117,33 @@ export default async function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-            {ilanlar.map(ilan => {
-              // 🚀 MATEMATİKSEL DÜZENLEMELER (Barem Sistemine Göre)
-              const katilimciSayisi = ilan.baremler.reduce((acc, barem) => acc + barem.katilimcilar.length, 0);
+            {ilanlar.map((listing: any) => {
+              // 🚀 MATEMATİKSEL DÜZENLEMELER
+              const katilimciSayisi = listing.baremler.reduce((acc: number, barem: any) => acc + (barem.katilimcilar?.length || 0), 0);
               
-              // Hedef Sayı: En yüksek baremin miktarını hedef kabul ediyoruz
-              const hedefSayi = ilan.baremler.length > 0 
-                ? Math.max(...ilan.baremler.map(b => b.miktar)) 
+              const hedefSayi = listing.baremler.length > 0 
+                ? Math.max(...listing.baremler.map((b: any) => b.miktar)) 
                 : 1;
-              
-              // Görüntülenecek Fiyat: En düşük fiyatlı baremi (En iyi fiyat) gösteriyoruz
-              const enIyiFiyat = ilan.baremler.length > 0 
-                ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
+            
+              const enIyiFiyat = listing.baremler.length > 0 
+                ? Math.min(...listing.baremler.map((b: any) => b.fiyat)) 
+                : (listing.toptanFiyat || 0);
+            
+              const yuzde = Math.min((katilimciSayisi / hedefSayi) * 100, 100);
+            
+              const indirimOrani = (enIyiFiyat > 0 && listing.perakendeFiyat > 0)
+                ? Math.round((1 - enIyiFiyat / listing.perakendeFiyat) * 100)
                 : 0;
 
-              const yuzde = Math.min((katilimciSayisi / hedefSayi) * 100, 100);
-              const indirimOrani = Math.round((1 - enIyiFiyat / ilan.perakendeFiyat) * 100);
-
+              // ✅ RETURN ŞİMDİ DOĞRU YERDE
               return (
-                <Link href={`/ilan/${ilan.id}`} key={ilan.id} className="group">
+                <Link href={`/ilan/${listing.id}`} key={listing.id} className="group">
                   <div className="bg-white rounded-[3.5rem] border border-gray-100 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/30 transition-all duration-500 p-6 flex flex-col relative overflow-hidden h-full">
                     
                     {/* Ürün Görseli */}
                     <div className="aspect-square bg-gray-50 rounded-[2.5rem] mb-6 overflow-hidden relative border border-gray-50">
-                      {ilan.images?.[0] ? (
-                        <img src={ilan.images[0].url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={ilan.baslik} />
+                      {listing.images?.[0] ? (
+                        <img src={listing.images[0].url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={listing.baslik} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-200 uppercase font-black tracking-widest text-[10px]">Görsel Yok</div>
                       )}
@@ -153,10 +155,10 @@ export default async function Home() {
 
                     <div className="px-2 flex flex-col flex-1">
                       <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 italic">
-                        {ilan.satici.firmaAdi || `${ilan.satici.ad} ${ilan.satici.soyad}`}
+                        {listing.satici.firmaAdi || `${listing.satici.ad} ${listing.satici.soyad}`}
                       </p>
                       <h3 className="font-black text-gray-900 text-2xl mb-6 leading-tight group-hover:text-blue-600 transition-colors uppercase italic tracking-tighter">
-                        {ilan.baslik}
+                        {listing.baslik}
                       </h3>
 
                       {/* 📊 PROGRESS BAR */}

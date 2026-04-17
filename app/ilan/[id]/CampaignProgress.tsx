@@ -2,7 +2,7 @@
 import { Users, Share2, MessageCircle, TrendingDown, CheckCircle2, Copy, Check } from "lucide-react"
 import { useState, useEffect } from "react"
 
-export default function CampaignProgress({ ilan, toplamKatilim }: { ilan: any, toplamKatilim: number }) {
+export default function CampaignProgress({ listing, toplamKatilim }: { listing: any, toplamKatilim: number }) {
   const [copied, setCopied] = useState(false)
   const [currentUrl, setCurrentUrl] = useState("")
 
@@ -12,14 +12,14 @@ export default function CampaignProgress({ ilan, toplamKatilim }: { ilan: any, t
   }, [])
 
   // Sıradaki baremi bulma (Miktara göre sıralı olduğundan emin oluyoruz)
-  const siradakiBarem = [...ilan.baremler]
+  const siradakiBarem = [...listing.baremler]
     .sort((a, b) => a.miktar - b.miktar)
     .find((b: any) => b.miktar > toplamKatilim) || null;
 
   const kalanAdet = siradakiBarem ? siradakiBarem.miktar - toplamKatilim : 0;
   
   // PR Uzmanı Dokunuşu: Mesajı daha kışkırtıcı hale getirdik
-  const shareMessage = `🔥 ACİL DURUM: ${ilan.baslik} için dev grup alımı başladı! 
+  const shareMessage = `🔥 ACİL DURUM: ${listing.baslik} için dev grup alımı başladı! 
   
 Şu an ${toplamKatilim} kişiyiz. Sadece ${kalanAdet} kişi daha katılırsa fiyat ₺${siradakiBarem?.fiyat.toLocaleString()}'ye düşüyor! 
 
@@ -55,7 +55,7 @@ Paranı sokakta bulmadıysan gel, birlikte alıp tasarruf edelim:
 
         {/* Barem Merdiveni */}
         <div className="space-y-5 relative z-10">
-          {ilan.baremler.map((barem: any, index: number) => {
+          {listing.baremler.map((barem: any, index: number) => {
             const isReached = toplamKatilim >= barem.miktar;
             const isNextGoal = siradakiBarem?.id === barem.id;
             const yuzde = Math.min((toplamKatilim / barem.miktar) * 100, 100);

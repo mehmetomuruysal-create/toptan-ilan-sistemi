@@ -30,8 +30,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ hata: "Zorunlu alanlar eksik." }, { status: 400 });
     }
 
-    // 🚀 DİKKAT: toptanFiyat ve hedefSayi hesaplaman baremlerde saklandığı için 
-    // Listing create içine değil, baremler kısmına gidiyor.
+    // Baremlerden toptan fiyat ve hedef sayıyı belirle (Hızlı listeleme alanları için)
+    const enYuksekBarem = baremler[baremler.length - 1];
+    const toptanFiyat = Number(enYuksekBarem.fiyat);
+    const hedefSayi = Number(enYuksekBarem.miktar);
 
     const ilan = await prisma.listing.create({
       data: {
@@ -40,13 +42,11 @@ export async function POST(req: Request) {
         aciklama,
         urunUrl,
         
-        // ✅ DÜZELTME 1: Şemadaki isim 'categoryId'
+        // ✅ Şemadaki yeni isimlendirme ve alanlar
         categoryId: Number(kategori), 
-        
         perakendeFiyat: Number(perakendeFiyat),
-        
-        // ✅ DÜZELTME 2: toptanFiyat ve hedefSayi şemanda Listing modelinde yoksa 
-        // buraya yazarsan build patlar. Zaten baremler içinde kaydediyoruz.
+        toptanFiyat: toptanFiyat, // Artık şemada var
+        hedefSayi: hedefSayi,     // Artık şemada var
 
         bolge,
         il,
@@ -55,12 +55,12 @@ export async function POST(req: Request) {
         durum: "PENDING",
         bitisTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 
-        // 🖼️ GÖRSELLER (Aynen duruyor)
+        // 🖼️ Çoklu Görseller
         images: {
           create: resimler.map((url: string) => ({ url }))
         },
 
-        // 📂 DÖKÜMANLAR (Aynen duruyor)
+        // 📂 Dökümanlar
         documents: {
           create: dokumanlar.map((doc: { url: string; name: string }) => ({
             url: doc.url,
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
           }))
         },
 
-        // 📊 BAREMLER (Aynen duruyor)
+        // 📊 Baremler
         baremler: {
           create: baremler.map((b: any, index: number) => ({
             sira: index + 1,

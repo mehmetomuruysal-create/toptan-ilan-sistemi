@@ -79,54 +79,54 @@ export default function AdminIlanlarClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {initialListings.map((ilan: any) => (
-                <tr key={ilan.id} className="hover:bg-gray-50/50 transition-all group">
+              {initialListings.map((listing: any) => (
+                <tr key={listing.id} className="hover:bg-gray-50/50 transition-all group">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-5">
                       <div className="w-16 h-16 bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 relative group-hover:scale-105 transition-transform">
-                        {ilan.images[0] ? (
-                          <img src={ilan.images[0].url} className="w-full h-full object-cover" />
+                        {listing.images[0] ? (
+                          <img src={listing.images[0].url} className="w-full h-full object-cover" />
                         ) : (
                           <ImageIcon className="m-auto mt-5 text-gray-300" />
                         )}
                       </div>
                       <div>
-                        <div className="font-black text-gray-900 uppercase italic leading-none text-lg tracking-tighter">{ilan.baslik}</div>
+                        <div className="font-black text-gray-900 uppercase italic leading-none text-lg tracking-tighter">{listing.baslik}</div>
                         <div className="text-[10px] text-blue-600 font-black mt-1.5 uppercase tracking-widest">
-                          {ilan.satici.firmaAdi || `${ilan.satici.ad} ${ilan.satici.soyad}`}
+                          {listing.satici.firmaAdi || `${listing.satici.ad} ${listing.satici.soyad}`}
                         </div>
                       </div>
                     </div>
-                  </td>
+                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center gap-6">
                       <div className="text-center">
-                        <div className="text-sm font-black text-gray-900">{ilan.images.length}</div>
+                        <div className="text-sm font-black text-gray-900">{listing.images.length}</div>
                         <div className="text-[8px] font-black text-gray-400 uppercase">Görsel</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm font-black text-gray-900">{ilan.documents.length}</div>
+                        <div className="text-sm font-black text-gray-900">{listing.documents.length}</div>
                         <div className="text-[8px] font-black text-gray-400 uppercase">Döküman</div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-8 py-6 text-center">{getStatusBadge(ilan.durum)}</td>
+                   </td>
+                  <td className="px-8 py-6 text-center">{getStatusBadge(listing.durum)}</td>
                   <td className="px-8 py-6 text-right">
                     <button 
-                      onClick={() => setSelectedListing(ilan)}
+                      onClick={() => setSelectedListing(listing)}
                       className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center gap-2 ml-auto shadow-lg shadow-gray-200"
                     >
                       <Eye size={16} /> Detayları Gör
                     </button>
-                  </td>
-                </tr>
+                   </td>
+                 </tr>
               ))}
             </tbody>
-          </table>
+           </table>
         </div>
       </div>
 
-      {/* --- 🚀 İNCELEME VE KARAR MODALI --- */}
+      {/* --- İNCELEME VE KARAR MODALI --- */}
       {selectedListing && (
         <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-[3.5rem] w-full max-w-5xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
@@ -175,6 +175,7 @@ export default function AdminIlanlarClient({
                         key={doc.id} 
                         href={doc.url} 
                         target="_blank" 
+                        rel="noopener noreferrer"
                         className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all group"
                       >
                         <span className="text-sm font-bold text-gray-700">{doc.name || "Ek Dosya"}</span>
@@ -186,7 +187,7 @@ export default function AdminIlanlarClient({
                   </div>
                 </div>
 
-                {/* 🛡️ ADMIN KARAR MERKEZİ */}
+                {/* YETKİLİ KARAR MERKEZİ */}
                 <div className="p-8 bg-gray-900 rounded-[3rem] text-white">
                   <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-6 text-center italic">
                     Yetkili Karar Mekanizması

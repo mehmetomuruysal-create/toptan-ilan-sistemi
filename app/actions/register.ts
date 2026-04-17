@@ -9,13 +9,13 @@ const ALLOWED_COUNTRY_CODES = ["+90", "+1", "+44", "+49"]
 
 export async function registerUser(formData: any) {
   try {
-    // 1. TÜM VERİLERİ DESTRUCTURING İLE ALIYORUZ (Hiçbiri eksiltilmedi)
+    // 1. TÜM VERİLERİ DESTRUCTURING İLE ALIYORUZ
     const { 
       ad, soyad, email, ulkeKodu, telefon, password, hesapTuru, cinsiyet, kampanyaOnay,
       firmaAdi, vergiNo, vergiDairesi, tcKimlikNo 
     } = formData
 
-    // 2. TEMEL VALİDASYONLAR (Senin kuralların)
+    // 2. TEMEL VALİDASYONLAR
     if (!ad || !soyad) return { success: false, error: "Ad ve Soyad alanları zorunludur." }
     
     if (!ALLOWED_COUNTRY_CODES.includes(ulkeKodu)) {
@@ -33,11 +33,12 @@ export async function registerUser(formData: any) {
     const existingPhone = await prisma.user.findUnique({ where: { telefon } })
     if (existingPhone) return { success: false, error: "Bu telefon numarası zaten sisteme kayıtlı." }
 
-    // 4. GÜVENLİK
+    // 4. GÜVENLİK VE TOKEN OLUŞTURMA
     const hashedPassword = await bcrypt.hash(password, 10)
+    const verifyToken = crypto.randomBytes(32).toString("hex")
 
-    // 5. VERİTABANINA KAYIT (Şema ile %100 Uyumlu)
-    const newUser = await prisma.user.create({
+    // 5. VERİTABANINA KAYIT (Güncel Şema ile Tam Uyumlu)
+    await prisma.user.create({
       data: {
         ad, 
         soyad, 
@@ -50,10 +51,13 @@ export async function registerUser(formData: any) {
         hesapTuru: hesapTuru as HesapTuru,
         
         // 🚀 MİNGAX ANAYASA MANTIĞI
-        // Alıcı doğrudan APPROVED, Satıcı PENDING (Admin onayı bekler)
         onayDurumu: (hesapTuru === "ALICI" ? "APPROVED" : "PENDING") as UserStatus,
 
-        // Satıcıya/Kurumsala Özel Alanlar (Şemadaki karşılıklarıyla)
+        // 🔐 GÜVENLİK VE ONAY ALANLARI (Şemaya eklenen yeni alanlar)
+        epostaOnaylandi: false,
+        emailVerifyToken: verifyToken,
+
+        // Satıcıya/Kurumsala Özel Alanlar
         ...(hesapTuru === "SATICI" && {
           firmaAdi,
           vergiNo,
@@ -63,10 +67,9 @@ export async function registerUser(formData: any) {
       }
     })
 
-    // 6. E-POSTA ONAY SİSTEMİ (Şimdilik İptal Edildiği İçin Comment'e Alındı)
-    /* const verifyToken = crypto.randomBytes(32).toString("hex")
-    try {
-      await sendVerificationEmail(newUser.email, newUser.ad, verifyToken)
+    // 6. E-POSTA SİSTEMİ (Hazır, istenildiğinde aktif edilebilir)
+    /* try {
+      await sendVerificationEmail(email, ad, verifyToken)
     } catch (mailError) {
       console.error("Mail gönderim hatası:", mailError)
     }

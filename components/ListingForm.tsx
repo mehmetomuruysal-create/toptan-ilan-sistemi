@@ -21,7 +21,7 @@ export default function ListingForm({ saticiId }: { saticiId: number }) {
       baslik: formData.get("baslik"),
       aciklama: formData.get("aciklama"),
       urunUrl: formData.get("urunUrl"),
-      kategori: formData.get("kategori"),
+      categoryId: formData.get("kategori"),
       perakendeFiyat: formData.get("perakendeFiyat"),
       bitisTarihi: formData.get("bitisTarihi"),
       teslimatYontemi: formData.get("teslimatYontemi"),

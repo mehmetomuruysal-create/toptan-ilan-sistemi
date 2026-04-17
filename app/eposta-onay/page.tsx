@@ -8,7 +8,11 @@ export const viewport = {
   initialScale: 1,
 }
 
-export default async function EpostaOnayPage({ searchParams }: { searchParams: Promise<{ token: string }> }) {
+export default async function EpostaOnayPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<{ token: string }> 
+}) {
   const { token } = await searchParams
 
   // 1. Token Kontrolü
@@ -25,9 +29,11 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
     )
   }
 
-  // 2. Kullanıcıyı Token ile Bulma
+  // 2. Kullanıcıyı Token ile Bulma (Güncel Şema ile Tam Uyumlu)
   const user = await prisma.user.findFirst({
-    where: { emailVerifyToken: token }
+    where: { 
+      emailVerifyToken: token 
+    }
   })
 
   if (!user) {
@@ -44,12 +50,16 @@ export default async function EpostaOnayPage({ searchParams }: { searchParams: P
   }
 
   // 3. Kullanıcıyı Onaylandı Olarak İşaretle
-  // NOT: Token'ı burada silmiyoruz, auto-login API'si kullandıktan sonra silecek.
+  // Alıcı ise doğrudan onaylıyoruz, Satıcı ise admin onayına (PENDING) bırakıyoruz.
   await prisma.user.update({
     where: { id: user.id },
-    data: { epostaOnaylandi: true }
+    data: { 
+      epostaOnaylandi: true,
+      onayDurumu: user.hesapTuru === "ALICI" ? "APPROVED" : "PENDING"
+    }
   })
 
   // 4. Sihirli Giriş (Auto-Login) API'sine Yönlendir
+  // NOT: Token'ı burada silmiyoruz, auto-login API'si login işlemini tamamladıktan sonra silecek.
   redirect(`/api/auth/auto-login?token=${token}`)
 }

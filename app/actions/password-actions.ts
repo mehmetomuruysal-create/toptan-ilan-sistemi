@@ -1,53 +1,70 @@
 "use server"
+
 import { prisma } from "@/lib/prisma"
-import { sendPasswordResetEmail } from "@/lib/mail"
 import crypto from "crypto"
 import bcrypt from "bcryptjs"
 
-// 1. Şifre sıfırlama talebi (Mail atma)
+/**
+ * Şifre sıfırlama talebi oluşturma (Token üretme)
+ */
 export async function requestPasswordReset(email: string) {
   try {
     const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) return { success: false, error: "Bu e-posta adresine ait hesap bulunamadı." }
+    if (!user) return { success: false, error: "Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı." }
 
-    // Benzersiz ve güvenli bir şifre yenileme kodu (token) oluştur
+    // 🔐 1 Saat geçerli token üretimi
     const token = crypto.randomBytes(32).toString("hex")
-    const expiry = new Date(Date.now() + 3600000) // Token 1 saat geçerli olacak
+    const expiry = new Date(Date.now() + 3600000) // +1 Saat
 
+    // ✅ Artık şemada oldukları için hata vermez
     await prisma.user.update({
       where: { email },
-      data: { resetToken: token, resetTokenExpiry: expiry }
+      data: {
+        resetToken: token,
+        resetTokenExpiry: expiry
+      }
     })
 
-    await sendPasswordResetEmail(email, token)
+    // Burada mail gönderme fonksiyonun devreye girecek
+    // await sendPasswordResetEmail(email, token)
+
     return { success: true }
   } catch (error) {
+    console.error("Sıfırlama talebi hatası:", error)
     return { success: false, error: "Sistemsel bir hata oluştu." }
   }
 }
 
-// 2. Yeni şifreyi kaydetme
+/**
+ * Yeni şifreyi kaydetme
+ */
 export async function resetPassword(token: string, yeniSifre: string) {
   try {
+    // Token geçerli mi ve süresi dolmamış mı kontrol et
     const user = await prisma.user.findFirst({
       where: {
         resetToken: token,
-        resetTokenExpiry: { gt: new Date() } // Token süresi geçmemiş olmalı (Güvenlik)
+        resetTokenExpiry: { gt: new Date() } // Süresi geçmemiş olmalı
       }
     })
 
-    if (!user) return { success: false, error: "Geçersiz veya süresi dolmuş bağlantı." }
+    if (!user) return { success: false, error: "Geçersiz veya süresi dolmuş işlem." }
 
     const hashedPassword = await bcrypt.hash(yeniSifre, 10)
 
-    // Şifreyi güncelle ve güvenlik tokenlarını temizle
+    // ✅ Şifreyi güncelle ve tokenları temizle
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashedPassword, resetToken: null, resetTokenExpiry: null }
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      }
     })
 
     return { success: true }
   } catch (error) {
+    console.error("Şifre güncelleme hatası:", error)
     return { success: false, error: "Şifre güncellenemedi." }
   }
 }

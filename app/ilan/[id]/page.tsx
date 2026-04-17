@@ -17,7 +17,7 @@ import {
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   
-  const ilan = await prisma.listing.findUnique({
+  const listing = await prisma.listing.findUnique({
     where: { id: parseInt(id) },
     include: { 
       satici: true,
@@ -30,17 +30,33 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     }
   })
 
-  if (!ilan) notFound()
+  if (!listing) notFound();
 
-  const toplamKatilim = ilan.baremler.reduce((acc, b) => acc + b.katilimcilar.length, 0);
-  const enDusukBaremFiyati = ilan.baremler.length > 0 
-    ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
-    : ilan.toptanFiyat;
+  // 1. Toplam Katılım (Parametrelere tip verildi)
+  const toplamKatilim = listing.baremler.reduce((acc: number, b: any) => acc + (b.katilimcilar?.length || 0), 0);
+
+  // 2. En Düşük Barem Fiyatı (Null güvenliği sağlandı)
+  const enDusukBaremFiyati = listing.baremler.length > 0 
+    ? Math.min(...listing.baremler.map((b: any) => b.fiyat)) 
+    : (listing.toptanFiyat || listing.perakendeFiyat);
   
-  const indirimYuzde = Math.round((1 - enDusukBaremFiyati / ilan.perakendeFiyat) * 100)
-  const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  // 3. İndirim Yüzdesi (TS18047 hatası çözüldü: Değer varsa hesapla, yoksa 0 de)
+  const indirimYuzde = (enDusukBaremFiyati && listing.perakendeFiyat)
+    ? Math.round((1 - (enDusukBaremFiyati / listing.perakendeFiyat)) * 100)
+    : 0;
 
+  // 4. Kalan Gün Hesabı
+  const kalanGun = Math.ceil((new Date(listing.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  // 5. İlk Alıcı Kontrolü
   const isFirstBuyer = toplamKatilim === 0;
+
+  // Min miktar bilgisi baremlerden alınıyor (şemada yoksa)
+  const minMiktarlar = {
+    bireysel: listing.baremler[0]?.miktar || 1,
+    kobi: listing.baremler[1]?.miktar || 5,
+    kurumsal: listing.baremler[2]?.miktar || 10,
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -65,14 +81,14 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
             
             <div className="space-y-4">
                <div className="aspect-[4/3] rounded-[3.5rem] bg-gray-50 overflow-hidden border border-gray-100 group shadow-sm">
-                  {ilan.images[0] ? (
-                    <img src={ilan.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={ilan.baslik} />
+                  {listing.images[0] ? (
+                    <img src={listing.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={listing.baslik} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300 font-black italic uppercase tracking-widest">Görsel Hazırlanıyor</div>
                   )}
                </div>
                <div className="grid grid-cols-4 gap-4">
-                  {ilan.images.map((img) => (
+                  {listing.images.map((img) => (
                     <div key={img.id} className="aspect-square rounded-3xl overflow-hidden border-2 border-gray-50 hover:border-blue-600 transition-all cursor-pointer shadow-sm">
                        <img src={img.url} className="w-full h-full object-cover" />
                     </div>
@@ -82,17 +98,16 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3">
-                 {/* 🛠️ DÜZELTME BURADA: Optional Chaining ve Fallback eklendi */}
                  <span className="bg-gray-900 text-white px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest italic">
-                    {ilan.category?.name ?? "Genel Fırsat"}
+                    {listing.category?.name ?? "Genel Fırsat"}
                  </span>
                  <span className="text-blue-600 font-black text-xs italic bg-blue-50 px-3 py-1 rounded-lg flex items-center gap-2">
                     <TrendingDown size={14} /> %{indirimYuzde}'ye Varan Grup Tasarrufu
                  </span>
               </div>
-              <h1 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{ilan.baslik}</h1>
+              <h1 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{listing.baslik}</h1>
               <div className="prose prose-lg max-w-none text-gray-500 font-medium leading-relaxed whitespace-pre-line">
-                {ilan.aciklama}
+                {listing.aciklama}
               </div>
             </div>
 
@@ -102,7 +117,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                   <div>
                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">Lojistik Güvencesi</p>
                      <p className="text-sm font-black text-gray-800 uppercase italic">
-                       {ilan.teslimatYontemi === "kargo" ? "Sigortalı Adrese Teslim" : "Merkezi Dağıtım Noktası"}
+                       {listing.teslimatYontemleri?.includes("KARGO") ? "Sigortalı Adrese Teslim" : "Merkezi Dağıtım Noktası"}
                      </p>
                   </div>
                </div>
@@ -118,21 +133,21 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
             <div className="p-8 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center text-white text-xl font-black italic">
-                   {ilan.satici.ad[0]}{ilan.satici.soyad[0]}
+                   {listing.satici.ad[0]}{listing.satici.soyad[0]}
                 </div>
                 <div>
                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-black text-gray-900 text-lg uppercase italic tracking-tighter">{ilan.satici.ad} {ilan.satici.soyad}</h3>
+                      <h3 className="font-black text-gray-900 text-lg uppercase italic tracking-tighter">{listing.satici.ad} {listing.satici.soyad}</h3>
                       <Award size={18} className="text-blue-600" />
                    </div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{ilan.satici.firmaAdi || "Mingax Onaylı İş Ortağı"}</p>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{listing.satici.firmaAdi || "Mingax Onaylı İş Ortağı"}</p>
                 </div>
               </div>
               <div className="flex flex-col items-end">
                 <div className="flex gap-1 text-yellow-400 mb-1">
                    {[...Array(5)].map((_, i) => <Zap key={i} size={14} fill="currentColor" />)}
                 </div>
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest italic">Güven Skoru: {ilan.satici.guvenPuani}/100</p>
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest italic">Güven Skoru: {listing.satici.guvenPuani}/100</p>
               </div>
             </div>
           </div>
@@ -155,26 +170,22 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                )}
 
                <CampaignProgress 
-                  ilan={JSON.parse(JSON.stringify(ilan))} 
+                  listing={JSON.parse(JSON.stringify(listing))} 
                   toplamKatilim={toplamKatilim} 
                />
 
                <BaremSecici 
-                  baremler={JSON.parse(JSON.stringify(ilan.baremler))} 
-                  perakendeFiyat={ilan.perakendeFiyat} 
-                  depozitoOrani={ilan.depozitoOrani}
+                  baremler={JSON.parse(JSON.stringify(listing.baremler))} 
+                  perakendeFiyat={listing.perakendeFiyat} 
+                  depozitoOrani={listing.depozitoOrani}
                   kalanGun={kalanGun}
-                  minMiktarlar={{ 
-                    bireysel: ilan.minMiktarBireysel, 
-                    kobi: ilan.minMiktarKobi, 
-                    kurumsal: ilan.minMiktarKurumsal 
-                  }}
+                  minMiktarlar={minMiktarlar}
                />
                
                <div className="px-8 py-6 bg-orange-50 rounded-[2.5rem] border border-orange-100 flex gap-4">
                   <ShieldAlert className="text-orange-600 shrink-0" size={24} />
                   <p className="text-[10px] font-bold text-orange-800 leading-relaxed uppercase italic">
-                     İade Garantisi: Grup hedefi tamamlanmazsa ödediğiniz %{ilan.depozitoOrani} kapora anında cüzdanınıza iade edilir.
+                     İade Garantisi: Grup hedefi tamamlanmazsa ödediğiniz %{listing.depozitoOrani} kapora anında cüzdanınıza iade edilir.
                   </p>
                </div>
             </div>

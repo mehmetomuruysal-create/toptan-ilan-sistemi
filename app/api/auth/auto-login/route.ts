@@ -9,16 +9,17 @@ export async function POST(req: Request) {
     // 1. Şifreyi güvenli hale getir
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 2. Kullanıcıyı oluştur (Şema ile %100 uyumlu)
+    // 2. Kullanıcıyı oluştur (Güncel Şema ile Tam Uyumlu)
     const user = await prisma.user.create({
       data: {
         ad,
         soyad,
         email,
         password: hashedPassword,
-        // 🚀 epostaOnaylandi SİLİNDİ (Build hatası burada bitiyor)
-        onayDurumu: "APPROVED", // Otomatik giriş için doğrudan onaylıyoruz
-        hesapTuru: "ALICI"      // Hızlı kayıt genelde alıcılar içindir
+        // 🚀 Artık şemada tanımlı olduğu için build hatası vermez
+        epostaOnaylandi: true, 
+        onayDurumu: "APPROVED", 
+        hesapTuru: "ALICI"      
       }
     });
 

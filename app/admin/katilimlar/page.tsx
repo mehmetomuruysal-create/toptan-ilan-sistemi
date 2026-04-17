@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 
 export default async function AdminKatilimlar() {
-  // 🚀 Şemadaki gerçek ilişki isimleri: barem ve listing
+  // 🚀 Şemadaki mühürlü ilişki isimleri: barem ve listing
   const participants = await prisma.participant.findMany({
     include: {
       kullanici: true,
@@ -15,7 +15,7 @@ export default async function AdminKatilimlar() {
   })
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 p-8">
       {/* BAŞLIK */}
       <header>
         <h1 className="text-5xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
@@ -46,7 +46,7 @@ export default async function AdminKatilimlar() {
                       {p.barem?.listing?.baslik || "Silinmiş İlan"}
                     </p>
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                      Barem: {p.barem?.miktar} Adet Eşiği
+                      Barem Eşiği: {p.barem?.miktar} Adet
                     </p>
                   </td>
                   <td className="px-8 py-6">
