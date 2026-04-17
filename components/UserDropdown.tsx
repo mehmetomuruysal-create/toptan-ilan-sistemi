@@ -56,10 +56,10 @@ export default function UserDropdown() {
           </div>
 
           <div className="px-3 space-y-1" onClick={() => setIsOpen(false)}>
-            {/* 🚀 SATICI ÖZEL: İlan Ver Butonu */}
+            {/* 🚀 SATICI ÖZEL: İlan Ver Butonu - Gerçek dosya yoluna yönlendirildi */}
             {isSatici && (
               <MenuLink 
-                href="/talep/yeni" 
+                href="/ilan-ekle" 
                 icon={<PlusCircle size={18} className="text-blue-600" />} 
                 label="Hızlı İlan Ver" 
                 extraClass="bg-blue-50 text-blue-700 hover:bg-blue-100 mb-2"
