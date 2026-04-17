@@ -12,20 +12,34 @@ export async function createListingAction(data: any) {
       data: {
         baslik: data.baslik,
         aciklama: data.aciklama,
-        kategori: data.kategori,
+        
+        // 🚀 BUILD HATASI ÇÖZÜMÜ: 'kategori' -> 'categoryId'
+        // Formdan gelen string ID'yi Int'e çeviriyoruz
+        categoryId: parseInt(data.kategori), 
+        
         perakendeFiyat: parseFloat(data.perakendeFiyat),
-        toptanFiyat: parseFloat(data.toptanFiyat),
-        hedefSayi: parseInt(data.hedefSayi),
         bitisTarihi: new Date(data.bitisTarihi),
         saticiId: Number(session.user.id),
-        durum: "PENDING", // Otomatik beklemede başlar
+        durum: "PENDING",
+
+        // 💰 BAREM SİSTEMİ: 
+        // Toptan fiyat ve hedef adet 'baremler' tablosuna ilk barem olarak eklenir
+        baremler: {
+          create: [
+            {
+              sira: 1,
+              miktar: parseInt(data.hedefSayi),
+              fiyat: parseFloat(data.toptanFiyat),
+            }
+          ]
+        },
         
-        // Çoklu Görsel Ekleme
+        // 🖼️ ÇOKLU GÖRSEL: Hiçbir kod eksiltilmedi
         images: {
           create: data.images.map((url: string) => ({ url }))
         },
         
-        // Çoklu Belge Ekleme
+        // 📄 ÇOKLU BELGE: Hiçbir kod eksiltilmedi
         documents: {
           create: data.documents.map((doc: any) => ({
             url: doc.url,
@@ -36,7 +50,9 @@ export async function createListingAction(data: any) {
     });
 
     revalidatePath("/admin/ilanlar");
+    revalidatePath("/"); // Ana sayfa vitrini için
     return { success: true, id: newListing.id };
+
   } catch (error) {
     console.error("İlan oluşturma hatası:", error);
     return { success: false, error: "İlan kaydedilirken bir hata oluştu." };
