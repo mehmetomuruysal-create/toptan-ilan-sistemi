@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ENUMLAR (Sistem Kararlılığı İçin Hepsi Korundu) ---
+// --- ENUMLAR (Sistemin Ticari ve Operasyonel Kimliği) ---
 
 enum HesapTuru {
   ALICI
@@ -20,19 +20,18 @@ enum FaturaTuru {
 }
 
 enum ListingStatus {
-  ACTIVE
-  PENDING
-  COMPLETED
-  CANCELLED
-  SUSPENDED
-  REJECTED
+  ACTIVE    // Yayında
+  PENDING   // Onay Bekliyor
+  COMPLETED // Başarıyla Kapandı
+  CANCELLED // İptal Edildi
+  SUSPENDED // Askıya Alındı
+  REJECTED  // Reddedildi
 }
 
 enum ParticipationStatus {
   PENDING
   CONFIRMED
   CANCELLED
-  SUSPENDED
 }
 
 enum SupplierLevel {
@@ -43,9 +42,9 @@ enum SupplierLevel {
 }
 
 enum UserStatus {
-  PENDING   // Onay Bekliyor
-  APPROVED  // Onaylandı
-  REJECTED  // Reddedildi (Belge eksik/hatalı)
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum DocType {
@@ -60,115 +59,189 @@ enum DocType {
 }
 
 enum DocStatus {
-  WAITING   // İnceleme Bekliyor
-  APPROVED  // Onaylandı
-  REJECTED  // Reddedildi
+  WAITING
+  APPROVED
+  REJECTED
 }
 
-// 🚚 YENİ: Adım 2 için Teslimat Yöntemleri
 enum DeliveryMethod {
   KARGO
   MERKEZI_TESLIM
   NAKLIYE
 }
 
+enum PointType {
+  INITIATOR // Alım başlatan ödülü (%0.75)
+  REFERRER  // Davet ödülü (%2.25)
+  SPENDING  // Puan harcama
+  REFUND    // İade
+}
+
+enum DemandStatus {
+  PENDING
+  OFFERED
+  APPROVED
+  REJECTED
+}
+
+// --- SİSTEM AYARLARI (Admin Panelinden Yönetilir) ---
+
+model SystemSettings {
+  id                Int     @id @default(1)
+  defaultTotalComm  Float   @default(15.0) // Toplam Kesinti %
+  defaultMingaxNet  Float   @default(12.0) // Mingax Kârı %
+  defaultInitRatio  Float   @default(0.75) // Başlatan Payı %
+  defaultRefRatio   Float   @default(2.25) // Davet Payı %
+}
+
 // --- MODELLER ---
 
 model User {
-  id                Int             @id @default(autoincrement())
+  id                Int                @id @default(autoincrement())
   ad                String
   soyad             String
-  email             String          @unique
-  ulkeKodu          String          @default("+90")
-  telefon           String?         @unique
+  email             String             @unique
+  ulkeKodu          String             @default("+90")
+  telefon           String?            @unique
   password          String
   cinsiyet          String?
-  kampanyaOnay      Boolean         @default(false)
-  hesapTuru         HesapTuru       @default(ALICI)
+  kampanyaOnay      Boolean            @default(false)
+  hesapTuru         HesapTuru          @default(ALICI)
+  onayDurumu        UserStatus         @default(PENDING)
+  tedarikciSeviye   SupplierLevel      @default(NONE)
   
-  onayDurumu        UserStatus      @default(PENDING)
-  tedarikciSeviye   SupplierLevel   @default(NONE)
-  
+  // 🚀 TİCARİ BİLGİLER (Sayfa hatalarını çözen kritik alanlar)
   firmaAdi          String?
-  vergiNo           String?         @unique
+  vergiNo           String?            @unique
   vergiDairesi      String?
-  tcKimlikNo        String?         // Yetkili kişi TC
+  tcKimlikNo        String?
+  guvenPuani        Int                @default(100)
   
-  adres             String?
-  teslimatAdresi    String?
-  guvenPuani        Int             @default(100)
-  isAdmin           Boolean         @default(false)
-  
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  epostaOnaylandi   Boolean         @default(true)
-  emailVerifyToken  String?
-  createdAt         DateTime        @default(now())
-  
-  // İlişkiler (Hepsi Korundu)
-  ilanlar           Listing[]
+  isAdmin           Boolean            @default(false)
+  pointsBalance     Float              @default(0) // Harcanabilir MP
+  createdAt         DateTime           @default(now())
+
+  // İlişkiler
+  ilanlar           Listing[]          @relation("SellerRelation")
+  initiatedListings Listing[]          @relation("InitiatorRelation")
+  demands           Demand[]
   katilimlar        Participant[]
+  referredUsers     Participant[]      @relation("ReferrerRelation")
+  pointTransactions PointTransaction[]
   adresler          Address[]
-  belgeler          Document[]      // Tedarikçi kurumsal belgeleri
+  belgeler          Document[]
 }
 
-// Tedarikçinin onay için yüklediği belgeler
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  slug        String    @unique
+  commRatio   Float?    // Kategoriye özel toplam komisyon
+  initRatio   Float?    // Kategoriye özel başlatan payı
+  refRatio    Float?    // Kategoriye özel davet payı
+  listings    Listing[]
+}
+
+model Demand {
+  id              Int          @id @default(autoincrement())
+  userId          Int
+  user            User         @relation(fields: [userId], references: [id])
+  urunAdi         String
+  aciklama        String?
+  markaTercihi    String?
+  tahminiAdet     Int?
+  durum           DemandStatus @default(PENDING)
+  createdAt       DateTime     @default(now())
+  convertedListingId Int?      @unique
+}
+
+model Listing {
+  id                Int               @id @default(autoincrement())
+  baslik            String
+  aciklama          String?
+  urunUrl           String?
+  
+  // 📍 Bölge ve Lojistik
+  bolge               String?
+  il                  String?
+  ilce                String?
+  teslimatYontemleri  DeliveryMethod[] 
+
+  categoryId        Int?
+  category          Category?         @relation(fields: [categoryId], references: [id])
+  
+  // 💰 Finansal Temel
+  perakendeFiyat    Float             // "Tasarruf Farkı" hesabı için şart
+  depozitoOrani     Int               @default(30) // %30 Kapora
+  bitisTarihi       DateTime
+  
+  // ⚡ Dinamik Oranlar (Kampanya Modu)
+  isCampaign        Boolean           @default(false)
+  specialComm       Float?
+  specialInit       Float?
+  specialRef        Float?
+
+  // 👤 Roller
+  saticiId          Int
+  satici            User              @relation("SellerRelation", fields: [saticiId], references: [id])
+  initiatorId       Int?              
+  initiator         User?             @relation("InitiatorRelation", fields: [initiatorId], references: [id])
+
+  durum             ListingStatus     @default(PENDING)
+  baremler          Barem[]
+  images            ListingImage[]
+  documents         ListingDocument[]
+  olusturmaTarihi   DateTime          @default(now())
+}
+
+model Barem {
+  id           Int           @id @default(autoincrement())
+  listingId    Int
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sira         Int           // 1, 2, 3...
+  miktar       Int           // Adet eşiği
+  fiyat        Float         // Birim fiyat
+  katilimcilar Participant[]
+
+  @@unique([listingId, sira])
+}
+
+model Participant {
+  id            Int                 @id @default(autoincrement())
+  kullaniciId   Int
+  kullanici     User                @relation(fields: [kullaniciId], references: [id])
+  baremId       Int
+  barem         Barem               @relation(fields: [baremId], references: [id])
+  
+  // 🔗 Davet Zinciri
+  referrerId    Int?                
+  referrer      User?               @relation("ReferrerRelation", fields: [referrerId], references: [id])
+  
+  talepMiktari  Int
+  durum         ParticipationStatus @default(PENDING)
+  createdAt     DateTime            @default(now())
+}
+
+model PointTransaction {
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  user          User             @relation(fields: [userId], references: [id])
+  amount        Float            
+  type          PointType
+  status        DocStatus        @default(WAITING)
+  createdAt     DateTime         @default(now())
+}
+
 model Document {
   id            Int       @id @default(autoincrement())
   userId        Int
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  tip           DocType
+  tip           DocType   
   fileUrl       String
   durum         DocStatus @default(WAITING)
-  redNedeni     String?
-  
-  yuklemeTarihi DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([userId])
+  yuklemeTarihi DateTime  @default(now())
 }
 
-model Listing {
-  id                Int             @id @default(autoincrement())
-  baslik            String
-  aciklama          String?
-  urunUrl           String?
-  kategori          String          @default("diger")
-  perakendeFiyat    Float
-  toptanFiyat       Float
-  hedefSayi         Int
-  
-  // 📍 Adım 2: Bölge ve Teslimat (Yeni Eklenenler)
-  bolge             String?         
-  il                String?         
-  ilce              String?         
-  teslimatYontemleri DeliveryMethod[] 
-  
-  // Mevcut Ayarlar (Korundu)
-  hedefKitle        String          @default("hepsi")
-  minMiktarBireysel Int             @default(1)
-  minMiktarKobi     Int             @default(5)
-  minMiktarKurumsal Int             @default(20)
-  bitisTarihi       DateTime
-  teslimatYontemi   String          @default("kargo") // Eski alan, uyumluluk için duruyor
-  indirimOrani      Int             @default(10)
-  depozitoOrani     Int             @default(30)
-  
-  durum             ListingStatus   @default(PENDING)
-  saticiId          Int
-  satici            User            @relation(fields: [saticiId], references: [id], onDelete: Cascade)
-  olusturmaTarihi   DateTime        @default(now())
-  
-  // 🖼️ Adım 1: Çoklu Görsel ve Döküman İlişkileri (Yeni)
-  images            ListingImage[]
-  documents         ListingDocument[]
-  
-  havuzlar          Pool[]
-  baremler          Barem[]
-}
-
-// 📸 Yeni: İlan Görselleri (Adım 1)
 model ListingImage {
   id        Int     @id @default(autoincrement())
   url       String
@@ -176,7 +249,6 @@ model ListingImage {
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
-// 📂 Yeni: İlan Dökümanları (Adım 1)
 model ListingDocument {
   id        Int     @id @default(autoincrement())
   url       String
@@ -185,68 +257,14 @@ model ListingDocument {
   listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
-model Barem {
-  id          Int      @id @default(autoincrement())
-  listingId   Int
-  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  sira        Int
-  miktar      Int
-  fiyat       Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  katilimcilar Participant[]
-
-  @@unique([listingId, sira])
-  @@index([listingId])
-}
-
-model Pool {
-  id            Int      @id @default(autoincrement())
-  ilanId        Int
-  ilan          Listing  @relation(fields: [ilanId], references: [id], onDelete: Cascade)
-  mevcutKatilim Int      @default(0)
-  bitisTarihi   DateTime
-  durum         String   @default("bekliyor")
-  
-  katilimcilar  Participant[]
-}
-
-model Participant {
-  id           Int                 @id @default(autoincrement())
-  kullaniciId  Int
-  kullanici    User                @relation(fields: [kullaniciId], references: [id], onDelete: Cascade)
-  havuzId      Int
-  havuz        Pool                @relation(fields: [havuzId], references: [id], onDelete: Cascade)
-  talepMiktari Int
-  
-  durum        ParticipationStatus @default(PENDING)
-  
-  baremId      Int
-  barem        Barem               @relation(fields: [baremId], references: [id], onDelete: Cascade)
-}
-
 model Address {
   id                   String     @id @default(cuid())
   userId               Int
   user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  baslik               String
-  teslimAlacakKisi     String
-  telefon              String
+  baslik               String     
   il                   String
   ilce                 String
-  mahalle              String?
   adresSatiri          String
-  postaKodu            String?
   isVarsayilanTeslimat Boolean    @default(false)
-  isVarsayilanFatura   Boolean    @default(false)
   faturaTuru           FaturaTuru @default(BIREYSEL)
-  tcKimlik             String?
-  firmaAdi             String?
-  vergiDairesi         String?
-  vergiNo              String?
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
-
-  @@index([userId])
 }

@@ -5,10 +5,12 @@ import Link from "next/link"
 import { 
   User, 
   MapPin, 
-  PlusCircle, 
+  MessageSquarePlus, 
+  Wallet,
   LogOut, 
   ChevronDown,
-  ShieldCheck
+  ShieldCheck,
+  LayoutDashboard
 } from "lucide-react"
 
 export default function UserDropdown() {
@@ -16,10 +18,9 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Menüyü kapatmak için yardımcı fonksiyon
   const closeDropdown = () => setIsOpen(false)
 
-  // Dışarı tıklayınca kapatma
+  // Dışarı tıklayınca kapatma mantığı
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -36,56 +37,75 @@ export default function UserDropdown() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Tetikleyici Buton */}
+      {/* TETİKLEYİCİ BUTON - Daha Mingax Tarzı */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-2xl transition-all duration-200 border border-gray-100"
+        className="flex items-center gap-3 bg-gray-900 text-white px-5 py-2.5 rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-xl shadow-gray-200 group"
       >
-        <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white text-xs font-black">
+        <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-[11px] font-black italic">
           {session.user?.name?.charAt(0).toUpperCase()}
         </div>
         <div className="text-left hidden sm:block">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Hesabım</p>
-          <p className="text-sm font-black text-gray-900 leading-tight">{session.user?.name}</p>
+          <p className="text-[9px] font-bold text-blue-300 uppercase tracking-[0.2em] leading-none mb-1 italic">Panelim</p>
+          <p className="text-xs font-black uppercase italic tracking-tighter">{session.user?.name}</p>
         </div>
-        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-white/50 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menü */}
+      {/* DROPDOWN MENÜ */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-64 bg-white rounded-[2rem] shadow-2xl border border-gray-100 py-3 z-[100] animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute right-0 mt-4 w-72 bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-6 z-[9999] animate-in fade-in zoom-in-95 duration-200">
           
-          <div className="px-6 py-3 border-b border-gray-50 mb-2">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Hoş Geldin</p>
-            <p className="text-sm font-black text-gray-800 truncate">{session.user?.email}</p>
+          {/* ÜST BİLGİ */}
+          <div className="px-8 pb-4 border-b border-gray-50 mb-4">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mb-1">Hesap Detayı</p>
+            <p className="text-xs font-bold text-gray-800 truncate">{session.user?.email}</p>
           </div>
 
-          {/* 🎯 Tıklama Yakalayıcı div: İçindeki herhangi bir Link'e basıldığında menüyü kapatır */}
-          <div className="px-2 space-y-1" onClick={closeDropdown}>
-            <MenuLink href="/profil" icon={<User size={18} />} label="Profilim" />
+          {/* LİNKLER - Anayasa'ya Uygun */}
+          <div className="px-3 space-y-1" onClick={closeDropdown}>
+            <MenuLink href="/profil" icon={<LayoutDashboard size={18} />} label="Genel Bakış" />
+            
+            {/* 🚀 CÜZDAN: Alıcının en çok kullanacağı yer */}
+            <MenuLink 
+              href="/cuzdan" 
+              icon={<Wallet size={18} className="text-blue-600" />} 
+              label="Cüzdanım" 
+            />
+
+            {/* 🚀 TALEP OLUŞTUR: "İlan Ekle" yerine "Anayasa" kuralı olan Talep sistemi */}
+            <MenuLink 
+              href="/talep/yeni" 
+              icon={<MessageSquarePlus size={18} className="text-green-600" />} 
+              label="Yeni İlan Talebi" 
+            />
+
             <MenuLink href="/adreslerim" icon={<MapPin size={18} />} label="Adreslerim" />
-            <MenuLink href="/ilan-ekle" icon={<PlusCircle size={18} />} label="İlan Ekle" />
+            <MenuLink href="/profil/ayarlar" icon={<User size={18} />} label="Profil Ayarları" />
             
             {isAdmin && (
-              <MenuLink 
-                href="/admin" 
-                icon={<ShieldCheck size={18} className="text-orange-500" />} 
-                label="Admin Paneli" 
-                extraClass="bg-orange-50/50 text-orange-700 hover:bg-orange-100"
-              />
+              <div className="pt-2">
+                <MenuLink 
+                  href="/admin" 
+                  icon={<ShieldCheck size={18} className="text-orange-500" />} 
+                  label="Admin Paneli" 
+                  extraClass="bg-orange-50 text-orange-700 hover:bg-orange-100"
+                />
+              </div>
             )}
           </div>
 
-          <div className="mt-4 pt-2 border-t border-gray-50 px-2">
+          {/* ÇIKIŞ BUTONU */}
+          <div className="mt-6 pt-4 border-t border-gray-50 px-4">
             <button 
               onClick={() => {
                 closeDropdown();
                 signOut({ callbackUrl: "/" });
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-colors"
+              className="w-full flex items-center gap-4 px-6 py-4 text-[11px] font-black uppercase italic tracking-[0.2em] text-red-500 hover:bg-red-50 rounded-[1.5rem] transition-all"
             >
               <LogOut size={18} />
-              Çıkış Yap
+              Güvenli Çıkış
             </button>
           </div>
         </div>
@@ -98,9 +118,9 @@ function MenuLink({ href, icon, label, extraClass = "" }: { href: string, icon: 
   return (
     <Link 
       href={href} 
-      className={`flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 rounded-2xl transition-colors ${extraClass}`}
+      className={`flex items-center gap-4 px-6 py-4 text-[11px] font-black uppercase italic tracking-[0.15em] text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-[1.5rem] transition-all group ${extraClass}`}
     >
-      {icon}
+      <span className="group-hover:scale-110 transition-transform">{icon}</span>
       {label}
     </Link>
   )

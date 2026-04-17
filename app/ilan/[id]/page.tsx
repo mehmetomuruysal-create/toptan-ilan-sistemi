@@ -2,8 +2,17 @@ import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import BaremSecici from "./BaremSecici"
-import CampaignProgress from "./CampaignProgress" // 🚀 Yeni stratejik bileşen
-import { ShieldCheck, Timer, ChevronLeft, Award, Truck, ShieldAlert, Share2 } from "lucide-react"
+import CampaignProgress from "./CampaignProgress"
+import { 
+  ShieldCheck, 
+  Timer, 
+  ChevronLeft, 
+  Award, 
+  Truck, 
+  ShieldAlert, 
+  Zap,
+  TrendingDown
+} from "lucide-react"
 
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -13,16 +22,16 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
     include: { 
       satici: true,
       images: true, 
+      category: true, 
       baremler: { 
-        orderBy: { miktar: 'asc' },
-        include: { katilimcilar: true } // 🚀 Katılımcıları çekmemiz şart
+        orderBy: { miktar: 'asc' }, 
+        include: { katilimcilar: true } 
       } 
     }
   })
 
   if (!ilan) notFound()
 
-  // 📈 İstatiksel Hesaplamalar
   const toplamKatilim = ilan.baremler.reduce((acc, b) => acc + b.katilimcilar.length, 0);
   const enDusukBaremFiyati = ilan.baremler.length > 0 
     ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
@@ -31,16 +40,17 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
   const indirimYuzde = Math.round((1 - enDusukBaremFiyati / ilan.perakendeFiyat) * 100)
   const kalanGun = Math.ceil((new Date(ilan.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
 
+  const isFirstBuyer = toplamKatilim === 0;
+
   return (
     <div className="min-h-screen bg-white">
-      {/* --- MINGAX ÜST NAV --- */}
       <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <Link href="/" className="group flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-all font-black uppercase text-[10px] tracking-widest italic">
             <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Geri Dön
           </Link>
           <div className="flex items-center gap-4">
-             <div className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+             <div className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
                 <Timer size={14} /> {kalanGun <= 0 ? "SÜRE DOLDU" : `${kalanGun} GÜN KALDI`}
              </div>
           </div>
@@ -50,7 +60,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
 
-          {/* SOL KOLON: GÖRSEL VE HİKAYE */}
+          {/* SOL KOLON */}
           <div className="lg:col-span-7 space-y-12">
             
             <div className="space-y-4">
@@ -58,7 +68,7 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                   {ilan.images[0] ? (
                     <img src={ilan.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={ilan.baslik} />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 font-black italic">GÖRSEL YOK</div>
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 font-black italic uppercase tracking-widest">Görsel Hazırlanıyor</div>
                   )}
                </div>
                <div className="grid grid-cols-4 gap-4">
@@ -71,37 +81,40 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
             </div>
 
             <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                 <span className="bg-blue-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest italic">{ilan.kategori}</span>
-                 <span className="text-green-600 font-black text-xs italic">-%{indirimYuzde}'ye Varan Tasarruf</span>
+              <div className="flex flex-wrap items-center gap-3">
+                 {/* 🛠️ DÜZELTME BURADA: Optional Chaining ve Fallback eklendi */}
+                 <span className="bg-gray-900 text-white px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest italic">
+                    {ilan.category?.name ?? "Genel Fırsat"}
+                 </span>
+                 <span className="text-blue-600 font-black text-xs italic bg-blue-50 px-3 py-1 rounded-lg flex items-center gap-2">
+                    <TrendingDown size={14} /> %{indirimYuzde}'ye Varan Grup Tasarrufu
+                 </span>
               </div>
-              <h1 className="text-5xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{ilan.baslik}</h1>
+              <h1 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{ilan.baslik}</h1>
               <div className="prose prose-lg max-w-none text-gray-500 font-medium leading-relaxed whitespace-pre-line">
                 {ilan.aciklama}
               </div>
             </div>
 
-            {/* Güvenlik Kutuları (PR Uzmanı) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex gap-5 items-center">
                   <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600"><Truck size={28} /></div>
                   <div>
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">Lojistik</p>
+                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">Lojistik Güvencesi</p>
                      <p className="text-sm font-black text-gray-800 uppercase italic">
-                       {ilan.teslimatYontemi === "kargo" ? "Adrese Sigortalı Kargo" : "Merkezi Dağıtım"}
+                       {ilan.teslimatYontemi === "kargo" ? "Sigortalı Adrese Teslim" : "Merkezi Dağıtım Noktası"}
                      </p>
                   </div>
                </div>
                <div className="p-8 bg-green-50/30 rounded-[2.5rem] border border-green-100 flex gap-5 items-center">
                   <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-green-600"><ShieldCheck size={28} /></div>
                   <div>
-                     <p className="text-[10px] font-black text-green-700/50 uppercase tracking-widest mb-1 italic">Havuz Sistemi</p>
-                     <p className="text-sm font-black text-green-800 uppercase italic">Garantili Ödeme Modeli</p>
+                     <p className="text-[10px] font-black text-green-700/50 uppercase tracking-widest mb-1 italic">Emanet Sistemi</p>
+                     <p className="text-sm font-black text-green-800 uppercase italic">Mingax Escrow Koruması</p>
                   </div>
                </div>
             </div>
 
-            {/* Satıcı Kartı */}
             <div className="p-8 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center text-white text-xl font-black italic">
@@ -112,24 +125,40 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                       <h3 className="font-black text-gray-900 text-lg uppercase italic tracking-tighter">{ilan.satici.ad} {ilan.satici.soyad}</h3>
                       <Award size={18} className="text-blue-600" />
                    </div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{ilan.satici.firmaAdi || "Onaylı Bireysel Satıcı"}</p>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{ilan.satici.firmaAdi || "Mingax Onaylı İş Ortağı"}</p>
                 </div>
               </div>
-              <button className="bg-gray-50 px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all italic">Satıcı Profili</button>
+              <div className="flex flex-col items-end">
+                <div className="flex gap-1 text-yellow-400 mb-1">
+                   {[...Array(5)].map((_, i) => <Zap key={i} size={14} fill="currentColor" />)}
+                </div>
+                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest italic">Güven Skoru: {ilan.satici.guvenPuani}/100</p>
+              </div>
             </div>
           </div>
 
-          {/* SAĞ KOLON: KAMPANYA VE AKSİYON (Davranış Uzmanı) */}
+          {/* SAĞ KOLON */}
           <div className="lg:col-span-5 space-y-8">
             <div className="sticky top-32 space-y-8">
                
-               {/* 🚀 1. Kampanya İlerleme ve Paylaşım (Viral Loop) */}
+               {isFirstBuyer && (
+                 <div className="bg-gray-900 p-8 rounded-[3rem] text-white relative overflow-hidden group">
+                    <div className="relative z-10">
+                       <Zap className="text-yellow-400 mb-4 animate-pulse" size={32} />
+                       <h4 className="text-xl font-black italic tracking-tighter uppercase mb-2">Bu Alımı Sen Başlat!</h4>
+                       <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                          İlk talebi sen oluştur, "Alım Öncüsü" ol ve bu ilandaki her satıştan %0.75 pay kazan.
+                       </p>
+                    </div>
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl rounded-full"></div>
+                 </div>
+               )}
+
                <CampaignProgress 
                   ilan={JSON.parse(JSON.stringify(ilan))} 
                   toplamKatilim={toplamKatilim} 
                />
 
-               {/* 🚀 2. Barem ve Alım Paneli */}
                <BaremSecici 
                   baremler={JSON.parse(JSON.stringify(ilan.baremler))} 
                   perakendeFiyat={ilan.perakendeFiyat} 
@@ -142,10 +171,10 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
                   }}
                />
                
-               <div className="px-8 py-5 bg-orange-50 rounded-[2rem] border border-orange-100 flex gap-4 shadow-sm">
-                  <ShieldAlert className="text-orange-600 shrink-0" size={20} />
+               <div className="px-8 py-6 bg-orange-50 rounded-[2.5rem] border border-orange-100 flex gap-4">
+                  <ShieldAlert className="text-orange-600 shrink-0" size={24} />
                   <p className="text-[10px] font-bold text-orange-800 leading-relaxed uppercase italic">
-                     Güvenlik Notu: Hedeflenen grup sayısına ulaşılamazsa depozitonuz kesintisiz olarak hesabınıza iade edilir.
+                     İade Garantisi: Grup hedefi tamamlanmazsa ödediğiniz %{ilan.depozitoOrani} kapora anında cüzdanınıza iade edilir.
                   </p>
                </div>
             </div>

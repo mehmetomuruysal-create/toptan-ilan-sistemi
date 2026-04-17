@@ -5,7 +5,6 @@ import {
   PlusCircle, 
   ShieldAlert, 
   ChevronRight, 
-  Users, 
   TrendingDown, 
   Zap, 
   ShieldCheck 
@@ -22,16 +21,17 @@ export default async function Home() {
     })
   }
 
-  // 🚀 EXPERT CODER: Şemana göre tüm ilişkileri doğru isimlerle çekiyoruz
+  // 🚀 Şemana göre tüm ilişkileri çekiyoruz
   const ilanlar = await prisma.listing.findMany({
     where: { durum: "ACTIVE" },
     include: { 
-      satici: true,    // Şemandaki User ilişkisi
-      images: true,    // Şemandaki ListingImage ilişkisi
-      baremler: {      // Katılımcılara ulaşmak için baremler -> katilimcilar yolu
+      satici: true,    
+      images: true,    
+      baremler: {      
         include: {
           katilimcilar: true 
-        }
+        },
+        orderBy: { miktar: 'asc' } // En düşük baremden en yükseğe
       }
     },
     orderBy: { olusturmaTarihi: "desc" },
@@ -61,9 +61,6 @@ export default async function Home() {
                 <button className="bg-gray-900 text-white px-10 py-5 rounded-[2.5rem] font-black uppercase text-xs tracking-widest hover:bg-blue-600 transition-all shadow-2xl shadow-gray-200">
                   Fırsatları Keşfet
                 </button>
-                <div className="flex items-center gap-3 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                  <ShieldCheck size={20} className="text-green-500" /> %100 Güvenli Altyapı
-                </div>
               </div>
             </div>
 
@@ -71,16 +68,16 @@ export default async function Home() {
                <div className="space-y-6">
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter">Baremli Tasarruf Örneği</h3>
                   <div className="flex justify-between items-center bg-white p-5 rounded-3xl border border-gray-100 opacity-40">
-                    <span className="font-bold text-xs uppercase">1-10 Adet</span>
-                    <span className="font-black text-gray-400">₺1.500</span>
+                    <span className="font-bold text-xs uppercase">Barem 1</span>
+                    <span className="font-black text-gray-400 italic">₺1.000</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-6 rounded-3xl border-2 border-blue-600 scale-105 shadow-2xl">
-                    <span className="font-bold text-xs uppercase text-blue-600 italic">11-50 Adet (Şu An)</span>
-                    <span className="font-black text-blue-600 text-xl italic">₺1.100</span>
+                    <span className="font-bold text-xs uppercase text-blue-600 italic">Barem 2 (Avantaj)</span>
+                    <span className="font-black text-blue-600 text-xl italic">₺900</span>
                   </div>
                   <div className="flex justify-between items-center bg-white p-5 rounded-3xl border border-gray-100">
-                    <span className="font-bold text-xs uppercase text-green-600">51+ Adet (Hedef)</span>
-                    <span className="font-black text-green-600 text-xl italic">₺850 🔥</span>
+                    <span className="font-bold text-xs uppercase text-green-600">Barem 3 (En İyi)</span>
+                    <span className="font-black text-green-600 text-xl italic">₺700 🔥</span>
                   </div>
                </div>
             </div>
@@ -100,19 +97,15 @@ export default async function Home() {
               <p className="font-black uppercase text-xs tracking-widest leading-none mb-2 italic">Hesap Onayı Bekleniyor</p>
               <p className="text-sm font-medium opacity-80">Satıcı profiliniz inceleniyor. İlanlarınızın yayına girmesi için belgelerinizi tamamlayın.</p>
             </div>
-            <Link href="/profil" className="ml-auto bg-orange-500 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all">
-              PROFİLE GİT
-            </Link>
           </div>
         )}
 
-        {/* BAŞLIK ALANI */}
         <div className="flex justify-between items-end mb-16 px-2">
           <div>
             <h2 className="text-5xl font-black text-gray-900 tracking-tighter uppercase italic leading-none">Canlı Gruplar</h2>
             <div className="h-2 w-20 bg-blue-600 mt-4 rounded-full"></div>
           </div>
-          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">
+          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest italic">
             {ilanlar.length} AKTİF FIRSAT BULUNDU
           </p>
         </div>
@@ -125,29 +118,41 @@ export default async function Home() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
             {ilanlar.map(ilan => {
-              // 🚀 FIX: Katılımcı sayısını baremler üzerinden topluyoruz
+              // 🚀 MATEMATİKSEL DÜZENLEMELER (Barem Sistemine Göre)
               const katilimciSayisi = ilan.baremler.reduce((acc, barem) => acc + barem.katilimcilar.length, 0);
-              const yuzde = Math.min((katilimciSayisi / ilan.hedefSayi) * 100, 100);
+              
+              // Hedef Sayı: En yüksek baremin miktarını hedef kabul ediyoruz
+              const hedefSayi = ilan.baremler.length > 0 
+                ? Math.max(...ilan.baremler.map(b => b.miktar)) 
+                : 1;
+              
+              // Görüntülenecek Fiyat: En düşük fiyatlı baremi (En iyi fiyat) gösteriyoruz
+              const enIyiFiyat = ilan.baremler.length > 0 
+                ? Math.min(...ilan.baremler.map(b => b.fiyat)) 
+                : 0;
+
+              const yuzde = Math.min((katilimciSayisi / hedefSayi) * 100, 100);
+              const indirimOrani = Math.round((1 - enIyiFiyat / ilan.perakendeFiyat) * 100);
 
               return (
                 <Link href={`/ilan/${ilan.id}`} key={ilan.id} className="group">
-                  <div className="bg-white rounded-[3.5rem] border border-gray-100 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/30 transition-all duration-500 p-6 flex flex-col relative overflow-hidden">
+                  <div className="bg-white rounded-[3.5rem] border border-gray-100 hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/30 transition-all duration-500 p-6 flex flex-col relative overflow-hidden h-full">
                     
                     {/* Ürün Görseli */}
                     <div className="aspect-square bg-gray-50 rounded-[2.5rem] mb-6 overflow-hidden relative border border-gray-50">
-                      {ilan.images[0] ? (
+                      {ilan.images?.[0] ? (
                         <img src={ilan.images[0].url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={ilan.baslik} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-200 uppercase font-black tracking-widest text-[10px]">Görsel Yok</div>
                       )}
                       
                       <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-2xl text-[10px] font-black italic shadow-xl">
-                        %{Math.round((1 - ilan.toptanFiyat / ilan.perakendeFiyat) * 100)} Toptan İndirimi
+                        %{indirimOrani}'ye Varan İndirim
                       </div>
                     </div>
 
-                    <div className="px-2">
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2">
+                    <div className="px-2 flex flex-col flex-1">
+                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-2 italic">
                         {ilan.satici.firmaAdi || `${ilan.satici.ad} ${ilan.satici.soyad}`}
                       </p>
                       <h3 className="font-black text-gray-900 text-2xl mb-6 leading-tight group-hover:text-blue-600 transition-colors uppercase italic tracking-tighter">
@@ -155,10 +160,10 @@ export default async function Home() {
                       </h3>
 
                       {/* 📊 PROGRESS BAR */}
-                      <div className="mb-8">
+                      <div className="mb-8 mt-auto">
                         <div className="flex justify-between items-end mb-2">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grup İlerlemesi</span>
-                          <span className="text-xs font-black text-blue-600 italic">{katilimciSayisi} / {ilan.hedefSayi} Katılımcı</span>
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">Grup İlerlemesi</span>
+                          <span className="text-xs font-black text-blue-600 italic">{katilimciSayisi} / {hedefSayi} Katılımcı</span>
                         </div>
                         <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden p-0.5 border border-gray-50">
                           <div 
@@ -170,8 +175,10 @@ export default async function Home() {
 
                       <div className="pt-6 border-t border-gray-50 flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Toptan Birim Fiyat</p>
-                          <p className="text-3xl font-black text-gray-900 italic">₺{ilan.toptanFiyat.toLocaleString()}</p>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">En İyi Fiyat</p>
+                          <p className="text-3xl font-black text-gray-900 italic tracking-tighter">
+                            ₺{enIyiFiyat.toLocaleString('tr-TR')}
+                          </p>
                         </div>
                         <div className="bg-gray-900 text-white p-4 rounded-[1.5rem] group-hover:bg-blue-600 group-hover:rotate-6 transition-all duration-300 shadow-xl">
                           <ChevronRight size={24} />
