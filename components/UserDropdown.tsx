@@ -5,7 +5,7 @@ import Link from "next/link"
 import { 
   User, 
   MapPin, 
-  MessageSquarePlus, 
+  PlusCircle, 
   Wallet,
   LogOut, 
   ChevronDown,
@@ -28,8 +28,9 @@ export default function UserDropdown() {
 
   if (!session) return null
 
-  // 🚀 MÜHÜR: session.user içindeki isAdmin kontrolü
-  const isAdmin = (session.user as any)?.isAdmin === true
+  const user = session.user as any
+  const isAdmin = user?.isAdmin === true
+  const isSatici = user?.hesapTuru === "SATICI"
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -38,11 +39,11 @@ export default function UserDropdown() {
         className="flex items-center gap-3 bg-gray-900 text-white px-5 py-2.5 rounded-2xl hover:bg-blue-600 transition-all duration-300 shadow-xl shadow-gray-200 group"
       >
         <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center text-[11px] font-black italic">
-          {session.user?.name?.charAt(0).toUpperCase()}
+          {user?.name?.charAt(0).toUpperCase()}
         </div>
         <div className="text-left hidden sm:block">
           <p className="text-[9px] font-bold text-blue-300 uppercase tracking-[0.2em] leading-none mb-1 italic">Panelim</p>
-          <p className="text-xs font-black uppercase italic tracking-tighter">{session.user?.name}</p>
+          <p className="text-xs font-black uppercase italic tracking-tighter">{user?.name}</p>
         </div>
         <ChevronDown size={14} className={`text-white/50 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -51,17 +52,25 @@ export default function UserDropdown() {
         <div className="absolute right-0 mt-4 w-72 bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-6 z-[9999] animate-in fade-in zoom-in-95 duration-200">
           <div className="px-8 pb-4 border-b border-gray-50 mb-4">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic mb-1">Hesap Detayı</p>
-            <p className="text-xs font-bold text-gray-800 truncate">{session.user?.email}</p>
+            <p className="text-xs font-bold text-gray-800 truncate">{user?.email}</p>
           </div>
 
           <div className="px-3 space-y-1" onClick={() => setIsOpen(false)}>
+            {/* 🚀 SATICI ÖZEL: İlan Ver Butonu */}
+            {isSatici && (
+              <MenuLink 
+                href="/talep/yeni" 
+                icon={<PlusCircle size={18} className="text-blue-600" />} 
+                label="Hızlı İlan Ver" 
+                extraClass="bg-blue-50 text-blue-700 hover:bg-blue-100 mb-2"
+              />
+            )}
+
             <MenuLink href="/panel" icon={<LayoutDashboard size={18} />} label="Genel Bakış" />
-            <MenuLink href="/cuzdan" icon={<Wallet size={18} className="text-blue-600" />} label="Cüzdanım" />
-            <MenuLink href="/talep/yeni" icon={<MessageSquarePlus size={18} className="text-green-600" />} label="Yeni İlan Talebi" />
+            <MenuLink href="/cuzdan" icon={<Wallet size={18} />} label="Cüzdanım" />
             <MenuLink href="/adreslerim" icon={<MapPin size={18} />} label="Adreslerim" />
             <MenuLink href="/profil/ayarlar" icon={<User size={18} />} label="Profil Ayarları" />
             
-            {/* 🚀 ADMIN MÜHRÜ */}
             {isAdmin && (
               <div className="pt-2">
                 <MenuLink 

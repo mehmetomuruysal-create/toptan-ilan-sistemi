@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
+import { PlusCircle, ShieldAlert } from "lucide-react"
 import UserDropdown from "./UserDropdown"
 import LoginModal from "./LoginModal"
 import RegisterModal from "./RegisterModal"
@@ -11,28 +12,50 @@ export default function Navbar() {
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
 
-  // Oturum yüklenirken butonların titrememesi için
   const isLoading = status === "loading"
+  
+  // 🚀 Satıcı ve Onay Kontrolü
+  const user = session?.user as any
+  const isSatici = user?.hesapTuru === "SATICI"
+  const isApproved = user?.onayDurumu === "APPROVED"
 
   return (
     <>
       <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-[9999] border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
           
-          {/* 🚀 LOGO - Mingax Kimliği */}
-          <Link href="/" className="text-3xl font-black text-blue-600 italic tracking-tighter hover:scale-105 transition-transform">
-            MINGAX
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="/" className="text-3xl font-black text-blue-600 italic tracking-tighter hover:scale-105 transition-transform">
+              MINGAX
+            </Link>
 
-          {/* SAĞ TARAF - AKSİYON ALANI */}
+            {/* 🚀 SATICI ONAY UYARISI (Küçük Etiket) */}
+            {isSatici && !isApproved && (
+              <div className="hidden lg:flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-full border border-orange-100 animate-pulse">
+                <ShieldAlert size={14} />
+                <span className="text-[10px] font-black uppercase italic tracking-widest">Onay Bekleniyor</span>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-4">
             {!isLoading && (
               <>
                 {session ? (
-                  /* ✅ GİRİŞ YAPILMIŞSA: Tüm yetki kontrolleri bu bileşenin içinde */
-                  <UserDropdown />
+                  <div className="flex items-center gap-4">
+                    {/* 🚀 İLAN VER BUTONU (Sadece Satıcılar Görür) */}
+                    {isSatici && (
+                      <Link 
+                        href="/talep/yeni" 
+                        className="hidden sm:flex items-center gap-2 bg-blue-600 text-white px-6 py-2.5 rounded-xl font-black text-[11px] uppercase italic tracking-widest hover:bg-gray-900 transition-all shadow-lg shadow-blue-100 active:scale-95"
+                      >
+                        <PlusCircle size={16} />
+                        İlan Ver
+                      </Link>
+                    )}
+                    <UserDropdown />
+                  </div>
                 ) : (
-                  /* ❌ GİRİŞ YAPILMAMIŞSA: Giriş ve Kayıt butonları */
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={() => setIsLoginOpen(true)}
@@ -43,7 +66,7 @@ export default function Navbar() {
                     
                     <button 
                       onClick={() => setIsRegisterOpen(true)}
-                      className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase italic text-[11px] tracking-[0.15em] hover:bg-gray-900 shadow-xl shadow-blue-100 hover:shadow-gray-200 transition-all active:scale-95"
+                      className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase italic text-[11px] tracking-[0.15em] hover:bg-gray-900 shadow-xl shadow-blue-100 transition-all active:scale-95"
                     >
                       ÜCRETSİZ KATIL
                     </button>
@@ -55,7 +78,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* MODALLAR */}
       <LoginModal 
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)}
