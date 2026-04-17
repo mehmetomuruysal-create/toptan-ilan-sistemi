@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 export async function POST(req: Request) {
   const session = await auth();
 
-  // 1. OTURUM VE YETKİ KONTROLÜ
   if (!session || !session.user?.email) {
     return NextResponse.json({ hata: "Oturum bulunamadı." }, { status: 401 });
   }
@@ -24,43 +23,44 @@ export async function POST(req: Request) {
     const {
       baslik, aciklama, urunUrl, kategori, perakendeFiyat,
       bolge, il, ilce, teslimatYontemleri, baremler,
-      resimler, dokumanlar // Frontend'den gelen URL dizileri
+      resimler, dokumanlar 
     } = body;
 
-    // Temel Validasyon
     if (!baslik || !perakendeFiyat || !baremler || baremler.length === 0) {
       return NextResponse.json({ hata: "Zorunlu alanlar eksik." }, { status: 400 });
     }
 
-    // Baremlerden toptan fiyat ve hedef sayıyı belirle (Son barem baz alınır)
-    const enYuksekBarem = baremler[baremler.length - 1];
-    const toptanFiyat = Number(enYuksekBarem.fiyat);
-    const hedefSayi = Number(enYuksekBarem.miktar);
+    // 🚀 DİKKAT: toptanFiyat ve hedefSayi hesaplaman baremlerde saklandığı için 
+    // Listing create içine değil, baremler kısmına gidiyor.
 
-    // İLAN OLUŞTURMA (Nested Create yapısı ile)
     const ilan = await prisma.listing.create({
       data: {
         saticiId: kullanici.id,
         baslik,
         aciklama,
         urunUrl,
-        kategori,
+        
+        // ✅ DÜZELTME 1: Şemadaki isim 'categoryId'
+        categoryId: Number(kategori), 
+        
         perakendeFiyat: Number(perakendeFiyat),
-        toptanFiyat,
-        hedefSayi,
+        
+        // ✅ DÜZELTME 2: toptanFiyat ve hedefSayi şemanda Listing modelinde yoksa 
+        // buraya yazarsan build patlar. Zaten baremler içinde kaydediyoruz.
+
         bolge,
         il,
         ilce,
-        teslimatYontemleri, // Enum array [KARGO, NAKLIYE] vb.
+        teslimatYontemleri, 
         durum: "PENDING",
-        bitisTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Varsayılan 30 gün
+        bitisTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
 
-        // 🖼️ Çoklu Görselleri Kaydet
+        // 🖼️ GÖRSELLER (Aynen duruyor)
         images: {
           create: resimler.map((url: string) => ({ url }))
         },
 
-        // 📂 Dökümanları Kaydet
+        // 📂 DÖKÜMANLAR (Aynen duruyor)
         documents: {
           create: dokumanlar.map((doc: { url: string; name: string }) => ({
             url: doc.url,
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
           }))
         },
 
-        // 📊 Baremleri Kaydet
+        // 📊 BAREMLER (Aynen duruyor)
         baremler: {
           create: baremler.map((b: any, index: number) => ({
             sira: index + 1,
