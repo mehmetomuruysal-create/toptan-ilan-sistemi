@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   Package, Tag, Eye, Save, Trash2, MapPin,
   Upload, FileText, X, AlertCircle, Loader2, Plus, Info,
-  CheckSquare, Square, Search, ChevronRight // EKLENDİ: Arama ikonları
+  CheckSquare, Square, Search, ChevronRight
 } from "lucide-react";
 import { upload } from "@vercel/blob/client";
 
@@ -18,7 +18,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState("");
 
-  // --- EKLENDİ: KATEGORİ ARAMA STATE'LERİ ---
   const [catSearch, setCatSearch] = useState("");
   const [foundCategories, setFoundCategories] = useState<any[]>([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState("");
@@ -32,7 +31,8 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     baslik: "",
     aciklama: "",
     urunUrl: "",
-    categoryId: "" as any, // DEĞİŞTİ: Artık "Tekstil" yerine Prisma'ya gidecek ID tutacak
+    categoryId: "" as any, 
+    hedefSayi: "", // 🚀 EKLENDİ: Toplam Stok Miktarı
     perakendeFiyat: "",
     bitisTarihi: "",
     lokasyonlar: [] as { il: string, ilce: string }[],
@@ -43,7 +43,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
   const [resimOnizlemeler, setResimOnizlemeler] = useState<string[]>([]);
   const [dokumanDosyalari, setDokumanDosyalari] = useState<File[]>([]);
 
-  // --- EKLENDİ: GOOGLE TAKSONOMİ ARAMA MOTORU ---
   useEffect(() => {
     const searchTimeout = setTimeout(async () => {
       if (catSearch.length < 2) {
@@ -136,9 +135,10 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     setHata("");
     if (step === 1) {
       if (!formData.baslik) { setHata("Başlık alanı zorunludur."); return; }
-      if (!formData.categoryId) { setHata("Lütfen bir kategori seçin."); return; } // EKLENDİ: Kategori validasyonu
+      if (!formData.categoryId) { setHata("Lütfen bir kategori seçin."); return; } 
     }
     if (step === 2) {
+      if (!formData.hedefSayi) { setHata("Toplam hedef stok girmelisiniz."); return; } // 🚀 EKLENDİ: Stok Validasyonu
       if (!formData.perakendeFiyat) { setHata("Perakende Fiyat zorunludur."); return; }
       if (formData.lokasyonlar.length === 0) { setHata("En az bir gönderim bölgesi seçin."); return; }
       if (!validateBaremler()) return;
@@ -151,7 +151,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
     setYukleniyor(true);
     try {
       const imgUrls = await Promise.all(resimDosyalari.map(async f => {
-        // İlan resimleri Vercel'e atılırken API akıllı köprü olarak çalışacak
         const b = await upload(`ilan/${Date.now()}-${f.name}`, f, { access: 'public', handleUploadUrl: '/api/upload' });
         return b.url;
       }));
@@ -162,11 +161,10 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       const res = await fetch("/api/ilan-ekle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // EKLENDİ: categoryId integer olarak gönderiliyor, hedefSayi ilk baremden alınıyor
         body: JSON.stringify({ 
             ...formData, 
             categoryId: parseInt(formData.categoryId),
-            hedefSayi: formData.baremler[0]?.miktar || 0, // Vercel Hatasını Kapatmak İçin (Zorunlu Alan)
+            hedefSayi: parseInt(formData.hedefSayi), // 🚀 EKLENDİ: Gerçek stok Prisma'ya gönderiliyor
             saticiId, 
             resimler: imgUrls, 
             dokumanlar: docUrls 
@@ -200,7 +198,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <input value={formData.baslik} onChange={(e) => setFormData({...formData, baslik: e.target.value})} placeholder="İlan Başlığı *" className="p-4 bg-gray-50 border-2 rounded-2xl font-bold outline-none focus:border-blue-500 transition-all" />
             
-            {/* DEĞİŞTİ: select kutusu yerine Google Arama Motoru geldi */}
             <div className="relative">
                <div className="relative group">
                   <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -233,8 +230,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
                  </div>
                )}
             </div>
-            {/* BİTTİ: Arama Motoru */}
-
           </div>
 
           <div className="space-y-4">
@@ -300,7 +295,6 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
       {step === 2 && (
         <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
           
-          {/* 🚀 YENİ LOKASYON: FİYAT VE TARİH YAN YANA DEV GİBİ */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* PERAKENDE FİYAT */}
@@ -331,6 +325,22 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
               <p className="text-[9px] text-orange-400 ml-4 font-bold uppercase tracking-widest">İlanın tekliflere kapanacağı tarih.</p>
             </div>
 
+          </div>
+
+          {/* 🚀 EKLENDİ: TOPLAM HEDEF STOK KUTUSU (Senin tasarım diline uygun) */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-black uppercase text-gray-400 ml-4 italic">Toplam Hedef Stok (Adet)</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                value={formData.hedefSayi} 
+                onChange={(e) => setFormData({...formData, hedefSayi: e.target.value})} 
+                placeholder="Örn: 1000" 
+                className="w-full p-5 pl-6 bg-green-50 border-2 border-green-200 rounded-[2rem] text-xl font-black text-green-700 focus:border-green-500 outline-none shadow-sm transition-all placeholder:text-green-200" 
+              />
+              <span className="absolute right-6 top-1/2 -translate-y-1/2 text-green-300 font-black text-sm uppercase">Adet</span>
+            </div>
+            <p className="text-[9px] text-green-400 ml-4 font-bold uppercase tracking-widest">Grubun tamamlanması için satılması gereken toplam adet.</p>
           </div>
 
           {/* BAREMLER */}
@@ -418,14 +428,15 @@ export default function IlanEkleForm({ saticiId }: { saticiId: number }) {
           <div className="bg-gray-50 p-10 rounded-[3.5rem] border-2 border-dashed border-gray-200 shadow-inner">
             <h2 className="text-4xl font-black italic uppercase text-gray-900 mb-8 leading-none tracking-tighter">{formData.baslik}</h2>
             
-            {/* EKLENDİ: Kategori İsmi Önizlemede */}
             {selectedCategoryName && (
               <div className="p-3 bg-blue-100 rounded-xl mb-6 inline-block">
                 <span className="text-xs font-black text-blue-800 uppercase">Kategori: {selectedCategoryName}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-sm">
+            {/* 🚀 EKLENDİ: md:grid-cols-3 yapıldı ve Stok önizlemeye kondu */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 text-sm">
+              <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Toplam Hedef Stok</span><b className="text-green-600 text-lg">{formData.hedefSayi} Adet</b></div>
               <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">İlan Bitiş Tarihi</span><b className="text-orange-600 text-lg">{formData.bitisTarihi}</b></div>
               <div className="bg-white p-6 rounded-[2rem] shadow-sm"><span className="block text-[10px] font-black text-gray-400 uppercase mb-1">Perakende Satış Fiyatı</span><b className="text-blue-600 text-lg">{formData.perakendeFiyat} ₺</b></div>
             </div>
