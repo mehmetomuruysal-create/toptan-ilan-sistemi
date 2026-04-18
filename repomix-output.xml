@@ -1,0 +1,444 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: prisma/schema.prisma, prisma/seed.ts, app/api/categories/route.ts, app/api/upload/route.ts, lib/prisma.ts
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app/
+  api/
+    upload/
+      route.ts
+lib/
+  prisma.ts
+prisma/
+  schema.prisma
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="lib/prisma.ts">
+import { PrismaClient } from "@prisma/client"
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
+</file>
+
+<file path="app/api/upload/route.ts">
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
+
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (pathname, clientPayload) => {
+        let payload = null;
+        
+        // 🚀 ÇELİK YELEK: Gelen veri boş veya hatalıysa sistem çökmeyecek!
+        if (clientPayload && clientPayload.trim() !== "") {
+          try {
+            payload = JSON.parse(clientPayload);
+            console.log(`🟡 Token Üretiliyor... Tür: SATICI BELGESİ`);
+          } catch (e) {
+            console.log(`🟡 Geçersiz Payload, İlan Resmi Olarak İşleniyor.`);
+          }
+        } else {
+          console.log(`🟡 Token Üretiliyor... Tür: İLAN RESMİ`);
+        }
+        
+        return {
+          // 🚀 GENİŞLETİLMİŞ İZİN VERİLEN DOSYA TÜRLERİ (Resim, PDF, Excel, Word)
+          allowedContentTypes: [
+            'image/jpeg', 
+            'image/png', 
+            'image/webp', 
+            'application/pdf',
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/msword', // .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+          ],
+          tokenPayload: payload ? JSON.stringify({ 
+            userId: payload.userId,
+            belgeTipi: payload.belgeTipi,
+            isDocument: true 
+          }) : JSON.stringify({ isDocument: false }),
+        };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        console.log(`🟢 Vercel'e Yüklendi! URL: ${blob.url}`);
+        
+        try {
+          if (tokenPayload) {
+            const parsedToken = JSON.parse(tokenPayload);
+            if (parsedToken.isDocument && parsedToken.userId) {
+              await prisma.document.create({
+                data: {
+                  userId: Number(parsedToken.userId),
+                  fileUrl: blob.url,
+                  tip: parsedToken.belgeTipi || "DIGER",
+                  durum: "WAITING",
+                },
+              });
+              console.log(`✅ DB'YE YAZILDI!`);
+            }
+          }
+        } catch (dbError) {
+          console.error("❌ DB Kayıt Hatası:", dbError);
+        }
+      },
+    });
+
+    return NextResponse.json(jsonResponse);
+  } catch (error: any) {
+    console.error("❌ Upload API Hatası:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}
+</file>
+
+<file path="prisma/schema.prisma">
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- ENUMLAR (Sistemin Ticari ve Operasyonel Kimliği) ---
+
+enum HesapTuru {
+  ALICI
+  SATICI
+}
+
+enum FaturaTuru {
+  BIREYSEL
+  KURUMSAL
+}
+
+enum ListingStatus {
+  ACTIVE    // Yayında
+  PENDING   // Onay Bekliyor
+  COMPLETED // Başarıyla Kapandı
+  CANCELLED // İptal Edildi
+  SUSPENDED // Askıya Alındı
+  REJECTED  // Reddedildi
+}
+
+enum ParticipationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum SupplierLevel {
+  NONE
+  BRONZ
+  GUMUS
+  ALTIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocType {
+  VERGI_LEVHASI
+  TICARI_SICIL
+  IMZA_SIRKULERI
+  FAALIYET_BELGESI
+  IBAN_BELGESI
+  SOZLESME
+  BAKANLIK_IZNI
+  DIGER
+}
+
+enum DocStatus {
+  WAITING
+  APPROVED
+  REJECTED
+}
+
+enum DeliveryMethod {
+  KARGO
+  MERKEZI_TESLIM
+  NAKLIYE
+}
+
+enum PointType {
+  INITIATOR // Alım başlatan ödülü (%0.75)
+  REFERRER  // Davet ödülü (%2.25)
+  SPENDING  // Puan harcama
+  REFUND    // İade
+}
+
+enum DemandStatus {
+  PENDING
+  OFFERED
+  APPROVED
+  REJECTED
+}
+
+// --- SİSTEM AYARLARI (Admin Panelinden Yönetilir) ---
+
+model SystemSettings {
+  id               Int   @id @default(1)
+  defaultTotalComm Float @default(15.0) // Toplam Kesinti %
+  defaultMingaxNet Float @default(12.0) // Mingax Kârı %
+  defaultInitRatio Float @default(0.75) // Başlatan Payı %
+  defaultRefRatio  Float @default(2.25) // Davet Payı %
+}
+
+// --- MODELLER ---
+
+model User {
+  id               Int           @id @default(autoincrement())
+  ad               String
+  soyad            String
+  email            String        @unique
+  ulkeKodu         String        @default("+90")
+  telefon          String?       @unique
+  password         String
+  cinsiyet         String?
+  kampanyaOnay     Boolean       @default(false)
+  hesapTuru        HesapTuru     @default(ALICI)
+  onayDurumu       UserStatus    @default(PENDING)
+  tedarikciSeviye  SupplierLevel @default(NONE)
+  
+  // 🚀 TİCARİ BİLGİLER
+  firmaAdi         String?
+  vergiNo          String?       @unique
+  vergiDairesi     String?
+  tcKimlikNo       String?
+  guvenPuani       Int           @default(100)
+  
+  // 🔐 GÜVENLİK VE ONAY SİSTEMİ
+  epostaOnaylandi  Boolean       @default(false)
+  emailVerifyToken String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  
+  isAdmin          Boolean       @default(false)
+  pointsBalance    Float         @default(0) // Harcanabilir MP
+  createdAt        DateTime      @default(now())
+
+  // İlişkiler
+  ilanlar           Listing[]          @relation("SellerRelation")
+  initiatedListings Listing[]          @relation("InitiatorRelation")
+  demands           Demand[]
+  katilimlar        Participant[]
+  referredUsers     Participant[]      @relation("ReferrerRelation")
+  pointTransactions PointTransaction[]
+  adresler          Address[]
+  belgeler          Document[]         // 🚀 ADMİN PANELİ İÇİN KRİTİK İSİM
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  commRatio Float?    // Kategoriye özel toplam komisyon
+  initRatio Float?    // Kategoriye özel başlatan payı
+  refRatio  Float?    // Kategoriye özel davet payı
+  listings  Listing[]
+}
+
+model Demand {
+  id                 Int          @id @default(autoincrement())
+  userId             Int
+  user               User         @relation(fields: [userId], references: [id])
+  urunAdi            String
+  aciklama           String?
+  markaTercihi       String?
+  tahminiAdet        Int?
+  durum              DemandStatus @default(PENDING)
+  createdAt          DateTime     @default(now())
+  convertedListingId Int?         @unique
+}
+
+model Listing {
+  id                 Int              @id @default(autoincrement())
+  baslik             String
+  aciklama           String?
+  urunUrl            String?
+  
+  // 📍 Bölge ve Lojistik
+  bolge              String?
+  il                 String?
+  ilce               String?
+  teslimatYontemleri DeliveryMethod[] 
+
+  categoryId         Int?
+  category           Category?        @relation(fields: [categoryId], references: [id])
+  
+  // 💰 Finansal Temel
+  perakendeFiyat     Float            
+  toptanFiyat        Float?           
+  hedefSayi          Int?             
+  depozitoOrani      Int              @default(30)
+  bitisTarihi        DateTime
+  
+  // ⚡ Dinamik Oranlar
+  isCampaign         Boolean          @default(false)
+  specialComm        Float?
+  specialInit        Float?
+  specialRef         Float?
+
+  // 👤 Roller
+  saticiId           Int
+  satici             User             @relation("SellerRelation", fields: [saticiId], references: [id])
+  initiatorId        Int?             
+  initiator          User?            @relation("InitiatorRelation", fields: [initiatorId], references: [id])
+
+  durum              ListingStatus    @default(PENDING)
+  baremler           Barem[]
+  images             ListingImage[]
+  documents          ListingDocument[]
+  olusturmaTarihi    DateTime         @default(now())
+}
+
+model Barem {
+  id           Int           @id @default(autoincrement())
+  listingId    Int
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sira         Int           
+  miktar       Int           
+  fiyat        Float         
+  katilimcilar Participant[]
+
+  @@unique([listingId, sira])
+}
+
+model Participant {
+  id           Int                 @id @default(autoincrement())
+  kullaniciId  Int
+  kullanici    User                @relation(fields: [kullaniciId], references: [id])
+  baremId      Int
+  barem        Barem               @relation(fields: [baremId], references: [id])
+  
+  // 🔗 Davet Zinciri
+  referrerId   Int?                
+  referrer     User?               @relation("ReferrerRelation", fields: [referrerId], references: [id])
+  
+  talepMiktari Int
+  durum        ParticipationStatus @default(PENDING)
+  createdAt    DateTime            @default(now())
+}
+
+model PointTransaction {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  amount    Float     
+  type      PointType
+  status    DocStatus @default(WAITING)
+  createdAt DateTime  @default(now())
+}
+
+model Document {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tip           DocType   
+  fileUrl       String
+  durum         DocStatus @default(WAITING)
+  yuklemeTarihi DateTime  @default(now())
+}
+
+model ListingImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model ListingDocument {
+  id        Int     @id @default(autoincrement())
+  url       String
+  name      String
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id                 String     @id @default(cuid())
+  userId             Int
+  user               User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  baslik             String     
+  teslimAlacakKisi   String     
+  telefon            String
+  il                 String
+  ilce               String
+  mahalle            String?
+  adresSatiri        String
+  postaKodu          String?
+
+  // 🚀 Varsayılan Ayarları
+  isVarsayilanTeslimat Boolean  @default(false)
+  isVarsayilanFatura   Boolean  @default(false) 
+
+  // 📄 Fatura Bilgileri
+  faturaTuru         FaturaTuru @default(BIREYSEL)
+  tcKimlik           String?    
+  firmaAdi           String?    
+  vergiDairesi       String?    
+  vergiNo            String?    
+
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+</file>
+
+</files>

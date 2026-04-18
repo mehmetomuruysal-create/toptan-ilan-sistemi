@@ -4,15 +4,20 @@ import KullanicilarClient from "./KullanicilarClient";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
-export default async function KullanicilarPage() {
-  // 1. GÜVENLİK: Sadece admin yetkisi olanlar bu sayfayı görebilir
+export default async function KullanicilarPage({ 
+  searchParams 
+}: { 
+  searchParams: { filter?: string } 
+}) {
+  
+  // 1. GÜVENLİK
   const session = await auth();
   if (!session?.user?.isAdmin) {
     redirect("/");
   }
 
-  // 2. VERİ ÇEKME: Tüm kullanıcıları ve onlara bağlı belgeleri çekiyoruz
-  const users = await prisma.user.findMany({
+  // 2. VERİ ÇEKME (Prisma Şemasına Tam Sadık)
+  const allUsers = await prisma.user.findMany({
     include: {
       adresler: true,
       belgeler: true,
@@ -20,17 +25,23 @@ export default async function KullanicilarPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // 📊 3. İSTATİSTİKLER: Admin paneli üstündeki özet kartlar için hesaplama
+  // 📊 3. İSTATİSTİKLER (Client Component'in beklediği isimlerle mühürlendi)
   const stats = {
-    toplam: users.length,
-    alicilar: users.filter((u) => u.hesapTuru === "ALICI").length,
-    saticilar: users.filter((u) => u.hesapTuru === "SATICI").length,
-    onayBekleyenSaticilar: users.filter(
+    toplam: allUsers.length,
+    alicilar: allUsers.filter((u) => u.hesapTuru === "ALICI").length,
+    saticilar: allUsers.filter((u) => u.hesapTuru === "SATICI").length,
+    onayBekleyenSaticilar: allUsers.filter(
       (u) => u.hesapTuru === "SATICI" && u.onayDurumu === "PENDING"
     ).length,
   };
 
-  // --- SERVER ACTIONS (Sunucu Tarafı İşlemleri) ---
+  // 🔍 4. FİLTRELEME MANTIĞI
+  // URL'de ?filter=pending varsa sadece onay bekleyenleri listele
+  const filteredUsers = searchParams.filter === "pending" 
+    ? allUsers.filter(u => u.onayDurumu === "PENDING")
+    : allUsers;
+
+  // --- SERVER ACTIONS ---
 
   async function toggleAdminAction(userId: number, currentStatus: boolean) {
     "use server";
@@ -56,7 +67,6 @@ export default async function KullanicilarPage() {
       data: { 
         onayDurumu: status, 
         tedarikciSeviye: level
-        // Not: onayliTedarikci alanı şemadan kaldırıldığı için buraya eklemiyoruz.
       },
     });
     revalidatePath("/admin/kullanicilar");
@@ -64,10 +74,21 @@ export default async function KullanicilarPage() {
 
   return (
     <div className="p-4 md:p-8 bg-gray-50 min-h-screen">
+      {/* 🚀 BAŞLIK: Operasyon Merkezi Stili */}
+      <div className="mb-10">
+        <h1 className="text-5xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
+          Yönetim <span className="text-blue-600">Paneli</span>
+        </h1>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mt-3 ml-1 italic">
+          Kullanıcı yetkileri ve tedarikçi onaylarını buradan yönetin
+        </p>
+      </div>
+
       <KullanicilarClient 
-        // JSON serileştirme ile TypeScript'in karmaşık tip hatalarını (Date objeleri vb.) önlüyoruz
-        initialUsers={JSON.parse(JSON.stringify(users))} 
-        stats={stats} // 👈 Yeni hesapladığımız istatistikleri gönderdik
+        // 🧱 Verileri Client'a mühürlüyoruz
+        initialUsers={JSON.parse(JSON.stringify(filteredUsers))} 
+        stats={stats} 
+        activeFilter={searchParams.filter}
         toggleAdminAction={toggleAdminAction}
         deleteUserAction={deleteUserAction}
         updateUserStatusAction={updateUserStatusAction}

@@ -1,219 +1,271 @@
-"use client"
-import { useState, useEffect } from "react"
-import { CreditCard, MapPin, ShoppingBag, ArrowRight, CheckCircle2, Plus } from "lucide-react"
-// Doğru yol ve doğru dosya adı (küçük harf address-modal)
-import AddressModal from "../../../components/AddressModal"
+"use client";
+import { useState, useEffect } from "react";
+import { 
+  CreditCard, MapPin, ShoppingBag, ArrowRight, 
+  CheckCircle2, Plus, Loader2, Info, ShieldCheck 
+} from "lucide-react"; 
+import AddressModal from "../../../components/AddressModal";
+import { pusherClient } from "@/lib/pusher";
+import { useRouter } from "next/navigation";
 
-export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler }: any) {
-  const [step, setStep] = useState(1)
-  const [adet, setAdet] = useState(barem.miktar)
-  const [adresler, setAdresler] = useState(ilkAdresler || [])
-  const [seciliAdres, setSeciliAdres] = useState("")
-  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false)
+export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, saticiId }: any) {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  
+  // 🚀 ÖZGÜRLÜK: Artık miktar 1'den başlıyor
+  const [adet, setAdet] = useState(1);
+  
+  const [adresler, setAdresler] = useState(ilkAdresler || []);
+  const [seciliAdres, setSeciliAdres] = useState("");
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [yukleniyor, setYukleniyor] = useState(false);
+  
+  // 🚀 KURAL 3: %20 Tek Alıcı Limiti
+  const tekAliciMaksLimit = Math.floor(ilan.hedefSayi * 0.20);
+  
+  const [canliTalep, setCanliTalep] = useState(ilan.mevcutTalep || 0);
 
-  // Sayfa yüklendiğinde varsayılan adresi seç
+  useEffect(() => {
+    const channel = pusherClient.subscribe(`ilan-${ilan.id}`);
+    channel.bind('talep-guncellendi', (data: { yeniTalep: number }) => {
+      setCanliTalep(data.yeniTalep);
+    });
+    return () => {
+      pusherClient.unsubscribe(`ilan-${ilan.id}`);
+    };
+  }, [ilan.id]);
+
   useEffect(() => {
     if (adresler.length > 0) {
-      const varsayilan = adresler.find((a: any) => a.isVarsayilanTeslimat)
-      setSeciliAdres(varsayilan ? varsayilan.id : adresler[0].id)
+      const varsayilan = adresler.find((a: any) => a.isVarsayilanTeslimat);
+      setSeciliAdres(varsayilan ? varsayilan.id : adresler[0].id);
     }
-  }, [adresler])
+  }, [adresler]);
 
-  // Yeni adres eklendiğinde listeyi güncelle
   const yeniAdresleriGetir = async () => {
     try {
-      const res = await fetch("/api/adres/liste")
+      const res = await fetch("/api/adres/liste");
       if (res.ok) {
-        const data = await res.json()
-        setAdresler(data)
-        if (data.length > 0) {
-          // En son eklenen adresi seç
-          setSeciliAdres(data[data.length - 1].id)
-        }
+        const data = await res.json();
+        setAdresler(data);
+        if (data.length > 0) setSeciliAdres(data[data.length - 1].id);
       }
     } catch (error) {
-      console.error("Adres listesi güncellenemedi:", error)
+      console.error("Adres listesi güncellenemedi:", error);
     }
-  }
+  };
 
-  const toplamTutar = adet * barem.fiyat
-  const depozitoTutari = (toplamTutar * ilan.depozitoOrani) / 100
+  const toplamTutar = adet * barem.fiyat;
+  const depozitoTutari = (toplamTutar * (ilan.depozitoOrani || 30)) / 100;
+
+  const handleFinalSubmit = async () => {
+    setYukleniyor(true);
+    try {
+      const res = await fetch("/api/katilim/olustur", {
+        method: "POST",
+        body: JSON.stringify({
+          ilanId: ilan.id,
+          baremId: barem.id,
+          adet: adet,
+          adresId: seciliAdres,
+          toplamTutar: toplamTutar,
+          depozitoTutari: depozitoTutari
+        })
+      });
+
+      if (res.ok) {
+        router.push("/profil/katilimlarim?success=true");
+      } else {
+        const errorData = await res.json();
+        alert(errorData.error || "Ödeme işlemi sırasında bir hata oluştu.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setYukleniyor(false);
+    }
+  };
 
   return (
-    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-      {/* İlerleme Çubuğu */}
-      <div className="flex h-2 bg-gray-100">
-        <div className={`transition-all duration-500 bg-blue-600 ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
+    <div className="bg-white rounded-[2.5rem] shadow-[0_32px_64px_rgba(0,0,0,0.1)] border border-gray-100 overflow-hidden">
+      <div className="flex h-2 bg-gray-50">
+        <div className={`transition-all duration-700 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.5)] ${step === 1 ? 'w-1/3' : step === 2 ? 'w-2/3' : 'w-full'}`} />
       </div>
 
-      <div className="p-8">
-        {/* ADIM 1: ADET SEÇİMİ */}
+      <div className="p-10">
         {step === 1 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <div className="flex items-center gap-3 mb-2">
-              <ShoppingBag className="text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Miktar Belirleyin</h2>
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg shadow-blue-100">
+                  <ShoppingBag size={24} />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">Miktar Seçimi</h2>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest italic">İstediğiniz adette talep girebilirsiniz</p>
+                </div>
+              </div>
+              <div className="bg-green-50 px-4 py-2 rounded-xl border border-green-100 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />
+                <span className="text-[10px] font-black text-green-700 uppercase italic">Canlı Talep: {canliTalep}</span>
+              </div>
             </div>
-            <p className="text-gray-500 text-sm">Bu barem için minimum <strong>{barem.miktar} adet</strong> sipariş vermelisiniz.</p>
             
-            <input 
-              type="number" 
-              min={barem.miktar}
-              value={adet}
-              onChange={(e) => setAdet(Math.max(barem.miktar, parseInt(e.target.value) || 0))}
-              className="w-full text-4xl font-black p-6 border-2 border-gray-100 rounded-2xl focus:border-blue-600 focus:outline-none transition-colors"
-            />
+            <div className="relative group">
+               <input 
+                type="number" 
+                min="1"
+                max={tekAliciMaksLimit}
+                value={adet}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 1;
+                  setAdet(Math.min(tekAliciMaksLimit, Math.max(1, val)));
+                }}
+                className="w-full text-5xl font-black p-8 bg-gray-50 border-2 border-transparent rounded-[2rem] focus:bg-white focus:border-blue-600 focus:outline-none transition-all text-center md:text-left"
+              />
+              <span className="hidden md:block absolute right-8 top-1/2 -translate-y-1/2 text-gray-300 font-black text-2xl uppercase italic">ADET</span>
+              <div className="absolute left-8 -bottom-4 bg-white px-3 py-1 border-2 border-gray-100 rounded-lg text-[9px] font-black text-gray-400 uppercase italic">
+                Maksimum Alım: {tekAliciMaksLimit} ADET
+              </div>
+            </div>
             
-            <div className="bg-blue-50 p-4 rounded-xl">
-              <div className="flex justify-between text-sm mb-1 text-blue-700 font-medium">
-                <span>Birim Fiyat:</span>
-                <span>₺{barem.fiyat}</span>
-              </div>
-              <div className="flex justify-between text-lg font-black text-blue-900">
-                <span>Toplam Tutar:</span>
-                <span>₺{toplamTutar.toLocaleString()}</span>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                  <span className="block text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest italic">Seçili Barem Fiyatı</span>
+                  <span className="text-2xl font-black text-gray-900">₺{barem.fiyat.toLocaleString()}</span>
+               </div>
+               <div className="bg-blue-600 p-6 rounded-3xl shadow-xl shadow-blue-100">
+                  <span className="block text-[10px] font-black text-blue-200 uppercase mb-1 tracking-widest italic">Tahmini Toplam</span>
+                  <span className="text-2xl font-black text-white">₺{toplamTutar.toLocaleString()}</span>
+               </div>
             </div>
 
             <button 
               onClick={() => setStep(2)}
-              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all"
+              className="w-full bg-gray-900 text-white py-6 rounded-[1.5rem] font-black uppercase italic tracking-[0.2em] text-sm hover:bg-blue-600 shadow-2xl transition-all active:scale-[0.98] flex items-center justify-center gap-3"
             >
-              Adres Bilgilerine Geç <ArrowRight size={20} />
+              Teslimat Bilgilerine Geç <ArrowRight size={20} />
             </button>
           </div>
         )}
 
-        {/* ADIM 2: ADRES SEÇİMİ */}
-       {/* ADIM 2: ADRES SEÇİMİ */}
-{step === 2 && (
-  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-    <div className="flex items-center justify-between border-b pb-4">
-      <div className="flex items-center gap-3">
-        <div className="bg-blue-100 p-2 rounded-lg">
-          <MapPin className="text-blue-600" size={24} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Teslimat Adresi</h2>
-          <p className="text-sm text-gray-500">Ürünlerin gönderileceği adresi seçin</p>
-        </div>
-      </div>
-      <button 
-        onClick={() => setIsAddressModalOpen(true)}
-        className="flex items-center gap-2 text-sm font-bold text-blue-600 hover:bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl transition-all shadow-sm"
-      >
-        <Plus size={18} /> Yeni Adres Ekle
-      </button>
-    </div>
-
-    <div className="grid gap-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar py-2">
-      {adresler.map((adres: any) => (
-        <div 
-          key={adres.id}
-          onClick={() => setSeciliAdres(adres.id)}
-          className={`relative group p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-            seciliAdres === adres.id 
-            ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-600/10' 
-            : 'border-gray-100 bg-white hover:border-blue-200 hover:shadow-sm'
-          }`}
-        >
-          {/* Seçili İkonu (Sağ Üstte Kabarık) */}
-          {seciliAdres === adres.id && (
-            <div className="absolute -top-3 -right-3 bg-blue-600 text-white rounded-full p-1 shadow-lg border-2 border-white">
-              <CheckCircle2 size={20} strokeWidth={3} />
-            </div>
-          )}
-
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${
-                seciliAdres === adres.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {adres.baslik}
-              </span>
-              <span className="font-bold text-gray-900">{adres.teslimAlacakKisi}</span>
-            </div>
-            
-            <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-              {adres.adresSatiri}
-            </p>
-            <p className="text-sm font-medium text-gray-500 italic">
-              {adres.ilce} / {adres.il}
-            </p>
-          </div>
-        </div>
-      ))}
-      
-      {adresler.length === 0 && (
-        <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50">
-          <div className="bg-white w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <MapPin className="text-gray-300" size={32} />
-          </div>
-          <p className="text-gray-500 font-medium mb-4">Henüz bir adres eklemediniz.</p>
-          <button 
-            onClick={() => setIsAddressModalOpen(true)}
-            className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-blue-700 shadow-xl shadow-blue-100 transition-all"
-          >
-            İlk Adresimi Şimdi Ekle
-          </button>
-        </div>
-      )}
-
-    </div>
-
-    <div className="flex gap-4 pt-4">
-      <button 
-        onClick={() => setStep(1)} 
-        className="flex-1 py-4 font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-colors"
-      >
-        Geri Dön
-      </button>
-      <button 
-        onClick={() => setStep(3)}
-        disabled={!seciliAdres}
-        className="flex-[2] bg-gray-900 text-white py-4 rounded-2xl font-black text-lg hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-xl shadow-gray-200 flex items-center justify-center gap-2"
-      >
-        Ödeme Özetine Geç <ArrowRight size={20} />
-      </button>
-    </div>
-  </div>
-)}
-        {/* ADIM 3: ÖDEME ÖZETİ */}
-        {step === 3 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-            <div className="flex items-center gap-3">
-              <CreditCard className="text-blue-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Ödeme Onayı</h2>
-            </div>
-
-            <div className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
-              <div className="flex justify-between text-gray-600 text-sm">
-                <span>Sipariş Miktarı</span>
-                <span className="font-semibold text-gray-900">{adet} Adet</span>
-              </div>
-              <div className="flex justify-between items-center py-5 border-y border-dashed border-gray-200">
-                <div className="leading-tight">
-                  <span className="block font-bold text-gray-900 text-lg">Depozito Tutarı</span>
-                  <span className="text-[10px] text-orange-600 font-bold uppercase tracking-wider">Toplamın %{ilan.depozitoOrani}'i</span>
+        {step === 2 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+            <div className="flex items-center justify-between border-b border-gray-50 pb-6">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-600 p-3 rounded-2xl text-white shadow-lg">
+                  <MapPin size={24} />
                 </div>
-                <span className="text-3xl font-black text-blue-600">₺{depozitoTutari.toLocaleString()}</span>
+                <div>
+                  <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">Teslimat</h2>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Adresinizi doğrulayın</p>
+                </div>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg text-[11px] text-blue-700 leading-relaxed text-center italic">
-                Ürünler tedarik edilip kargolanmadan önce kalan ₺{(toplamTutar - depozitoTutari).toLocaleString()} tutarı için bilgilendirileceksiniz.
+              <button 
+                onClick={() => setIsAddressModalOpen(true)}
+                className="bg-white border-2 border-gray-100 p-3 rounded-2xl hover:border-blue-600 transition-all text-blue-600 shadow-sm"
+              >
+                <Plus size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+              {adresler.map((adres: any) => (
+                <div 
+                  key={adres.id}
+                  onClick={() => setSeciliAdres(adres.id)}
+                  className={`p-6 rounded-[2rem] border-2 transition-all cursor-pointer relative ${
+                    seciliAdres === adres.id 
+                    ? 'border-blue-600 bg-blue-50 shadow-lg' 
+                    : 'border-gray-50 bg-gray-50/50 hover:bg-white hover:border-gray-200'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${
+                      seciliAdres === adres.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'
+                    }`}>
+                      {adres.baslik}
+                    </span>
+                    {seciliAdres === adres.id && <CheckCircle2 className="text-blue-600" size={20} />}
+                  </div>
+                  <p className="font-black text-gray-900 uppercase text-xs italic">{adres.teslimAlacakKisi}</p>
+                  <p className="text-xs text-gray-500 mt-2 font-medium leading-relaxed">{adres.adresSatiri}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <button 
+                onClick={() => setStep(1)} 
+                className="flex-1 py-5 font-black uppercase italic tracking-widest text-xs text-gray-400 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all"
+              >
+                Geri Dön
+              </button>
+              <button 
+                onClick={() => setStep(3)}
+                disabled={!seciliAdres}
+                className="flex-[2] bg-gray-900 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest text-xs hover:bg-blue-600 shadow-2xl transition-all disabled:opacity-20"
+              >
+                Ödeme Onayına Geç
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="bg-green-500 p-3 rounded-2xl text-white shadow-lg shadow-green-100">
+                <CreditCard size={24} />
+              </div>
+              <div>
+                <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">Son Onay</h2>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Güvenli Depozito Ödemesi</p>
               </div>
             </div>
 
-            <button 
-              className="w-full bg-green-600 text-white py-5 rounded-2xl font-black text-xl hover:bg-green-700 shadow-xl shadow-green-100 transition-all flex items-center justify-center gap-3"
-            >
-              GÜVENLİ ÖDEME YAP
-            </button>
-            <button onClick={() => setStep(2)} className="w-full py-2 text-sm text-gray-400 font-medium hover:text-gray-600">Teslimat Adresini Düzenle</button>
+            <div className="bg-gray-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
+               <div className="absolute top-0 right-0 p-10 opacity-10">
+                  <ShieldCheck size={120} />
+               </div>
+
+               <div className="relative z-10 space-y-6">
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-white/10 pb-4">
+                    <span>Sipariş Miktarı</span>
+                    <span className="text-white">{adet} ADET</span>
+                  </div>
+
+                  <div className="flex justify-between items-center py-4">
+                    <div className="leading-tight">
+                      <span className="block font-black text-white text-3xl italic uppercase tracking-tighter">Depozito</span>
+                      <span className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em]">Toplamın %{ilan.depozitoOrani || 30}'u</span>
+                    </div>
+                    <span className="text-4xl font-black text-blue-400 tracking-tighter italic">₺{depozitoTutari.toLocaleString()}</span>
+                  </div>
+
+                  <div className="bg-white/5 p-4 rounded-2xl flex items-start gap-3 border border-white/5">
+                    <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-gray-300 font-medium leading-relaxed italic">
+                      Kalan ₺{(toplamTutar - depozitoTutari).toLocaleString()} tutarı, ihale kapandıktan ve barem kesinleştikten sonra 48 saat içinde ödemeniz gerekecektir.
+                    </p>
+                  </div>
+               </div>
+            </div>
+
+            <div className="space-y-4">
+               <button 
+                onClick={handleFinalSubmit}
+                disabled={yukleniyor}
+                className="w-full bg-green-500 text-white py-6 rounded-[2rem] font-black uppercase italic tracking-[0.3em] text-lg hover:bg-gray-900 shadow-2xl shadow-green-100 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:bg-gray-200"
+              >
+                {yukleniyor ? <Loader2 className="animate-spin" /> : "GÜVENLİ ÖDEME YAP"}
+              </button>
+              <button onClick={() => setStep(2)} className="w-full py-2 text-[10px] text-gray-400 font-black uppercase italic hover:text-blue-600 transition-colors">Teslimat Adresini Düzenle</button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* MODAL ENTEGRASYONU */}
       <AddressModal 
         isOpen={isAddressModalOpen} 
         onClose={() => {
@@ -222,5 +274,5 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler }: any
         }} 
       />
     </div>
-  )
+  );
 }

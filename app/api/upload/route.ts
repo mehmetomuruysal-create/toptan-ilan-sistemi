@@ -25,7 +25,17 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
         
         return {
-          allowedContentTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+          // 🚀 GENİŞLETİLMİŞ İZİN VERİLEN DOSYA TÜRLERİ (Resim, PDF, Excel, Word)
+          allowedContentTypes: [
+            'image/jpeg', 
+            'image/png', 
+            'image/webp', 
+            'application/pdf',
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/msword', // .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+          ],
           tokenPayload: payload ? JSON.stringify({ 
             userId: payload.userId,
             belgeTipi: payload.belgeTipi,

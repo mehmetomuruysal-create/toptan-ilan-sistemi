@@ -1,10 +1,20 @@
 import { prisma } from "@/lib/prisma"
-import { Users, Package, Zap, Activity, TrendingUp } from "lucide-react"
+import { Users, Package, Zap, Activity, ShieldAlert, Clock } from "lucide-react"
+import Link from "next/link" // 🚀 Yönlendirme için şart
 
 export default async function AdminDashboard() {
-  const [totalUsers, totalListings, totalParticipants, activeListings] = await Promise.all([
-    prisma.user.count(),
-    prisma.listing.count(),
+  const [pendingSellers, pendingListings, totalParticipants, activeListings] = await Promise.all([
+    // 🚀 Sadece Onay Bekleyen Satıcılar
+    prisma.user.count({ 
+      where: { 
+        hesapTuru: "SATICI", 
+        onayDurumu: "PENDING" 
+      } 
+    }),
+    // 🚀 Sadece Onay Bekleyen İlanlar
+    prisma.listing.count({ 
+      where: { durum: "PENDING" } 
+    }),
     prisma.participant.count(),
     prisma.listing.count({ where: { durum: "ACTIVE" } }), 
   ])
@@ -23,7 +33,7 @@ export default async function AdminDashboard() {
           <h1 className="text-5xl font-black italic uppercase tracking-tighter text-gray-900 leading-none">
             Operasyon <span className="text-blue-600">Merkezi</span>
           </h1>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mt-3 ml-1">Anlık Sistem Verileri</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.3em] mt-3 ml-1">Kritik İşlem Takibi</p>
         </div>
         <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 flex items-center gap-3">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -31,17 +41,29 @@ export default async function AdminDashboard() {
         </div>
       </header>
 
-      {/* İSTATİSTİK KARTLARI */}
+      {/* İSTATİSTİK KARTLARI - YENİ DÜZEN */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-        <StatCard label="Toplam Kullanıcı" value={totalUsers} icon={<Users />} color="blue" />
-        <StatCard label="Toplam İlan" value={totalListings} icon={<Package />} color="purple" />
-        <StatCard label="Toplam Katılım" value={totalParticipants} icon={<Zap />} color="orange" />
+        <StatCard 
+          label="Onay Bekleyen Satıcılar" 
+          value={pendingSellers} 
+          icon={<ShieldAlert />} 
+          color="orange" 
+          href="/admin/kullanicilar?filter=pending" // 🚀 Link mühürlendi
+        />
+        <StatCard 
+          label="Onay Bekleyen İlanlar" 
+          value={pendingListings} 
+          icon={<Clock />} 
+          color="blue" 
+          href="/admin/ilanlar?filter=pending" // 🚀 Link mühürlendi
+        />
+        <StatCard label="Toplam Katılım" value={totalParticipants} icon={<Zap />} color="purple" />
         <StatCard label="Aktif Gruplar" value={activeListings} icon={<Activity />} color="green" />
       </div>
 
       {/* SON İLANLAR TABLOSU */}
       <section className="space-y-6">
-        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 ml-4 italic">Son İlan Hareketleri</h2>
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 ml-4 italic">Son Hareketler</h2>
         <div className="bg-white rounded-[3rem] shadow-2xl shadow-gray-200/50 border border-gray-50 overflow-hidden">
           <table className="min-w-full">
             <thead className="bg-gray-50/50 border-b border-gray-100">
@@ -80,22 +102,25 @@ export default async function AdminDashboard() {
   )
 }
 
-function StatCard({ label, value, icon, color }: any) {
+function StatCard({ label, value, icon, color, href }: any) {
   const colors: any = {
     blue: "text-blue-600 bg-blue-50 border-blue-100",
     purple: "text-purple-600 bg-purple-50 border-purple-100",
     orange: "text-orange-600 bg-orange-50 border-orange-100",
     green: "text-green-600 bg-green-50 border-green-100",
   }
-  return (
-    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/30 flex items-center justify-between group hover:scale-[1.02] transition-all">
+
+  const CardContent = (
+    <div className={`bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/30 flex items-center justify-between group hover:scale-[1.02] transition-all ${href ? 'cursor-pointer hover:border-blue-300' : ''}`}>
       <div className="space-y-2">
         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{label}</p>
         <p className="text-4xl font-black italic tracking-tighter text-gray-900">{value}</p>
       </div>
-      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${colors[color]} shadow-inner`}>
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${colors[color]} shadow-inner group-hover:rotate-12 transition-transform`}>
         {icon}
       </div>
     </div>
-  )
+  );
+
+  return href ? <Link href={href}>{CardContent}</Link> : CardContent;
 }
