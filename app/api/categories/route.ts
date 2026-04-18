@@ -7,12 +7,12 @@ export async function GET(req: Request) {
 
   if (!query || query.length < 2) return NextResponse.json([]);
 
-  // 🚀 USTA İŞİ ARAMA: Önce 'Ayakkabı' ile başlayanları, sonra içinde geçenleri getir.
+  // 🚀 USTA İŞİ ARAMA VE SIRALAMA
   const categories = await prisma.category.findMany({
     where: {
       name: {
         contains: query,
-        mode: "insensitive", // Büyük/küçük harf duyarsız (ı-i ayrımı için kritik)
+        mode: "insensitive", // Büyük/küçük harf duyarsız
       },
     },
     include: {
@@ -22,30 +22,37 @@ export async function GET(req: Request) {
         }
       }
     },
+    // 🛡️ MÜHÜR: Ana kategorileri (parentId'si olmayan veya küçük olanları) öne çıkar
     orderBy: [
-      {
-        // Kısa isimli olanlar (genelde ana kategorilerdir) üste çıksın
-        name: 'asc', 
-      }
+      { parentId: { sort: 'asc', nulls: 'first' } }, // Önce en üst seviyeler gelsin
+      { name: 'asc' } // Sonra alfabetik diz
     ],
-    take: 25 // Limiti biraz artıralım ki asıl sonuçlar kaybolmasın
+    take: 30 // Daha fazla sonuç getir ki ana kategori kalabalıkta kaybolmasın
   });
 
-  // Sonuçları kullanıcıya "Ebeveyn > Çocuk" formatında hazırlayalım
+  // 🌳 Hiyerarşiyi "Kıyafet > Ayakkabı" formatına getirme
   const formatted = categories.map(cat => {
-    let fullName = cat.name;
-    if (cat.parent) {
-      fullName = `${cat.parent.name} > ${cat.name}`;
-      if (cat.parent.parent) {
-        fullName = `${cat.parent.parent.name} > ${fullName}`;
-      }
-    }
+    let hierarchy = [];
+    if (cat.parent?.parent) hierarchy.push(cat.parent.parent.name);
+    if (cat.parent) hierarchy.push(cat.parent.name);
+    hierarchy.push(cat.name);
+
     return {
       id: cat.id,
-      name: fullName,
-      pureName: cat.name
+      // Ekranda görünen isim: "Kıyafet > Ayakkabılar"
+      fullName: hierarchy.join(" > "), 
+      name: cat.name,
+      // Önemli: Aramada tam eşleşenleri öne çıkarmak için skorlama yapabiliriz
+      priority: cat.name.toLowerCase() === query.toLowerCase() ? 1 : 2
     };
   });
 
-  return NextResponse.json(formatted);
+  // 🎯 SON DOKUNUŞ: Tam eşleşen "Ayakkabılar" kelimesini en tepeye mühürle
+  const sorted = formatted.sort((a, b) => {
+    // Tam kelime eşleşmesi varsa (Örn: "Ayakkabılar") onu en üste al
+    if (a.name.toLowerCase().includes(query.toLowerCase()) && !b.name.toLowerCase().includes(query.toLowerCase())) return -1;
+    return a.priority - b.priority;
+  });
+
+  return NextResponse.json(sorted);
 }
