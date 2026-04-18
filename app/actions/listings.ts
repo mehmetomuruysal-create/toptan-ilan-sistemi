@@ -13,17 +13,22 @@ export async function createListingAction(data: any) {
         baslik: data.baslik,
         aciklama: data.aciklama,
         
-        // 🚀 BUILD HATASI ÇÖZÜMÜ: 'kategori' -> 'categoryId'
-        // Formdan gelen string ID'yi Int'e çeviriyoruz
+        // 🚀 BUILD HATASI KİLİDİ: 
+        // Şemada zorunlu olan hedefSayi alanını buraya ekledik.
+        hedefSayi: parseInt(data.hedefSayi), 
+        
+        // 📂 KATEGORİ: Google Taksonomi ID'si
         categoryId: parseInt(data.kategori), 
         
         perakendeFiyat: parseFloat(data.perakendeFiyat),
+        // 💰 İlanın genel toptan fiyatı (opsiyonel ama tutarlılık için ilk barem fiyatı)
+        toptanFiyat: parseFloat(data.toptanFiyat), 
+        
         bitisTarihi: new Date(data.bitisTarihi),
         saticiId: Number(session.user.id),
         durum: "PENDING",
 
-        // 💰 BAREM SİSTEMİ: 
-        // Toptan fiyat ve hedef adet 'baremler' tablosuna ilk barem olarak eklenir
+        // 📊 BAREM SİSTEMİ: 
         baremler: {
           create: [
             {
@@ -34,27 +39,29 @@ export async function createListingAction(data: any) {
           ]
         },
         
-        // 🖼️ ÇOKLU GÖRSEL: Hiçbir kod eksiltilmedi
+        // 🖼️ ÇOKLU GÖRSEL
         images: {
-          create: data.images.map((url: string) => ({ url }))
+          create: data.images?.map((url: string) => ({ url })) || []
         },
         
-        // 📄 ÇOKLU BELGE: Hiçbir kod eksiltilmedi
+        // 📄 ÇOKLU BELGE
         documents: {
-          create: data.documents.map((doc: any) => ({
+          create: data.documents?.map((doc: any) => ({
             url: doc.url,
             name: doc.name
-          }))
+          })) || []
         }
       }
     });
 
+    // 🔄 Önbellekleri tazeliyoruz
     revalidatePath("/admin/ilanlar");
-    revalidatePath("/"); // Ana sayfa vitrini için
+    revalidatePath("/"); 
+    
     return { success: true, id: newListing.id };
 
   } catch (error) {
     console.error("İlan oluşturma hatası:", error);
-    return { success: false, error: "İlan kaydedilirken bir hata oluştu." };
+    return { success: false, error: "İlan mühürlenirken bir hata oluştu." };
   }
 }
