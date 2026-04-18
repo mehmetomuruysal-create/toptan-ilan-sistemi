@@ -139,14 +139,23 @@ model User {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
+  id        Int        @id @default(autoincrement())
+  googleId  Int?       // 🚀 DÜZELTİLDİ: @unique mührünü sildik!
+  name      String     
+  slug      String     @unique
+  
+  parentId  Int?       
+  parent    Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children  Category[] @relation("SubCategories")
+
   commRatio Float?
   initRatio Float?
   refRatio  Float?
   listings  Listing[]
+
+  @@unique([name, parentId]) 
 }
+
 
 model Demand {
   id                 Int          @id @default(autoincrement())
@@ -179,7 +188,6 @@ model Listing {
   depozitoOrani      Int               @default(30)
   bitisTarihi        DateTime
   
-  // 🚀 ALGORİTMA MÜHÜRLERİ (Durum A/B ve Race Condition Savunması)
   aktifBaremNo       Int?
   aktifBaremFiyat    Float?
   baremYukseltmeTuru Int               @default(0)
@@ -216,33 +224,25 @@ model Participant {
   id                Int                 @id @default(autoincrement())
   kullaniciId       Int
   kullanici         User                @relation(fields: [kullaniciId], references: [id])
-  
-  // 🚀 TS HATASI ÇÖZÜMÜ: İlan bağlantısı mühürlendi
   ilanId            Int
   ilan              Listing             @relation(fields: [ilanId], references: [id])
-  
   baremId           Int
   barem             Barem               @relation(fields: [baremId], references: [id])
   referrerId        Int?
   referrer          User?               @relation("ReferrerRelation", fields: [referrerId], references: [id])
   talepMiktari      Int
-  
-  // 💰 BAREM ALGORİTMASI VERİLERİ (İade ve Fiyat Koruma)
   secilenBaremFiyat Float
   kaporaMiktari     Float
   finalBaremFiyat   Float?
   kaporaIadeMiktari Float?
   kalanOdeme        Float?
-  
   durum             ParticipationStatus @default(PENDING)
   teklifSonTarih    DateTime?
   teklifKarari      String?
-  
   adresId           String?
   adres             Address?            @relation(fields: [adresId], references: [id])
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model PointTransaction {
@@ -256,7 +256,7 @@ model PointTransaction {
 }
 
 model Document {
-  id            Int       @id @default(autoincrement())
+  id            Int       @id @default(autoincrement()) // 🚀 DÜZELTİLDİ: Tek @id mühürlendi
   userId        Int
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tip           DocType
