@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 export async function POST(req: Request) {
   const session = await auth();
 
+  // 1. GÜVENLİK KONTROLÜ
   if (!session || !session.user?.email) {
     return NextResponse.json({ hata: "Oturum bulunamadı." }, { status: 401 });
   }
@@ -21,20 +22,31 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const {
-      baslik, aciklama, urunUrl, kategori, perakendeFiyat,
-      bolge, il, ilce, teslimatYontemleri, baremler,
-      resimler, dokumanlar 
+      baslik, 
+      aciklama, 
+      urunUrl, 
+      categoryId, // Formdan gelen kategori adı veya ID
+      hedefSayi,  // 🚀 MÜHÜR: Formdaki dev inputtan gelen Stok Sayısı
+      perakendeFiyat,
+      bitisTarihi, // Formdaki date picker'dan gelen tarih
+      lokasyonlar, // Formdaki [{il, ilce}] dizisi
+      baremler,
+      resimler, 
+      dokumanlar 
     } = body;
 
-    if (!baslik || !perakendeFiyat || !baremler || baremler.length === 0) {
-      return NextResponse.json({ hata: "Zorunlu alanlar eksik." }, { status: 400 });
+    // 2. DOĞRULAMA
+    if (!baslik || !perakendeFiyat || !hedefSayi || !baremler || baremler.length === 0) {
+      return NextResponse.json({ hata: "Zorunlu alanlar (Başlık, Stok, Fiyat, Barem) eksik." }, { status: 400 });
     }
 
-    // Baremlerden toptan fiyat ve hedef sayıyı belirle (Hızlı listeleme alanları için)
-    const enYuksekBarem = baremler[baremler.length - 1];
-    const toptanFiyat = Number(enYuksekBarem.fiyat);
-    const hedefSayi = Number(enYuksekBarem.miktar);
+    // 3. VERİ HAZIRLIĞI
+    // En düşük barem fiyatını "toptanFiyat" olarak hızlı listeleme için mühürleyelim
+    const enUcuzBarem = baremler.reduce((prev: any, curr: any) => 
+      Number(curr.fiyat) < Number(prev.fiyat) ? curr : prev
+    );
 
+    // 4. PRISMA KAYIT OPERASYONU
     const ilan = await prisma.listing.create({
       data: {
         saticiId: kullanici.id,
@@ -42,25 +54,28 @@ export async function POST(req: Request) {
         aciklama,
         urunUrl,
         
-        // ✅ Şemadaki yeni isimlendirme ve alanlar
-        categoryId: Number(kategori), 
+        // 🚀 FORM VERİLERİYLE TAM UYUM
+        // Kategori ID'sini Int olarak saklıyoruz (Şemadaki Category tablosuna göre)
+        // Eğer kategori bir string ise (Tekstil vb.), onu ID'ye çevirmek gerekebilir. 
+        // Şimdilik default 1 veriyorum veya gelen sayıyı alıyorum.
+        categoryId: isNaN(Number(categoryId)) ? 1 : Number(categoryId), 
+        
+        hedefSayi: Number(hedefSayi),       // Toplam Stok
         perakendeFiyat: Number(perakendeFiyat),
-        toptanFiyat: toptanFiyat, // Artık şemada var
-        hedefSayi: hedefSayi,     // Artık şemada var
+        toptanFiyat: Number(enUcuzBarem.fiyat), // Listelemelerde görünecek "başlayan" fiyat
+        
+        // Lokasyonları JSON olarak saklayıp bolge kolonuna mühürlüyoruz
+        bolge: JSON.stringify(lokasyonlar), 
+        
+        durum: "PENDING", // Admin onayına düşer
+        bitisTarihi: new Date(bitisTarihi), // Kullanıcının seçtiği tarih
 
-        bolge,
-        il,
-        ilce,
-        teslimatYontemleri, 
-        durum: "PENDING",
-        bitisTarihi: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-
-        // 🖼️ Çoklu Görseller
+        // 🖼️ ÇOKLU GÖRSELLER (Relation)
         images: {
           create: resimler.map((url: string) => ({ url }))
         },
 
-        // 📂 Dökümanlar
+        // 📂 DÖKÜMANLAR (Relation)
         documents: {
           create: dokumanlar.map((doc: { url: string; name: string }) => ({
             url: doc.url,
@@ -68,7 +83,7 @@ export async function POST(req: Request) {
           }))
         },
 
-        // 📊 Baremler
+        // 📊 BAREMLER (Relation)
         baremler: {
           create: baremler.map((b: any, index: number) => ({
             sira: index + 1,
@@ -86,6 +101,9 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error("İlan Kayıt Hatası:", error);
-    return NextResponse.json({ hata: "Sistemsel bir hata oluştu: " + error.message }, { status: 500 });
+    return NextResponse.json({ 
+      hata: "İlan kaydedilirken teknik bir sorun oluştu.", 
+      detay: error.message 
+    }, { status: 500 });
   }
 }
