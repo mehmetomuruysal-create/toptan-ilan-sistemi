@@ -15,41 +15,55 @@ export async function POST(request: Request) {
     const { ilanId, baremId, adet, adresId } = body;
     const userId = Number(session.user.id);
 
+    // Veri tipi güvenliği (Undefined kontrolü)
+    if (!ilanId || !baremId || !adet) {
+      return NextResponse.json({ error: "Eksik veri gönderildi." }, { status: 400 });
+    }
+
     // 2. İLAN VE BAREM GEÇERLİLİK KONTROLÜ
     const ilan = await prisma.listing.findUnique({
       where: { id: Number(ilanId) },
       include: { baremler: true }
     });
 
-    if (!ilan || ilan.durum !== "ACTIVE") {
+    if (!ilan) {
+      return NextResponse.json({ error: "İlan bulunamadı." }, { status: 404 });
+    }
+
+    if (ilan.durum !== "ACTIVE") {
       return NextResponse.json({ error: "Bu ilan şu an katılıma kapalı." }, { status: 400 });
     }
 
     // 3. ALGORİTMA KONTROLÜ: %20 Tek Alıcı Limiti (KURAL 3)
+    const talepAdedi = Number(adet);
     const maksAlim = Math.floor(ilan.hedefSayi * 0.20);
     
-    if (Number(adet) > maksAlim) {
+    if (talepAdedi > maksAlim) {
       return NextResponse.json({ 
         error: `Tek seferde maksimum ${maksAlim} adet alabilirsiniz (Stok limitinin %20'si).` 
       }, { status: 400 });
     }
 
     // 4. VERİTABANI İŞLEMİ (TRANSACTION)
-    // Ya hepsi kaydedilir ya hiçbiri!
     const result = await prisma.$transaction(async (tx) => {
       
-      // A. Katılım kaydını oluştur (Şemadaki yeni alanlarla birlikte)
+      const secilenBarem = ilan.baremler.find(b => b.id === Number(baremId));
+      if (!secilenBarem) throw new Error("Geçersiz barem seçimi.");
+
+      const birimFiyat = secilenBarem.fiyat;
+      const kaporaOrani = ilan.depozitoOrani / 100;
+
+      // A. Katılım kaydını oluştur
       const yeniKatilim = await tx.participant.create({
         data: {
           kullaniciId: userId,
           ilanId: Number(ilanId),
           baremId: Number(baremId),
-          talepMiktari: Number(adet),
-          adresId: adresId, // Seçilen teslimat adresi mühürlendi
-          durum: "PENDING", // Ödeme onayı gelene kadar beklemede
-          // Barem fiyatını ve kapora miktarını şemaya göre hesaplayıp ekle
-          secilenBaremFiyat: ilan.baremler.find(b => b.id === Number(baremId))?.fiyat || 0,
-          kaporaMiktari: (ilan.baremler.find(b => b.id === Number(baremId))?.fiyat || 0) * Number(adet) * (ilan.depozitoOrani / 100)
+          talepMiktari: talepAdedi,
+          adresId: adresId ? String(adresId) : null,
+          durum: "PENDING",
+          secilenBaremFiyat: birimFiyat,
+          kaporaMiktari: birimFiyat * talepAdedi * kaporaOrani
         }
       });
 
@@ -57,7 +71,7 @@ export async function POST(request: Request) {
       const guncelIlan = await tx.listing.update({
         where: { id: Number(ilanId) },
         data: {
-          mevcutTalep: { increment: Number(adet) }
+          mevcutTalep: { increment: talepAdedi }
         }
       });
 
@@ -65,10 +79,17 @@ export async function POST(request: Request) {
     });
 
     // 5. 🚀 PUSHER: ANLIK DUYURU
-    // Tüm tarayıcılardaki BaremBar'lar aynı anda güncellensin
-    await pusherServer.trigger(`ilan-${ilanId}`, 'talep-guncellendi', {
-      yeniTalep: result.guncelIlan.mevcutTalep
-    });
+    // Build sırasında patlamaması için pusherServer'ın varlığını kontrol ediyoruz
+    if (pusherServer) {
+      try {
+        await pusherServer.trigger(`ilan-${ilanId}`, 'talep-guncellendi', {
+          yeniTalep: result.guncelIlan.mevcutTalep
+        });
+      } catch (pError) {
+        console.error("⚠️ Pusher tetikleme hatası (İşlem devam ediyor):", pError);
+        // Pusher hatası olsa bile veritabanı kaydı başarılı olduğu için kullanıcıya hata dönmüyoruz
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 
@@ -78,6 +99,8 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("❌ MINGAX Katılım Hatası:", error);
-    return NextResponse.json({ error: "Sistem hatası oluştu." }, { status: 500 });
+    return NextResponse.json({ 
+      error: error.message || "Sistem hatası oluştu." 
+    }, { status: 500 });
   }
 }

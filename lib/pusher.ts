@@ -1,31 +1,52 @@
 import PusherServer from 'pusher';
 import PusherClient from 'pusher-js';
 
-// 🛡️ Değişkenleri güvenli bir şekilde çekelim
-const appId = process.env.PUSHER_APP_ID;
-const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
-const secret = process.env.PUSHER_SECRET;
-const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'eu';
+// 🛡️ Çevresel Değişkenler
+const appId = process.env.PUSHER_APP_ID!;
+const key = process.env.NEXT_PUBLIC_PUSHER_KEY!;
+const secret = process.env.PUSHER_SECRET!;
+const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || process.env.PUSHER_CLUSTER || 'eu';
 
-// 🔍 RADAR: Eğer anahtar eksikse terminalde/konsolda bağıracak
-if (!key) {
-  console.error("❌ PUSHER HATASI: NEXT_PUBLIC_PUSHER_KEY eksik! .env dosyasını kontrol et usta.");
+// 🔍 RADAR: Build sırasında anahtar eksikse Vercel loglarında bağırır
+if (!key && typeof window === 'undefined') {
+  console.warn("⚠️ PUSHER UYARISI: NEXT_PUBLIC_PUSHER_KEY bulunamadı. Build aşamasında bu normal olabilir, ancak çalışma anında hata verecektir.");
 }
 
-// 🚀 Sunucu tarafı (Server Actions / API)
-// Sunucu tarafında hata almamak için boş string fallback ekliyoruz
-export const pusherServer = new PusherServer({
-  appId: appId || '',
-  key: key || '',
-  secret: secret || '',
-  cluster: cluster,
-  useTLS: true,
-});
+// 🚀 SUNUCU TARAFI (Server Actions / API Routes)
+// Global tip tanımı yaparak Hot Reload (Hızlı Yenileme) sırasında 
+// sürekli yeni Pusher instance'ı oluşmasını engelliyoruz.
+const globalForPusher = global as unknown as { pusherServer: PusherServer };
 
-// 🚀 İstemci tarafı (Tarayıcı)
-// PusherClient key bekler, eğer key gelmezse "Runtime Error" verir. 
-// Bu yüzden key yoksa bile patlamaması için bir placeholder geçiyoruz.
-export const pusherClient = new PusherClient(key || 'pusher-key-eksik', {
-  cluster: cluster,
-  forceTLS: true,
-});
+export const pusherServer = 
+  globalForPusher.pusherServer || 
+  new PusherServer({
+    appId: appId || '',
+    key: key || '',
+    secret: secret || '',
+    cluster: cluster,
+    useTLS: true,
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPusher.pusherServer = pusherServer;
+
+
+// 🚀 İSTEMCİ TARAFI (Browser)
+// Singleton Pattern: Tarayıcıda tek bir Pusher bağlantısı tutarız.
+let clientInstance: PusherClient | null = null;
+
+export const getPusherClient = () => {
+  if (typeof window === 'undefined') return null; // Sunucuda çalışıyorsa dur
+  
+  if (!clientInstance) {
+    clientInstance = new PusherClient(key || 'pusher-key-eksik', {
+      cluster: cluster,
+      forceTLS: true,
+    });
+  }
+  return clientInstance;
+};
+
+// Geriye dönük uyumluluk için direkt export (Opsiyonel)
+export const pusherClient = typeof window !== 'undefined' 
+  ? new PusherClient(key || 'pusher-key-eksik', { cluster, forceTLS: true }) 
+  : null as unknown as PusherClient;
