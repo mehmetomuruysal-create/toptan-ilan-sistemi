@@ -1,128 +1,115 @@
 "use client"
 import { useState } from "react"
-import { CheckCircle2, Users, ArrowRight, ShieldCheck, Clock, TrendingDown } from "lucide-react"
+import { Check, Users, ShoppingCart, ShieldCheck, Clock, TrendingDown, Info, Heart } from "lucide-react"
 import Link from "next/link"
 
 export default function BaremSecici({ baremler, perakendeFiyat, depozitoOrani, kalanGun }: any) {
   const [seciliBaremId, setSeciliBaremId] = useState(baremler[0]?.id)
   const seciliBarem = baremler.find((b: any) => b.id === seciliBaremId) || baremler[0]
 
-  // Davranış Uzmanı Notu: Tasarrufu rakamla göstermek her zaman daha ikna edicidir.
   const tasarrufTutari = perakendeFiyat - seciliBarem.fiyat
+  const indirimYuzdesi = Math.round((tasarrufTutari / perakendeFiyat) * 100)
 
   return (
-    <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 border border-gray-100 overflow-hidden sticky top-24">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm sticky top-24 overflow-hidden">
       
-      {/* 🕒 ZAMAN SAYACI (Psikolojik Baskı - FOMO) */}
-      <div className="bg-gray-900 p-5 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-white/50">
-          <Clock size={20} className="text-blue-500" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">Kalan Süre</span>
+      {/* 1. ÜST FİYAT ALANI (Trendyol Stili) */}
+      <div className="p-6 border-b border-gray-100">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-gray-400 line-through text-sm">₺{perakendeFiyat.toLocaleString()}</span>
+          <span className="bg-red-50 text-red-600 text-xs font-bold px-2 py-0.5 rounded">%{indirimYuzdesi} İndirim</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-sm font-black px-4 py-1.5 rounded-xl italic ${kalanGun <= 2 ? 'bg-red-600 text-white animate-pulse' : 'bg-white/10 text-white'}`}>
-            {kalanGun} GÜN
-          </span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-bold text-[#F27A1A]">₺{seciliBarem.fiyat.toLocaleString()}</span>
+          <span className="text-sm font-semibold text-gray-500">/ adet</span>
+        </div>
+        
+        {/* Kargo/Teslimat Rozeti */}
+        <div className="mt-3 flex items-center gap-2">
+           <div className="bg-green-50 text-green-700 text-[11px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
+             <ShieldCheck size={14} /> Mingax Güvencesiyle İade Garantili
+           </div>
         </div>
       </div>
 
-      <div className="p-8">
-        <header className="mb-8">
-          <h3 className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mb-2 flex items-center gap-2 italic">
-            <TrendingDown size={14} /> Tasarruf Merdiveni
-          </h3>
-          <p className="text-gray-400 text-[10px] font-bold uppercase leading-relaxed">
-            Hangi fiyat hedefine katılmak istersiniz? Hedef sayıya ulaşıldığında bu fiyattan alım yapacaksınız.
-          </p>
-        </header>
-
-        {/* 📊 DİNAMİK BAREM KARTLARI */}
-        <div className="space-y-4 mb-8">
-          {baremler.map((barem: any) => {
-            const isSelected = seciliBaremId === barem.id
-            const tasarrufYuzde = Math.round((1 - barem.fiyat / perakendeFiyat) * 100)
-
-            return (
-              <div
-                key={barem.id}
-                onClick={() => setSeciliBaremId(barem.id)}
-                className={`group relative cursor-pointer p-5 rounded-[2rem] border-2 transition-all duration-500 ${
-                  isSelected 
-                    ? "border-blue-600 bg-blue-50/50 shadow-xl shadow-blue-100/50 scale-[1.02]" 
-                    : "border-gray-50 bg-gray-50/30 hover:border-blue-200 hover:bg-white"
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-white text-gray-400 border border-gray-100'}`}>
-                        HEDEF: {barem.miktar} ADET
-                      </span>
-                      {tasarrufYuzde > 25 && !isSelected && (
-                         <span className="text-[9px] font-black text-green-600 uppercase italic">Efsane Fırsat 🔥</span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-3xl font-black italic tracking-tighter transition-colors ${isSelected ? 'text-blue-600' : 'text-gray-900'}`}>
-                        ₺{barem.fiyat.toLocaleString()}
-                      </span>
-                      <span className="text-xs font-black text-green-600 uppercase italic">-%{tasarrufYuzde}</span>
-                    </div>
-                  </div>
-                  
-                  <div className={`w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all duration-500 ${isSelected ? 'bg-blue-600 border-blue-600 text-white rotate-[360deg]' : 'bg-white border-gray-100 text-transparent'}`}>
-                    <CheckCircle2 size={20} />
-                  </div>
-                </div>
-
-                {/* Sosyal Kanıt Küçük Notu */}
-                {isSelected && (
-                  <div className="mt-4 pt-4 border-t border-blue-100 flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase italic animate-in fade-in slide-in-from-top-2">
-                    <Users size={14} /> Bu hedefe odaklanan 12 kişi var
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* 💳 KATILIM ÖZETİ (PR & Güven Odaklı) */}
-        <div className="bg-gray-900 rounded-[2rem] p-6 mb-8 text-white relative overflow-hidden">
-          <div className="relative z-10 space-y-4">
-            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-500 italic">
-              <span>Seçili Barem Birim Fiyatı</span>
-              <span className="text-white">₺{seciliBarem.fiyat.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-blue-400 italic">
-              <span>Birim Başı Tasarruf</span>
-              <span>₺{tasarrufTutari.toLocaleString()}</span>
-            </div>
-            <div className="pt-4 border-t border-white/10 flex justify-between items-end">
-               <div>
-                  <p className="text-[10px] font-black text-orange-400 uppercase tracking-widest mb-1 italic">Ödenecek Depozito (%{depozitoOrani})</p>
-                  <p className="text-3xl font-black italic text-white leading-none">
-                    ₺{((seciliBarem.fiyat * depozitoOrani) / 100).toLocaleString()}
-                  </p>
-               </div>
-               <ShieldCheck size={32} className="text-white/10" />
+      <div className="p-6 space-y-6">
+        {/* 2. BAREM SEÇENEKLERİ (Varyant Seçimi gibi) */}
+        <div>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-tight">Hedef Fiyat Seçiniz</h3>
+            <div className="flex items-center gap-1 text-blue-600 text-xs font-semibold cursor-pointer hover:underline">
+              <Info size={14} /> Nasıl Çalışır?
             </div>
           </div>
-          {/* Arka Plan Dekoru */}
-          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-600/20 blur-3xl rounded-full"></div>
+          
+          <div className="grid grid-cols-1 gap-3">
+            {baremler.map((barem: any) => {
+              const isSelected = seciliBaremId === barem.id
+              return (
+                <div
+                  key={barem.id}
+                  onClick={() => setSeciliBaremId(barem.id)}
+                  className={`relative cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                    isSelected 
+                      ? "border-[#F27A1A] bg-orange-50/30" 
+                      : "border-gray-100 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className={`text-xs font-bold uppercase ${isSelected ? 'text-[#F27A1A]' : 'text-gray-500'}`}>
+                        Hedef: {barem.miktar} Adet
+                      </p>
+                      <p className="text-lg font-black text-gray-900">₺{barem.fiyat.toLocaleString()}</p>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 bg-[#F27A1A] rounded-full flex items-center justify-center text-white">
+                        <Check size={14} strokeWidth={3} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
-        {/* AKSİYON BUTONU */}
-        <Link
-          href={`/katil/${seciliBarem.id}`}
-          className="w-full bg-blue-600 text-white py-6 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-2xl shadow-blue-200 flex items-center justify-center gap-3 group italic"
-        >
-          TALEBİNİ OLUŞTUR VE KATIL
-          <ArrowRight className="group-hover:translate-x-2 transition-transform" size={18} />
-        </Link>
+        {/* 3. SOSYAL KANIT VE ZAMAN (Minimalist) */}
+        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 text-gray-600">
+            <Users size={18} className="text-blue-500" />
+            <span className="text-xs font-bold">12 kişi bu hedefte</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-600 border-l border-gray-200 pl-4">
+            <Clock size={18} className="text-red-500" />
+            <span className="text-xs font-bold">{kalanGun} gün kaldı</span>
+          </div>
+        </div>
 
-        <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest text-center mt-6 italic">
-          Grup tamamlanmazsa depozitonuz anında iade edilir.
-        </p>
+        {/* 4. AKSİYON BUTONLARI (Trendyol Signature) */}
+        <div className="flex gap-3 pt-2">
+          <Link
+            href={`/katil/${seciliBarem.id}`}
+            className="flex-[4] bg-[#F27A1A] text-white py-4 rounded-lg font-bold text-sm uppercase hover:bg-[#d46a16] transition-colors flex items-center justify-center gap-2 shadow-sm"
+          >
+            <ShoppingCart size={20} />
+            Talebe Katıl
+          </Link>
+          <button className="flex-1 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+            <Heart size={24} />
+          </button>
+        </div>
+
+        {/* Ödeme Detayı Özeti */}
+        <div className="pt-4 mt-2">
+           <div className="flex justify-between text-sm mb-2">
+             <span className="text-gray-500 font-medium">Şimdi Ödenecek (%{depozitoOrani} Kapora)</span>
+             <span className="font-bold text-gray-900">₺{((seciliBarem.fiyat * depozitoOrani) / 100).toLocaleString()}</span>
+           </div>
+           <p className="text-[10px] text-gray-400 leading-tight">
+             * Grup tamamlandığında kalan tutar tahsil edilir. Hedef aşılmazsa tutar anında iade edilir.
+           </p>
+        </div>
       </div>
     </div>
   )

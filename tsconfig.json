@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": ".", // 🚀 KRİTİK: Paths'in çalışması için bu satır şart!
+    "baseUrl": ".",
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -9,7 +9,7 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node", // 🛠️ 'bundler' yerine 'node' daha kararlıdır
+    "moduleResolution": "bundler", // 🚀 İŞTE BURASI DÜZELTİLDİ! ('node' yerine 'bundler' oldu)
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -20,7 +20,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"] // src klasörü olmadığı için direkt kök dizine bakar
+      "@/*": ["./*"]
     }
   },
   "include": [

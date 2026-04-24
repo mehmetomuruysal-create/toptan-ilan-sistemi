@@ -6,12 +6,13 @@ import CampaignProgress from "./CampaignProgress"
 import { 
   ShieldCheck, 
   Timer, 
-  ChevronLeft, 
   Award, 
   Truck, 
   ShieldAlert, 
   Zap,
-  TrendingDown
+  Star,
+  ChevronRight,
+  Info
 } from "lucide-react"
 
 export default async function IlanDetayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,163 +33,169 @@ export default async function IlanDetayPage({ params }: { params: Promise<{ id: 
 
   if (!listing) notFound();
 
-  // 1. Toplam Katılım (Parametrelere tip verildi)
   const toplamKatilim = listing.baremler.reduce((acc: number, b: any) => acc + (b.katilimcilar?.length || 0), 0);
-
-  // 2. En Düşük Barem Fiyatı (Null güvenliği sağlandı)
   const enDusukBaremFiyati = listing.baremler.length > 0 
     ? Math.min(...listing.baremler.map((b: any) => b.fiyat)) 
     : (listing.toptanFiyat || listing.perakendeFiyat);
   
-  // 3. İndirim Yüzdesi (TS18047 hatası çözüldü: Değer varsa hesapla, yoksa 0 de)
   const indirimYuzde = (enDusukBaremFiyati && listing.perakendeFiyat)
     ? Math.round((1 - (enDusukBaremFiyati / listing.perakendeFiyat)) * 100)
     : 0;
 
-  // 4. Kalan Gün Hesabı
   const kalanGun = Math.ceil((new Date(listing.bitisTarihi).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-
-  // 5. İlk Alıcı Kontrolü
   const isFirstBuyer = toplamKatilim === 0;
 
-  // Min miktar bilgisi baremlerden alınıyor (şemada yoksa)
-  const minMiktarlar = {
-    bireysel: listing.baremler[0]?.miktar || 1,
-    kobi: listing.baremler[1]?.miktar || 5,
-    kurumsal: listing.baremler[2]?.miktar || 10,
-  }
-
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <Link href="/" className="group flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-all font-black uppercase text-[10px] tracking-widest italic">
-            <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Geri Dön
-          </Link>
-          <div className="flex items-center gap-4">
-             <div className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic">
-                <Timer size={14} /> {kalanGun <= 0 ? "SÜRE DOLDU" : `${kalanGun} GÜN KALDI`}
-             </div>
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* 1. Üst Navigasyon / Breadcrumb */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[13px] text-gray-500">
+            <Link href="/" className="hover:text-[#F27A1A]">Ana Sayfa</Link>
+            <ChevronRight size={14} />
+            <span className="font-semibold text-gray-900 truncate max-w-[200px] md:max-w-none">{listing.baslik}</span>
+          </div>
+          <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 animate-pulse">
+            <Timer size={14} /> {kalanGun <= 0 ? "SÜRE DOLDU" : `SON ${kalanGun} GÜN`}
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-          {/* SOL KOLON */}
-          <div className="lg:col-span-7 space-y-12">
-            
-            <div className="space-y-4">
-               <div className="aspect-[4/3] rounded-[3.5rem] bg-gray-50 overflow-hidden border border-gray-100 group shadow-sm">
+          {/* SOL KOLON - Galeri (Trendyol gibi Sabit) */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-24 space-y-4">
+               <div className="aspect-[3/4] rounded-lg bg-white overflow-hidden border border-gray-200 shadow-sm relative group">
                   {listing.images[0] ? (
-                    <img src={listing.images[0].url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" alt={listing.baslik} />
+                    <img src={listing.images[0].url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={listing.baslik} />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300 font-black italic uppercase tracking-widest">Görsel Hazırlanıyor</div>
+                    <div className="w-full h-full flex items-center justify-center text-gray-300 italic">Görsel Yok</div>
+                  )}
+                  {isFirstBuyer && (
+                    <div className="absolute top-4 left-4 bg-gray-900 text-white px-3 py-1.5 rounded text-[10px] font-bold flex items-center gap-2">
+                       <Zap size={12} className="text-yellow-400 fill-yellow-400" /> İLK ALICI ÖDÜLÜ
+                    </div>
                   )}
                </div>
-               <div className="grid grid-cols-4 gap-4">
+               <div className="grid grid-cols-5 gap-2">
                   {listing.images.map((img) => (
-                    <div key={img.id} className="aspect-square rounded-3xl overflow-hidden border-2 border-gray-50 hover:border-blue-600 transition-all cursor-pointer shadow-sm">
+                    <div key={img.id} className="aspect-square rounded-md overflow-hidden border border-gray-200 hover:border-[#F27A1A] cursor-pointer bg-white">
                        <img src={img.url} className="w-full h-full object-cover" />
                     </div>
                   ))}
                </div>
             </div>
+          </div>
 
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center gap-3">
-                 <span className="bg-gray-900 text-white px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest italic">
-                    {listing.category?.name ?? "Genel Fırsat"}
-                 </span>
-                 <span className="text-blue-600 font-black text-xs italic bg-blue-50 px-3 py-1 rounded-lg flex items-center gap-2">
-                    <TrendingDown size={14} /> %{indirimYuzde}'ye Varan Grup Tasarrufu
-                 </span>
+          {/* SAĞ KOLON - Satın Alma Alanı (TEK DİKEY KANAL) */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white p-6 md:p-8 rounded-lg border border-gray-200 shadow-sm">
+              
+              {/* Başlık ve Satıcı */}
+              <div className="space-y-2 border-b border-gray-100 pb-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl md:text-2xl font-normal text-gray-900 leading-tight">
+                    <span className="font-bold text-[#F27A1A] uppercase mr-2">{listing.satici.firmaAdi || "Mingax Satıcı"}</span> 
+                    {listing.baslik}
+                  </h1>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1 text-yellow-400">
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <Star size={14} fill="currentColor" />
+                    <span className="text-gray-400 ml-1 text-xs">(0 Değerlendirme)</span>
+                  </div>
+                  <div className="text-blue-600 font-semibold text-xs hover:underline cursor-pointer">
+                    {listing.category?.name}
+                  </div>
+                </div>
               </div>
-              <h1 className="text-5xl md:text-6xl font-black text-gray-900 tracking-tighter uppercase italic leading-[0.9]">{listing.baslik}</h1>
-              <div className="prose prose-lg max-w-none text-gray-500 font-medium leading-relaxed whitespace-pre-line">
-                {listing.aciklama}
+
+              {/* DİKEY KANAL: Barem Seçimi ve Kampanya İlerlemesi */}
+              <div className="flex flex-col gap-8">
+                
+                {/* 1. Ünite: Fiyat ve Barem Seçimi */}
+                <div className="w-full">
+                  <BaremSecici 
+                    baremler={JSON.parse(JSON.stringify(listing.baremler))} 
+                    perakendeFiyat={listing.perakendeFiyat} 
+                    depozitoOrani={listing.depozitoOrani}
+                    kalanGun={kalanGun}
+                  />
+                </div>
+
+                {/* 2. Ünite: Kampanya İlerleme ve Casino Görseli (Motivasyon) */}
+                <div className="w-full">
+                  <CampaignProgress 
+                    listing={JSON.parse(JSON.stringify(listing))} 
+                    toplamKatilim={toplamKatilim} 
+                  />
+                </div>
+
+              </div>
+
+              {/* Teslimat Özellikleri */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 mt-8 border-t border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-50 rounded-full text-gray-600"><Truck size={20} /></div>
+                  <div className="text-[11px] leading-tight text-gray-500 font-medium">Hızlı Teslimat & Güvenli Kargo</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-50 rounded-full text-gray-600"><ShieldCheck size={20} /></div>
+                  <div className="text-[11px] leading-tight text-gray-500 font-medium">Mingax Escrow Koruması</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-50 rounded-full text-gray-600"><Info size={20} /></div>
+                  <div className="text-[11px] leading-tight text-gray-500 font-medium">Hedef Aşılmazsa Tutar İadesi</div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100 flex gap-5 items-center">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600"><Truck size={28} /></div>
-                  <div>
-                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 italic">Lojistik Güvencesi</p>
-                     <p className="text-sm font-black text-gray-800 uppercase italic">
-                       {listing.teslimatYontemleri?.includes("KARGO") ? "Sigortalı Adrese Teslim" : "Merkezi Dağıtım Noktası"}
-                     </p>
-                  </div>
-               </div>
-               <div className="p-8 bg-green-50/30 rounded-[2.5rem] border border-green-100 flex gap-5 items-center">
-                  <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm text-green-600"><ShieldCheck size={28} /></div>
-                  <div>
-                     <p className="text-[10px] font-black text-green-700/50 uppercase tracking-widest mb-1 italic">Emanet Sistemi</p>
-                     <p className="text-sm font-black text-green-800 uppercase italic">Mingax Escrow Koruması</p>
-                  </div>
-               </div>
+            {/* 3. Ünite: Güvenlik ve İade Bilgisi Banner'ı */}
+            <div className="bg-[#FFF0E5] border border-[#F27A1A]/20 p-4 rounded-lg flex items-start gap-3">
+               <ShieldAlert className="text-[#F27A1A] shrink-0" size={20} />
+               <p className="text-[12px] text-gray-700 leading-relaxed font-medium">
+                  <strong>İade Garantisi:</strong> Bu bir grup alım ilanıdır. Belirlenen hedef tarihte barem limitlerine ulaşılamazsa ödediğiniz %{listing.depozitoOrani} kapora tutarı hiçbir kesinti olmadan cüzdanınıza iade edilir.
+               </p>
             </div>
 
-            <div className="p-8 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-100/50 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="flex items-center gap-5">
-                <div className="w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center text-white text-xl font-black italic">
+            {/* Ürün Açıklaması */}
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+              <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 text-sm font-bold text-gray-800 uppercase tracking-tight">
+                Ürün Açıklaması
+              </div>
+              <div className="p-6">
+                <div className="prose prose-sm max-w-none text-gray-600 font-normal leading-relaxed whitespace-pre-line">
+                  {listing.aciklama}
+                </div>
+              </div>
+            </div>
+
+            {/* Satıcı Bilgi Kartı */}
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 font-bold border border-gray-200">
                    {listing.satici.ad[0]}{listing.satici.soyad[0]}
                 </div>
                 <div>
-                   <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-black text-gray-900 text-lg uppercase italic tracking-tighter">{listing.satici.ad} {listing.satici.soyad}</h3>
-                      <Award size={18} className="text-blue-600" />
+                   <h3 className="font-bold text-gray-900">{listing.satici.firmaAdi || "Mingax Mağazası"}</h3>
+                   <div className="flex items-center gap-2 mt-1">
+                      <div className="bg-green-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">9.8</div>
+                      <p className="text-[11px] text-gray-400 font-medium uppercase">Mağaza Puanı</p>
                    </div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">{listing.satici.firmaAdi || "Mingax Onaylı İş Ortağı"}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-end">
-                <div className="flex gap-1 text-yellow-400 mb-1">
-                   {[...Array(5)].map((_, i) => <Zap key={i} size={14} fill="currentColor" />)}
-                </div>
-                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest italic">Güven Skoru: {listing.satici.guvenPuani}/100</p>
+              <div className="flex gap-4">
+                <button className="text-xs font-bold text-[#F27A1A] border border-[#F27A1A] px-6 py-2.5 rounded-lg hover:bg-[#FFF0E5] transition-all">Satıcıyı Takip Et</button>
+                <button className="text-xs font-bold text-gray-600 border border-gray-200 px-6 py-2.5 rounded-lg hover:bg-gray-50 transition-all">Soru Sor</button>
               </div>
             </div>
-          </div>
 
-          {/* SAĞ KOLON */}
-          <div className="lg:col-span-5 space-y-8">
-            <div className="sticky top-32 space-y-8">
-               
-               {isFirstBuyer && (
-                 <div className="bg-gray-900 p-8 rounded-[3rem] text-white relative overflow-hidden group">
-                    <div className="relative z-10">
-                       <Zap className="text-yellow-400 mb-4 animate-pulse" size={32} />
-                       <h4 className="text-xl font-black italic tracking-tighter uppercase mb-2">Bu Alımı Sen Başlat!</h4>
-                       <p className="text-xs text-gray-400 font-medium leading-relaxed">
-                          İlk talebi sen oluştur, "Alım Öncüsü" ol ve bu ilandaki her satıştan %0.75 pay kazan.
-                       </p>
-                    </div>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/20 blur-3xl rounded-full"></div>
-                 </div>
-               )}
-
-               <CampaignProgress 
-                  listing={JSON.parse(JSON.stringify(listing))} 
-                  toplamKatilim={toplamKatilim} 
-               />
-
-               <BaremSecici 
-                  baremler={JSON.parse(JSON.stringify(listing.baremler))} 
-                  perakendeFiyat={listing.perakendeFiyat} 
-                  depozitoOrani={listing.depozitoOrani}
-                  kalanGun={kalanGun}
-                  minMiktarlar={minMiktarlar}
-               />
-               
-               <div className="px-8 py-6 bg-orange-50 rounded-[2.5rem] border border-orange-100 flex gap-4">
-                  <ShieldAlert className="text-orange-600 shrink-0" size={24} />
-                  <p className="text-[10px] font-bold text-orange-800 leading-relaxed uppercase italic">
-                     İade Garantisi: Grup hedefi tamamlanmazsa ödediğiniz %{listing.depozitoOrani} kapora anında cüzdanınıza iade edilir.
-                  </p>
-               </div>
-            </div>
           </div>
 
         </div>

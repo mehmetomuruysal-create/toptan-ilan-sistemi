@@ -2,119 +2,167 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { PlusCircle, ShieldAlert } from "lucide-react"
+import { PlusCircle, ShieldAlert, Package, Search, User, Heart } from "lucide-react"
 import UserDropdown from "@/components/UserDropdown"
 import LoginModal from "@/components/LoginModal"
 import RegisterModal from "@/components/RegisterModal"
-import { Package } from "lucide-react";
 
 export default function Navbar() {
   const { data: session, status } = useSession()
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
   
-  // 🚀 CANLI DURUM TAKİBİ
+  // 🚀 CANLI DURUM TAKİBİ (Backend mantığı %100 korundu)
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
 
   const isLoading = status === "loading"
   const user = session?.user as any
 
-  // 🔄 Kullanıcı onaylandığı an Navbar'ı güncellemek için canlı kontrol
   useEffect(() => {
     if (session?.user) {
-      // API'den güncel durumu çek (Bu endpoint'i aşağıda belirteceğim)
       fetch("/api/auth/status")
         .then(res => res.json())
         .then(data => {
           if (data.onayDurumu) setLiveStatus(data.onayDurumu)
         })
-        .catch(() => setLiveStatus(user?.onayDurumu)) // Hata olursa session'a dön
+        .catch(() => setLiveStatus(user?.onayDurumu))
     }
   }, [session, user?.onayDurumu])
 
-  // 🚀 Mantık: Eğer canlı veri geldiyse onu kullan, yoksa session'dakini kullan
   const currentOnayDurumu = liveStatus || user?.onayDurumu
   const isSatici = user?.hesapTuru === "SATICI"
   const isApproved = currentOnayDurumu === "APPROVED"
 
   return (
     <>
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-[9999] border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
-          
-          <div className="flex items-center gap-6">
-            <Link href="/" className="text-3xl font-black text-blue-600 italic tracking-tighter hover:scale-105 transition-transform">
-              MINGAX
-            </Link>
+      <header className="bg-white sticky top-0 z-[9999] font-sans">
+        
+        {/* 1. ÜST İNCE ŞERİT (Yardım, Satış Yap vb.) */}
+        <div className="bg-white border-b border-gray-100 hidden md:block">
+          <div className="max-w-[1200px] mx-auto px-4 flex justify-end items-center h-8 text-[12px] text-gray-500 gap-6">
+            <Link href="#" className="hover:text-mingax-orange transition-colors">İndirim Kuponlarım</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Mingax'ta Satış Yap</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Hakkımızda</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Yardım & Destek</Link>
+          </div>
+        </div>
 
-            {/* 🚀 ONAY UYARISI - Artık Canlı Veriye Bakıyor */}
+        {/* 2. ANA BAR (Logo, Arama, İkonlu Menüler) */}
+        <div className="max-w-[1200px] mx-auto px-4 h-[72px] flex items-center gap-8 justify-between">
+          
+          {/* Logo */}
+          <div className="flex items-center gap-4 shrink-0">
+            <Link href="/" className="text-3xl font-black text-gray-900 hover:text-mingax-orange transition-colors tracking-tight">
+              mingax
+            </Link>
+            
+            {/* ONAY UYARISI */}
             {isSatici && !isApproved && (
-              <div 
-                className="hidden lg:flex items-center gap-2 bg-orange-50 text-orange-700 px-4 py-2 rounded-full border border-orange-100 animate-pulse transition-all"
-              >
+              <div className="hidden lg:flex items-center gap-1.5 bg-orange-50 text-mingax-orange px-3 py-1.5 rounded-md border border-orange-100 animate-pulse">
                 <ShieldAlert size={14} />
-                <span className="text-[10px] font-black uppercase italic tracking-widest">Hesap Onay Bekliyor</span>
+                <span className="text-xs font-bold">Onay Bekliyor</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Geniş Arama Çubuğu */}
+          <div className="flex-1 max-w-3xl relative hidden md:block">
+            <input 
+              type="text" 
+              placeholder="Aradığınız ürün, kategori veya markayı yazınız" 
+              className="w-full bg-mingax-gray/80 border-2 border-transparent focus:border-mingax-orange focus:bg-white rounded-md py-3 pl-4 pr-12 text-sm text-gray-700 outline-none transition-all placeholder:text-gray-500"
+            />
+            <Search size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-mingax-orange cursor-pointer" />
+          </div>
+
+          {/* SAĞ TARAF: Kullanıcı İşlemleri (Sade ve İkonlu) */}
+          <div className="flex items-center gap-6 shrink-0">
             {!isLoading && (
               <>
                 {session ? (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
                     
-                    {/* 🚀 İLAN VER BUTONU - Sadece Onaylı Satıcıya Full Görünür, Diğerine Kısıtlı */}
+                    {/* Satıcıysa İlan Ver Butonu */}
                     {isSatici && (
                       <Link 
                         href={isApproved ? "/ilan-ekle" : "#"} 
                         onClick={(e) => !isApproved && e.preventDefault()}
-                        className={`hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[11px] uppercase italic tracking-widest transition-all shadow-lg active:scale-95 ${
-                          isApproved 
-                          ? "bg-blue-600 text-white hover:bg-gray-900 shadow-blue-100" 
-                          : "bg-gray-100 text-gray-400 cursor-not-allowed shadow-none"
+                        className={`hidden sm:flex items-center gap-1.5 text-sm font-semibold transition-all ${
+                          isApproved ? "text-mingax-orange hover:underline" : "text-gray-300 cursor-not-allowed"
                         }`}
                       >
-                        <PlusCircle size={16} />
+                        <PlusCircle size={18} />
                         İlan Ver
                       </Link>
                     )}
 
-                    {/* 🚀 YENİ EKLENDİ: ALICI İÇİN PAKETLERİM BUTONU */}
-                   {/* 🚀 HERKES İÇİN PAKETLERİM BUTONU */}
-<Link 
-  href="/profil/paketlerim"
-  className="hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[11px] uppercase italic tracking-widest transition-all shadow-sm active:scale-95 bg-white border-2 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
->
-  <Package size={16} />
-  Paketlerim
-</Link>
+                    {/* Profil / UserDropdown Alanı */}
+                    <div className="flex items-center gap-2 group cursor-pointer hover:text-mingax-orange transition-colors">
+                      <User size={18} className="text-gray-700 group-hover:text-mingax-orange" />
+                      <UserDropdown /> 
+                    </div>
 
-                    <UserDropdown />
+                    {/* Paketlerim (Siparişim muadili) */}
+                    <Link href="/profil/paketlerim" className="hidden sm:flex items-center gap-2 group hover:text-mingax-orange transition-colors">
+                      <Package size={18} className="text-gray-700 group-hover:text-mingax-orange" />
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-mingax-orange">Paketlerim</span>
+                    </Link>
+
+                    {/* Favorilerim */}
+                    <Link href="/favoriler" className="hidden lg:flex items-center gap-2 group hover:text-mingax-orange transition-colors">
+                      <Heart size={18} className="text-gray-700 group-hover:text-mingax-orange" />
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-mingax-orange">Favorilerim</span>
+                    </Link>
+
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <button 
+                  <div className="flex items-center gap-6">
+                    {/* GİRİŞ YAP */}
+                    <div 
                       onClick={() => setIsLoginOpen(true)}
-                      className="text-gray-900 font-black uppercase italic text-[11px] tracking-widest px-6 py-3 hover:text-blue-600 transition-colors"
+                      className="flex items-center gap-2 group cursor-pointer hover:text-mingax-orange transition-colors"
                     >
-                      GİRİŞ YAP
-                    </button>
-                    
-                    <button 
+                      <User size={18} className="text-gray-700 group-hover:text-mingax-orange" />
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-mingax-orange">Giriş Yap</span>
+                    </div>
+
+                    {/* FAVORİLERİM (Giriş yapmadan da görünebilir) */}
+                    <div className="hidden sm:flex items-center gap-2 group cursor-pointer hover:text-mingax-orange transition-colors">
+                      <Heart size={18} className="text-gray-700 group-hover:text-mingax-orange" />
+                      <span className="text-sm font-semibold text-gray-700 group-hover:text-mingax-orange">Favorilerim</span>
+                    </div>
+
+                    {/* ÜYE OL */}
+                    <div 
                       onClick={() => setIsRegisterOpen(true)}
-                      className="bg-blue-600 text-white px-8 py-3.5 rounded-2xl font-black uppercase italic text-[11px] tracking-[0.15em] hover:bg-gray-900 shadow-xl shadow-blue-100 transition-all active:scale-95"
+                      className="flex items-center gap-2 group cursor-pointer hover:text-mingax-orange transition-colors"
                     >
-                      ÜCRETSİZ KATIL
-                    </button>
+                      <span className="text-sm font-semibold text-mingax-orange">Üye Ol</span>
+                    </div>
                   </div>
                 )}
               </>
             )}
           </div>
         </div>
-      </nav>
 
+        {/* 3. ALT KATEGORİ MENÜSÜ (Bant) */}
+        <div className="border-b border-gray-200 hidden md:block">
+          <div className="max-w-[1200px] mx-auto px-4 h-11 flex items-center gap-8 text-sm font-semibold text-gray-700">
+            <Link href="#" className="border-b-2 border-mingax-orange text-mingax-orange pb-[11px] pt-[13px]">Gıda Toptan</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Elektronik</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Tekstil & Giyim</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Ambalaj & Kutu</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Yapı Market</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors">Kozmetik</Link>
+            <Link href="#" className="hover:text-mingax-orange transition-colors flex items-center gap-1">
+              Fırsat Ürünleri <span className="bg-[#f00] text-white text-[10px] px-1.5 py-0.5 rounded ml-1">Yeni</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* MODALLAR */}
       <LoginModal 
         isOpen={isLoginOpen} 
         onClose={() => setIsLoginOpen(false)}
