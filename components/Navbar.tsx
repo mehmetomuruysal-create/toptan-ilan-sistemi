@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
+import { useRouter } from "next/navigation" // 🚀 Yeni eklendi
 import { PlusCircle, ShieldAlert, Package, Search, User, Heart } from "lucide-react"
 import UserDropdown from "@/components/UserDropdown"
 import LoginModal from "@/components/LoginModal"
@@ -9,8 +10,10 @@ import RegisterModal from "@/components/RegisterModal"
 
 export default function Navbar() {
   const { data: session, status } = useSession()
+  const router = useRouter() // 🚀 Router tanımlandı
   const [isLoginOpen, setIsLoginOpen] = useState(false)
   const [isRegisterOpen, setIsRegisterOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("") // 🚀 Arama kelimesi state'i
   
   // 🚀 CANLI DURUM TAKİBİ (Backend mantığı %100 korundu)
   const [liveStatus, setLiveStatus] = useState<string | null>(null)
@@ -28,6 +31,14 @@ export default function Navbar() {
         .catch(() => setLiveStatus(user?.onayDurumu))
     }
   }, [session, user?.onayDurumu])
+
+  // 🚀 ARAMA TETİKLEYİCİ FONKSİYON
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim().length > 1) {
+      router.push(`/arama?q=${encodeURIComponent(searchTerm.trim())}`);
+    }
+  };
 
   const currentOnayDurumu = liveStatus || user?.onayDurumu
   const isSatici = user?.hesapTuru === "SATICI"
@@ -65,15 +76,19 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Geniş Arama Çubuğu */}
-          <div className="flex-1 max-w-3xl relative hidden md:block">
+          {/* 🚀 AKTİF ARAMA ÇUBUĞU */}
+          <form onSubmit={handleSearch} className="flex-1 max-w-3xl relative hidden md:block">
             <input 
               type="text" 
-              placeholder="Aradığınız ürün, kategori veya markayı yazınız" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Ürün, kategori veya marka ara..." 
               className="w-full bg-mingax-gray/80 border-2 border-transparent focus:border-mingax-orange focus:bg-white rounded-md py-3 pl-4 pr-12 text-sm text-gray-700 outline-none transition-all placeholder:text-gray-500"
             />
-            <Search size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-mingax-orange cursor-pointer" />
-          </div>
+            <button type="submit" className="absolute right-4 top-1/2 -translate-y-1/2 text-mingax-orange hover:scale-110 transition-transform">
+              <Search size={20} />
+            </button>
+          </form>
 
           {/* SAĞ TARAF: Kullanıcı İşlemleri (Sade ve İkonlu) */}
           <div className="flex items-center gap-6 shrink-0">
