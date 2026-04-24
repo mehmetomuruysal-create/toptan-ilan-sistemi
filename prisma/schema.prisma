@@ -77,7 +77,7 @@ enum DeliveryMethod {
   KARGO
   MERKEZI_TESLIM
   NAKLIYE
-  MINGAX_NOKTA // 🚀 YENİ EKLENDİ
+  MINGAX_NOKTA
 }
 
 enum PointType {
@@ -93,8 +93,6 @@ enum DemandStatus {
   APPROVED
   REJECTED
 }
-
-// 🚀 YENİ EKLENEN ENUMLAR (Teslimat Ağı İçin)
 
 enum PaketDurumu {
   SIPARIS_ALINDI
@@ -156,6 +154,8 @@ model User {
   pointTransactions PointTransaction[]
   adresler          Address[]
   belgeler          Document[]
+  
+  favorites         Favorite[]         // 🚀 FAVORİ İLİŞKİSİ
 }
 
 model Category {
@@ -190,7 +190,7 @@ model Demand {
 }
 
 model Listing {
-  id                 Int              @id @default(autoincrement())
+  id                 Int               @id @default(autoincrement())
   baslik             String
   aciklama           String?
   urunUrl            String?
@@ -199,33 +199,35 @@ model Listing {
   ilce               String?
   teslimatYontemleri DeliveryMethod[]
   categoryId         Int?
-  category           Category?        @relation(fields: [categoryId], references: [id])
+  category           Category?         @relation(fields: [categoryId], references: [id])
   perakendeFiyat     Float
   toptanFiyat        Float?
   hedefSayi          Int
-  mevcutTalep        Int              @default(0)
-  depozitoOrani      Int              @default(30)
+  mevcutTalep        Int               @default(0)
+  depozitoOrani      Int               @default(30)
   bitisTarihi        DateTime
   
   aktifBaremNo       Int?
   aktifBaremFiyat    Float?
-  baremYukseltmeTuru Int              @default(0)
-  version            Int              @default(0)
+  baremYukseltmeTuru Int               @default(0)
+  version            Int               @default(0)
 
-  isCampaign         Boolean          @default(false)
+  isCampaign         Boolean           @default(false)
   specialComm        Float?
   specialInit        Float?
   specialRef         Float?
   saticiId           Int
-  satici             User             @relation("SellerRelation", fields: [saticiId], references: [id])
+  satici             User              @relation("SellerRelation", fields: [saticiId], references: [id])
   initiatorId        Int?
-  initiator          User?            @relation("InitiatorRelation", fields: [initiatorId], references: [id])
-  durum              ListingStatus    @default(PENDING)
+  initiator          User?             @relation("InitiatorRelation", fields: [initiatorId], references: [id])
+  durum              ListingStatus     @default(PENDING)
   baremler           Barem[]
   images             ListingImage[]
   documents          ListingDocument[]
   katilimlar         Participant[]
-  olusturmaTarihi    DateTime         @default(now())
+  olusturmaTarihi    DateTime          @default(now())
+  
+  favoritedBy        Favorite[]        // 🚀 FAVORİ İLİŞKİSİ
 }
 
 model Barem {
@@ -263,7 +265,7 @@ model Participant {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  paket             Paket?              // 🚀 YENİ EKLENDİ (Birebir İlişki)
+  paket             Paket?              
 }
 
 model PointTransaction {
@@ -286,11 +288,20 @@ model Document {
   yuklemeTarihi DateTime  @default(now())
 }
 
+// 🚀 PROFESYONEL GALERİ İÇİN GÜNCELLENEN MODEL
 model ListingImage {
-  id        Int     @id @default(autoincrement())
-  url       String
+  id        Int      @id @default(autoincrement())
   listingId Int
-  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String   // Vercel Blob veya CDN URL
+  altText   String   @default("")
+  siraNo    Int      @default(0) // Sıralama (0 = kapak resmi)
+  boyut     Int?     // Byte cinsinden
+  genislik  Int?     // Pixel
+  yukseklik Int?     // Pixel
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
 }
 
 model ListingDocument {
@@ -325,12 +336,10 @@ model Address {
   updatedAt            DateTime      @updatedAt
 }
 
-// 🚀 AŞAĞISI TAMAMEN YENİ EKLENEN MODELLER (Teslimat Noktası Ağı)
-
 model TeslimatNoktasi {
   id                    Int       @id @default(autoincrement())
-  ad                    String    // "Ahmet Bakkallı"
-  esnafAdi              String    // İşletme sahibi tam adı
+  ad                    String    
+  esnafAdi              String    
   telefon               String
   email                 String?
 
@@ -363,8 +372,8 @@ model TeslimatNoktasi {
   aktif                 Boolean   @default(true)
   geciciKapali          Boolean   @default(false)
   geciciKapaliBaslangic DateTime?
-  geciciKapaliBitis     DateTime?
-  geciciKapaliNeden     String?
+  geciciKapaliBitis      DateTime?
+  geciciKapaliNeden      String?
 
   komisyonMiktari       Float
   komisyonMingaxPayi    Float
@@ -393,7 +402,7 @@ model EsnafHesap {
   sonGirisTarihi  DateTime?
   cihazTuru       String?
   fcmToken        String?
-  olusturmaTarihi DateTime        @default(now())
+  olusturmaTarihi DateTime         @default(now())
 }
 
 model Paket {
@@ -408,9 +417,9 @@ model Paket {
   agirlik             Float?
   boyut               String?
 
-  kurye_qr            String       // Merkezden noktaya
-  alici_qr            String       @unique // Alıcıdan noktaya
-  iade_qr             String?      // İade için
+  kurye_qr            String       
+  alici_qr            String       @unique 
+  iade_qr             String?      
 
   durum               PaketDurumu  @default(SIPARIS_ALINDI)
 
@@ -437,5 +446,16 @@ model KomisyonIslem {
   tedarikciPayi   Float
   odendi          Boolean         @default(false)
   odemeTarihi     DateTime?
-  olusturmaTarihi DateTime        @default(now())
+  olusturmaTarihi DateTime         @default(now())
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId Int
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, listingId])
 }

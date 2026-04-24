@@ -1,11 +1,13 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
-import { ShieldAlert, Heart, ChevronRight, PackageX } from "lucide-react"
+import { ShieldAlert, ChevronRight, PackageX } from "lucide-react"
+import FavoriteButton from "@/components/FavoriteButton" // 🚀 Yeni bileşenimizi dahil ettik
 
 export default async function Home() {
   const session = await auth()
-  
+  const userId = session?.user?.id ? Number(session.user.id) : null;
+
   let dbUser = null
   if (session?.user?.email) {
     dbUser = await prisma.user.findUnique({
@@ -14,12 +16,13 @@ export default async function Home() {
     })
   }
 
-  // 🚀 BACKEND DOKUNULMADI: Şemana göre tüm ilişkileri çekiyoruz
+  // 🚀 BACKEND GÜNCELLEMESİ: favoritedBy ilişkisini giriş yapan kullanıcıya göre çekiyoruz
   const ilanlar = await prisma.listing.findMany({
     where: { durum: "ACTIVE" },
     include: { 
       satici: true,    
-      images: true,    
+      images: true,
+      favoritedBy: userId ? { where: { userId } } : false, // Kullanıcı giriş yapmışsa favori durumunu çek
       baremler: {      
         include: {
           katilimcilar: true 
@@ -48,7 +51,7 @@ export default async function Home() {
       
       <main className="max-w-[1200px] mx-auto px-4 pt-6">
         
-        {/* 🚀 ONAY BEKLEYEN SATICI UYARISI (Sadeleştirildi) */}
+        {/* 🚀 ONAY BEKLEYEN SATICI UYARISI */}
         {dbUser?.hesapTuru === "SATICI" && dbUser?.onayDurumu !== "APPROVED" && (
           <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-start gap-3 text-orange-800">
             <ShieldAlert size={20} className="shrink-0 mt-0.5 text-mingax-orange" />
@@ -93,72 +96,75 @@ export default async function Home() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               {ilanlar.map((listing: any) => {
                 
-                // 🚀 MATEMATİKSEL DÜZENLEMELER (Dokunulmadı)
+                // 🚀 MATEMATİKSEL DÜZENLEMELER
                 const katilimciSayisi = listing.baremler.reduce((acc: number, barem: any) => acc + (barem.katilimcilar?.length || 0), 0);
                 const hedefSayi = listing.baremler.length > 0 ? Math.max(...listing.baremler.map((b: any) => b.miktar)) : 1;
                 const enIyiFiyat = listing.baremler.length > 0 ? Math.min(...listing.baremler.map((b: any) => b.fiyat)) : (listing.toptanFiyat || 0);
                 const yuzde = Math.min((katilimciSayisi / hedefSayi) * 100, 100);
                 const indirimOrani = (enIyiFiyat > 0 && listing.perakendeFiyat > 0) ? Math.round((1 - enIyiFiyat / listing.perakendeFiyat) * 100) : 0;
+                
+                // 🚀 Favori durumu kontrolü
+                const isFavorited = listing.favoritedBy && listing.favoritedBy.length > 0;
 
                 return (
-                  <Link href={`/ilan/${listing.id}`} key={listing.id} className="group relative border-r border-b border-gray-100 p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow bg-white flex flex-col cursor-pointer">
+                  <div key={listing.id} className="group relative border-r border-b border-gray-100 p-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-shadow bg-white flex flex-col cursor-pointer">
                     
-                    {/* Favori Butonu */}
-                    <button className="absolute top-4 right-4 z-10 w-8 h-8 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-mingax-orange transition-colors shadow-sm">
-                      <Heart size={16} />
-                    </button>
+                    {/* 🚀 FAVORİ BUTONU (Hazırladığımız dinamik bileşen) */}
+                    <FavoriteButton listingId={listing.id} isFavoritedInitial={isFavorited} />
 
-                    {/* İndirim Etiketi */}
-                    {indirimOrani > 0 && (
-                      <div className="absolute top-4 left-4 z-10">
-                        <span className="bg-[#f00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                          %{indirimOrani} İndirim
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Ürün Görseli */}
-                    <div className="aspect-square relative mb-3 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
-                      {listing.images?.[0] ? (
-                        <img src={listing.images[0].url} className="object-cover w-full h-full mix-blend-multiply group-hover:scale-105 transition-transform duration-500" alt={listing.baslik} />
-                      ) : (
-                        <div className="text-gray-300 text-xs font-semibold">Görsel Yok</div>
+                    <Link href={`/ilan/${listing.id}`} className="flex flex-col flex-1">
+                      {/* İndirim Etiketi */}
+                      {indirimOrani > 0 && (
+                        <div className="absolute top-4 left-4 z-10">
+                          <span className="bg-[#f00] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            %{indirimOrani} İndirim
+                          </span>
+                        </div>
                       )}
-                    </div>
 
-                    {/* Ürün Bilgileri */}
-                    <div className="flex flex-col flex-1">
-                      <div className="mb-2 text-sm text-gray-800 line-clamp-2 leading-snug">
-                        <span className="font-bold text-gray-900 mr-1">
-                          {listing.satici.firmaAdi || `${listing.satici.ad} ${listing.satici.soyad}`}
-                        </span>
-                        {listing.baslik}
-                      </div>
-
-                      {/* İlerleme Çubuğu */}
-                      <div className="mt-auto mb-3">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[10px] text-gray-500 font-semibold">Hedef: {hedefSayi}</span>
-                          <span className="text-[10px] text-mingax-orange font-bold">%{Math.round(yuzde)}</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-mingax-orange rounded-full transition-all duration-700" style={{ width: `${yuzde}%` }}></div>
-                        </div>
-                      </div>
-
-                      {/* Fiyat Alanı */}
-                      <div className="mt-1">
-                        {indirimOrani > 0 && (
-                          <div className="text-[11px] text-gray-400 line-through">
-                            ₺{listing.perakendeFiyat?.toLocaleString('tr-TR')}
-                          </div>
+                      {/* Ürün Görseli */}
+                      <div className="aspect-square relative mb-3 bg-gray-50 rounded-lg overflow-hidden flex items-center justify-center">
+                        {listing.images?.[0] ? (
+                          <img src={listing.images[0].url} className="object-cover w-full h-full mix-blend-multiply group-hover:scale-105 transition-transform duration-500" alt={listing.baslik} />
+                        ) : (
+                          <div className="text-gray-300 text-xs font-semibold">Görsel Yok</div>
                         )}
-                        <div className="text-mingax-orange font-bold text-lg tracking-tight">
-                          ₺{enIyiFiyat.toLocaleString('tr-TR')}
+                      </div>
+
+                      {/* Ürün Bilgileri */}
+                      <div className="flex flex-col flex-1">
+                        <div className="mb-2 text-sm text-gray-800 line-clamp-2 leading-snug">
+                          <span className="font-bold text-gray-900 mr-1">
+                            {listing.satici.firmaAdi || `${listing.satici.ad} ${listing.satici.soyad}`}
+                          </span>
+                          {listing.baslik}
+                        </div>
+
+                        {/* İlerleme Çubuğu */}
+                        <div className="mt-auto mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] text-gray-500 font-semibold">Hedef: {hedefSayi}</span>
+                            <span className="text-[10px] text-mingax-orange font-bold">%{Math.round(yuzde)}</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-mingax-orange rounded-full transition-all duration-700" style={{ width: `${yuzde}%` }}></div>
+                          </div>
+                        </div>
+
+                        {/* Fiyat Alanı */}
+                        <div className="mt-1">
+                          {indirimOrani > 0 && (
+                            <div className="text-[11px] text-gray-400 line-through">
+                              ₺{listing.perakendeFiyat?.toLocaleString('tr-TR')}
+                            </div>
+                          )}
+                          <div className="text-mingax-orange font-bold text-lg tracking-tight">
+                            ₺{enIyiFiyat.toLocaleString('tr-TR')}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
                 )
               })}
             </div>
