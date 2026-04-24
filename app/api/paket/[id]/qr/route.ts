@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // 🚀 params artık bir Promise
 ) {
   try {
     // 1. Güvenlik: Kim giriş yapmış?
@@ -14,7 +14,9 @@ export async function GET(
       return NextResponse.json({ error: "Giriş yapmalısınız" }, { status: 401 });
     }
 
-    const paketId = params.id;
+    // 🚀 Next.js 15+ standartlarına göre params'ı bekleyerek (await) çözüyoruz
+    const resolvedParams = await params;
+    const paketId = resolvedParams.id;
 
     // 2. Paketi ve sahibini veritabanından bul
     const paket = await prisma.paket.findUnique({
