@@ -77,6 +77,7 @@ enum DeliveryMethod {
   KARGO
   MERKEZI_TESLIM
   NAKLIYE
+  MINGAX_NOKTA // 🚀 YENİ EKLENDİ
 }
 
 enum PointType {
@@ -91,6 +92,25 @@ enum DemandStatus {
   OFFERED
   APPROVED
   REJECTED
+}
+
+// 🚀 YENİ EKLENEN ENUMLAR (Teslimat Ağı İçin)
+
+enum PaketDurumu {
+  SIPARIS_ALINDI
+  DEPODA_HAZIRLANIYOR
+  KURYE_YOLDA
+  NOKTADA
+  TESLIM_EDILDI
+  IADE_BEKLIYOR
+  MINGAX_DEPOSUNDA
+  IADE_TAMAMLANDI
+}
+
+enum NoktaSozlesmeDurumu {
+  BEKLIYOR
+  IMZALANDI
+  FESHEDILDI
 }
 
 // --- MODELLER ---
@@ -140,7 +160,7 @@ model User {
 
 model Category {
   id        Int        @id @default(autoincrement())
-  googleId  Int?       // 🚀 DÜZELTİLDİ: @unique mührünü sildik!
+  googleId  Int?       
   name      String     
   slug      String     @unique
   
@@ -156,7 +176,6 @@ model Category {
   @@unique([name, parentId]) 
 }
 
-
 model Demand {
   id                 Int          @id @default(autoincrement())
   userId             Int
@@ -171,7 +190,7 @@ model Demand {
 }
 
 model Listing {
-  id                 Int               @id @default(autoincrement())
+  id                 Int              @id @default(autoincrement())
   baslik             String
   aciklama           String?
   urunUrl            String?
@@ -180,33 +199,33 @@ model Listing {
   ilce               String?
   teslimatYontemleri DeliveryMethod[]
   categoryId         Int?
-  category           Category?         @relation(fields: [categoryId], references: [id])
+  category           Category?        @relation(fields: [categoryId], references: [id])
   perakendeFiyat     Float
   toptanFiyat        Float?
   hedefSayi          Int
-  mevcutTalep        Int               @default(0)
-  depozitoOrani      Int               @default(30)
+  mevcutTalep        Int              @default(0)
+  depozitoOrani      Int              @default(30)
   bitisTarihi        DateTime
   
   aktifBaremNo       Int?
   aktifBaremFiyat    Float?
-  baremYukseltmeTuru Int               @default(0)
-  version            Int               @default(0)
+  baremYukseltmeTuru Int              @default(0)
+  version            Int              @default(0)
 
-  isCampaign         Boolean           @default(false)
+  isCampaign         Boolean          @default(false)
   specialComm        Float?
   specialInit        Float?
   specialRef         Float?
   saticiId           Int
-  satici             User              @relation("SellerRelation", fields: [saticiId], references: [id])
+  satici             User             @relation("SellerRelation", fields: [saticiId], references: [id])
   initiatorId        Int?
-  initiator          User?             @relation("InitiatorRelation", fields: [initiatorId], references: [id])
-  durum              ListingStatus     @default(PENDING)
+  initiator          User?            @relation("InitiatorRelation", fields: [initiatorId], references: [id])
+  durum              ListingStatus    @default(PENDING)
   baremler           Barem[]
   images             ListingImage[]
   documents          ListingDocument[]
   katilimlar         Participant[]
-  olusturmaTarihi    DateTime          @default(now())
+  olusturmaTarihi    DateTime         @default(now())
 }
 
 model Barem {
@@ -241,8 +260,10 @@ model Participant {
   teklifKarari      String?
   adresId           String?
   adres             Address?            @relation(fields: [adresId], references: [id])
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  paket             Paket?              // 🚀 YENİ EKLENDİ (Birebir İlişki)
 }
 
 model PointTransaction {
@@ -256,7 +277,7 @@ model PointTransaction {
 }
 
 model Document {
-  id            Int       @id @default(autoincrement()) // 🚀 DÜZELTİLDİ: Tek @id mühürlendi
+  id            Int       @id @default(autoincrement()) 
   userId        Int
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tip           DocType
@@ -302,4 +323,119 @@ model Address {
   katilimlar           Participant[]
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+}
+
+// 🚀 AŞAĞISI TAMAMEN YENİ EKLENEN MODELLER (Teslimat Noktası Ağı)
+
+model TeslimatNoktasi {
+  id                    Int       @id @default(autoincrement())
+  ad                    String    // "Ahmet Bakkallı"
+  esnafAdi              String    // İşletme sahibi tam adı
+  telefon               String
+  email                 String?
+
+  adres                 String
+  il                    String
+  ilce                  String
+  mahalle               String
+  lat                   Float
+  lng                   Float
+  googlePlaceId         String?
+
+  pazartesiAcilis       String?
+  pazartesiKapanis      String?
+  saliAcilis            String?
+  saliKapanis           String?
+  carsambaAcilis        String?
+  carsambaKapanis       String?
+  persembeAcilis        String?
+  persembeKapanis       String?
+  cumaAcilis            String?
+  cumaKapanis           String?
+  cumartesiAcilis       String?
+  cumartesiKapanis      String?
+  pazarAcilis           String?
+  pazarKapanis          String?
+
+  maxKapasite           Int
+  mevcutKapasite        Int       @default(0)
+
+  aktif                 Boolean   @default(true)
+  geciciKapali          Boolean   @default(false)
+  geciciKapaliBaslangic DateTime?
+  geciciKapaliBitis     DateTime?
+  geciciKapaliNeden     String?
+
+  komisyonMiktari       Float
+  komisyonMingaxPayi    Float
+  komisyonTedarikciPayi Float
+  toplamKazanilan       Float     @default(0)
+
+  sozlesmeUrl           String?
+  sozlesmeTarihi        DateTime?
+  sozlesmeDurumu        NoktaSozlesmeDurumu @default(BEKLIYOR)
+
+  esnafHesap            EsnafHesap?
+  paketler              Paket[]
+  komisyonIslemleri     KomisyonIslem[]
+
+  olusturmaTarihi       DateTime  @default(now())
+  guncellenmeTarihi     DateTime  @updatedAt
+}
+
+model EsnafHesap {
+  id              Int             @id @default(autoincrement())
+  noktaId         Int             @unique
+  nokta           TeslimatNoktasi @relation(fields: [noktaId], references: [id], onDelete: Cascade)
+  email           String          @unique
+  password        String
+  aktif           Boolean         @default(true)
+  sonGirisTarihi  DateTime?
+  cihazTuru       String?
+  fcmToken        String?
+  olusturmaTarihi DateTime        @default(now())
+}
+
+model Paket {
+  id                  String       @id @default(cuid())
+  
+  katilimId           Int          @unique
+  katilim             Participant  @relation(fields: [katilimId], references: [id], onDelete: Cascade)
+  
+  noktaId             Int?
+  nokta               TeslimatNoktasi? @relation(fields: [noktaId], references: [id])
+
+  agirlik             Float?
+  boyut               String?
+
+  kurye_qr            String       // Merkezden noktaya
+  alici_qr            String       @unique // Alıcıdan noktaya
+  iade_qr             String?      // İade için
+
+  durum               PaketDurumu  @default(SIPARIS_ALINDI)
+
+  noktayaBirakimTarihi DateTime?
+  sonAlimTarihi        DateTime?
+  teslimTarihi         DateTime?
+  iadeBaslangicTarihi  DateTime?
+
+  uc_gun_bildirimi     Boolean      @default(false)
+  bir_gun_bildirimi    Boolean      @default(false)
+  komisyonOdendi       Boolean      @default(false)
+
+  olusturmaTarihi      DateTime     @default(now())
+  guncellenmeTarihi    DateTime     @updatedAt
+}
+
+model KomisyonIslem {
+  id              Int             @id @default(autoincrement())
+  noktaId         Int
+  nokta           TeslimatNoktasi @relation(fields: [noktaId], references: [id])
+  paketId         String
+  miktar          Float
+  mingaxPayi      Float
+  tedarikciPayi   Float
+  odendi          Boolean         @default(false)
+  odemeTarihi     DateTime?
+  olusturmaTarihi DateTime        @default(now())
 }

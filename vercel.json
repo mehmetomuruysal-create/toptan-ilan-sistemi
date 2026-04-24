@@ -1,0 +1,8 @@
+{
+    "crons": [
+      {
+        "path": "/api/cron/iade-kontrol",
+        "schedule": "0 7 * * *"
+      }
+    ]
+  }

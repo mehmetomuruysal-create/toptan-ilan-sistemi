@@ -10,7 +10,8 @@ import {
   LogOut, 
   ChevronDown,
   ShieldCheck,
-  LayoutDashboard
+  LayoutDashboard,
+  Package // 🚀 EKLENDİ
 } from "lucide-react"
 
 export default function UserDropdown() {
@@ -56,7 +57,7 @@ export default function UserDropdown() {
           </div>
 
           <div className="px-3 space-y-1" onClick={() => setIsOpen(false)}>
-            {/* 🚀 SATICI ÖZEL: İlan Ver Butonu - Gerçek dosya yoluna yönlendirildi */}
+            {/* 🚀 SATICI ÖZEL: İlan Ver Butonu */}
             {isSatici && (
               <MenuLink 
                 href="/ilan-ekle" 
@@ -67,6 +68,10 @@ export default function UserDropdown() {
             )}
 
             <MenuLink href="/panel" icon={<LayoutDashboard size={18} />} label="Genel Bakış" />
+            
+           {/* 🚀 YENİ EKLENDİ: HERKES İÇİN PAKETLERİM */}
+<MenuLink href="/profil/paketlerim" icon={<Package size={18} className="text-blue-500" />} label="Paketlerim" />
+
             <MenuLink href="/cuzdan" icon={<Wallet size={18} />} label="Cüzdanım" />
             <MenuLink href="/adreslerim" icon={<MapPin size={18} />} label="Adreslerim" />
             <MenuLink href="/profil/ayarlar" icon={<User size={18} />} label="Profil Ayarları" />

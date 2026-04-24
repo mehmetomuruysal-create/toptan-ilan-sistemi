@@ -6,6 +6,7 @@ import { PlusCircle, ShieldAlert } from "lucide-react"
 import UserDropdown from "@/components/UserDropdown"
 import LoginModal from "@/components/LoginModal"
 import RegisterModal from "@/components/RegisterModal"
+import { Package } from "lucide-react";
 
 export default function Navbar() {
   const { data: session, status } = useSession()
@@ -62,6 +63,7 @@ export default function Navbar() {
               <>
                 {session ? (
                   <div className="flex items-center gap-4">
+                    
                     {/* 🚀 İLAN VER BUTONU - Sadece Onaylı Satıcıya Full Görünür, Diğerine Kısıtlı */}
                     {isSatici && (
                       <Link 
@@ -77,6 +79,17 @@ export default function Navbar() {
                         İlan Ver
                       </Link>
                     )}
+
+                    {/* 🚀 YENİ EKLENDİ: ALICI İÇİN PAKETLERİM BUTONU */}
+                   {/* 🚀 HERKES İÇİN PAKETLERİM BUTONU */}
+<Link 
+  href="/profil/paketlerim"
+  className="hidden sm:flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[11px] uppercase italic tracking-widest transition-all shadow-sm active:scale-95 bg-white border-2 border-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white hover:border-blue-600"
+>
+  <Package size={16} />
+  Paketlerim
+</Link>
+
                     <UserDropdown />
                   </div>
                 ) : (

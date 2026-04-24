@@ -3,33 +3,39 @@ import { describe, expect, it } from "vitest"
 import { ilanEkleSchema, kayitSchema } from "../lib/validators"
 
 describe("kayitSchema", () => {
-it("gecerli kayit verisini kabul eder", () => {
-const result = kayitSchema.safeParse({
-ad: "Mehmet",
-soyad: "Yılmaz",
-email: "mehmet@example.com",
-ulkeKodu: "+90",
-telefon: "5551112233",
-password: "password123",
-hesapTuru: "ALICI",
-kampanyaOnay: true,
-})
-expect(result.success).toBe(true)
-})
+  it("gecerli kayit verisini kabul eder", () => {
+    const result = kayitSchema.safeParse({
+      adSoyad: "Mehmet Yılmaz", // ad ve soyad yerine adSoyad birleştirildi
+      email: "mehmet@example.com",
+      ulkeKodu: "+90",
+      telefon: "5551112233",
+      password: "password123",
+      hesapTuru: "ALICI",
+      kampanyaOnay: true,
+      kvkkOnay: true, // Zod'un istediği zorunlu KVKK onayı eklendi
+    })
 
-it("gecersiz telefon numarasini reddeder", () => {
-const result = kayitSchema.safeParse({
-ad: "Mehmet",
-soyad: "Yılmaz",
-email: "mehmet@example.com",
-ulkeKodu: "+90",
-telefon: "123", // Hatalı format
-password: "password123",
-hesapTuru: "ALICI",
-kampanyaOnay: true,
-})
-expect(result.success).toBe(false)
-})
+    if (!result.success) {
+      console.log("ZOD NEYİ BEĞENMEDİ:", JSON.stringify(result.error.format(), null, 2))
+    }
+
+    expect(result.success).toBe(true)
+  })
+
+  it("gecersiz telefon numarasini reddeder", () => {
+    const result = kayitSchema.safeParse({
+      adSoyad: "Mehmet Yılmaz", 
+      email: "mehmet@example.com",
+      ulkeKodu: "+90",
+      telefon: "123", // Hatalı format (Testin asıl amacı bunu yakalamak)
+      password: "password123",
+      hesapTuru: "ALICI",
+      kampanyaOnay: true,
+      kvkkOnay: true, 
+    })
+    
+    expect(result.success).toBe(false)
+  })
 })
 
 describe("ilanEkleSchema", () => {

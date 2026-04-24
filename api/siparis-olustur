@@ -1,0 +1,36 @@
+// ... ödeme başarılı oldu, sipariş veritabanına yazılacak ...
+
+import { paketQROlustur } from "@/lib/qr";
+
+// 1. Participant (Sipariş Katılımı) Oluşturuluyor
+const yeniKatilim = await prisma.participant.create({
+  data: {
+    kullaniciId: userId,
+    ilanId: ilanId,
+    baremId: baremId,
+    // ... diğer veriler
+  }
+});
+
+// 2. EĞER ALICI MINGAX NOKTASI SEÇTİYSE (Kargo yerine)
+if (secilenTeslimatTuru === "MINGAX_NOKTA" && secilenNoktaId) {
+  
+  // Paket ID için rastgele güvenli bir benzersiz kod (cuid zaten Prisma şemasında var ama qr için string bir id üretelim)
+  const yeniPaketId = `PKG-${Date.now()}`;
+
+  // Aşama 2'de yazdığımız QR Motorunu Ateşliyoruz! 🔥
+  const qrBilgileri = paketQROlustur(yeniPaketId, secilenNoktaId, yeniKatilim.id);
+
+  // 3. Paket Tablosuna Yazıyoruz
+  await prisma.paket.create({
+    data: {
+      id: yeniPaketId,
+      katilimId: yeniKatilim.id,
+      noktaId: secilenNoktaId,
+      kurye_qr: qrBilgileri.kurye_qr,
+      alici_qr: qrBilgileri.alici_qr,
+      sonAlimTarihi: qrBilgileri.sonTarih,
+      durum: "SIPARIS_ALINDI" // Aşama 4'te esnaf bunu okutunca "NOKTADA" olacak
+    }
+  });
+}

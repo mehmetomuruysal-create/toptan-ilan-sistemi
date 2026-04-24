@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { 
   CreditCard, MapPin, ShoppingBag, ArrowRight, 
-  CheckCircle2, Plus, Loader2, Info, ShieldCheck 
+  CheckCircle2, Plus, Loader2, Info, ShieldCheck,
+  Truck, Map // 🚀 EKLENDİ: İkonlar
 } from "lucide-react"; 
 import AddressModal from "../../../components/AddressModal";
+import NoktaSecimHaritasi from "@/components/NoktaSecimHaritasi"; // 🚀 EKLENDİ: Harita Bileşeni
 import { pusherClient } from "@/lib/pusher";
 import { useRouter } from "next/navigation";
 
@@ -15,6 +17,10 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
   // 🚀 ÖZGÜRLÜK: Artık miktar 1'den başlıyor
   const [adet, setAdet] = useState(1);
   
+  // 🚀 TESLİMAT AĞI STATE'LERİ EKLENDİ
+  const [teslimatTuru, setTeslimatTuru] = useState<"KARGO" | "MINGAX_NOKTA">("MINGAX_NOKTA");
+  const [secilenNoktaId, setSecilenNoktaId] = useState<number | null>(null);
+
   const [adresler, setAdresler] = useState(ilkAdresler || []);
   const [seciliAdres, setSeciliAdres] = useState("");
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -58,15 +64,19 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
   const toplamTutar = adet * barem.fiyat;
   const depozitoTutari = (toplamTutar * (ilan.depozitoOrani || 30)) / 100;
 
+  // 🚀 TEST ÖDEMESİNE YÖNLENDİRİLDİ
   const handleFinalSubmit = async () => {
     setYukleniyor(true);
     try {
-      const res = await fetch("/api/katilim/olustur", {
+      const res = await fetch("/api/odeme/test", { // 🚀 BURASI DEĞİŞTİ
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ilanId: ilan.id,
           baremId: barem.id,
           adet: adet,
+          teslimatTuru: teslimatTuru,
+          noktaId: secilenNoktaId,
           adresId: seciliAdres,
           toplamTutar: toplamTutar,
           depozitoTutari: depozitoTutari
@@ -74,7 +84,7 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
       });
 
       if (res.ok) {
-        router.push("/profil/katilimlarim?success=true");
+        router.push("/profil/paketlerim?success=true"); // 🚀 BURASI DEĞİŞTİ (Paketlerime atıyor)
       } else {
         const errorData = await res.json();
         alert(errorData.error || "Ödeme işlemi sırasında bir hata oluştu.");
@@ -158,43 +168,76 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
                 </div>
                 <div>
                   <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">Teslimat</h2>
-                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Adresinizi doğrulayın</p>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Teslimat yönteminizi seçin</p>
                 </div>
               </div>
+            </div>
+
+            {/* 🚀 TESLİMAT SEÇİM BUTONLARI EKLENDİ */}
+            <div className="flex gap-4 mb-4">
               <button 
-                onClick={() => setIsAddressModalOpen(true)}
-                className="bg-white border-2 border-gray-100 p-3 rounded-2xl hover:border-blue-600 transition-all text-blue-600 shadow-sm"
+                onClick={() => setTeslimatTuru('MINGAX_NOKTA')} 
+                className={`flex-1 p-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 font-black uppercase tracking-widest text-xs transition-all ${teslimatTuru === 'MINGAX_NOKTA' ? 'border-orange-500 bg-orange-50 text-orange-600 shadow-sm' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
               >
-                <Plus size={24} />
+                <Map size={24}/> <span>Teslimat Noktası</span>
+              </button>
+              <button 
+                onClick={() => setTeslimatTuru('KARGO')} 
+                className={`flex-1 p-5 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 font-black uppercase tracking-widest text-xs transition-all ${teslimatTuru === 'KARGO' ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'}`}
+              >
+                <Truck size={24}/> <span>Adrese Kargo</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-              {adresler.map((adres: any) => (
-                <div 
-                  key={adres.id}
-                  onClick={() => setSeciliAdres(adres.id)}
-                  className={`p-6 rounded-[2rem] border-2 transition-all cursor-pointer relative ${
-                    seciliAdres === adres.id 
-                    ? 'border-blue-600 bg-blue-50 shadow-lg' 
-                    : 'border-gray-50 bg-gray-50/50 hover:bg-white hover:border-gray-200'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${
-                      seciliAdres === adres.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'
-                    }`}>
-                      {adres.baslik}
-                    </span>
-                    {seciliAdres === adres.id && <CheckCircle2 className="text-blue-600" size={20} />}
+            {/* 🚀 MINGAX NOKTASI SEÇİLİYSE HARİTA */}
+            {teslimatTuru === "MINGAX_NOKTA" && (
+              <div className="animate-in fade-in slide-in-from-bottom-4">
+                <NoktaSecimHaritasi onNoktaSec={(id) => setSecilenNoktaId(id)} />
+                {secilenNoktaId && (
+                  <div className="mt-4 p-4 bg-green-50 text-green-700 rounded-2xl flex items-center justify-center gap-2 font-black uppercase text-[11px] border border-green-200 tracking-widest">
+                    <CheckCircle2 size={18} /> Nokta Seçildi. Ödemeye Geçebilirsiniz.
                   </div>
-                  <p className="font-black text-gray-900 uppercase text-xs italic">{adres.teslimAlacakKisi}</p>
-                  <p className="text-xs text-gray-500 mt-2 font-medium leading-relaxed">{adres.adresSatiri}</p>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
 
-            <div className="flex flex-col md:flex-row gap-4">
+            {/* 🚀 KARGO SEÇİLİYSE ESKİ ADRES LİSTESİ */}
+            {teslimatTuru === "KARGO" && (
+              <div className="animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex justify-between items-center mb-4">
+                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Kayıtlı Adresleriniz</h3>
+                   <button onClick={() => setIsAddressModalOpen(true)} className="text-blue-600 font-bold text-xs uppercase flex items-center gap-1 hover:underline">
+                     <Plus size={14}/> Yeni Adres
+                   </button>
+                </div>
+                <div className="grid grid-cols-1 gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {adresler.map((adres: any) => (
+                    <div 
+                      key={adres.id}
+                      onClick={() => setSeciliAdres(adres.id)}
+                      className={`p-6 rounded-[2rem] border-2 transition-all cursor-pointer relative ${
+                        seciliAdres === adres.id 
+                        ? 'border-blue-600 bg-blue-50 shadow-lg' 
+                        : 'border-gray-50 bg-gray-50/50 hover:bg-white hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-full ${
+                          seciliAdres === adres.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'
+                        }`}>
+                          {adres.baslik}
+                        </span>
+                        {seciliAdres === adres.id && <CheckCircle2 className="text-blue-600" size={20} />}
+                      </div>
+                      <p className="font-black text-gray-900 uppercase text-xs italic">{adres.teslimAlacakKisi}</p>
+                      <p className="text-xs text-gray-500 mt-2 font-medium leading-relaxed">{adres.adresSatiri}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4 pt-4 border-t border-gray-50">
               <button 
                 onClick={() => setStep(1)} 
                 className="flex-1 py-5 font-black uppercase italic tracking-widest text-xs text-gray-400 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all"
@@ -203,8 +246,8 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
               </button>
               <button 
                 onClick={() => setStep(3)}
-                disabled={!seciliAdres}
-                className="flex-[2] bg-gray-900 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest text-xs hover:bg-blue-600 shadow-2xl transition-all disabled:opacity-20"
+                disabled={teslimatTuru === "KARGO" ? !seciliAdres : !secilenNoktaId}
+                className="flex-[2] bg-gray-900 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest text-xs hover:bg-blue-600 shadow-2xl transition-all disabled:opacity-20 disabled:cursor-not-allowed"
               >
                 Ödeme Onayına Geç
               </button>
@@ -220,7 +263,7 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
               </div>
               <div>
                 <h2 className="text-3xl font-black uppercase italic tracking-tighter text-gray-900">Son Onay</h2>
-                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Güvenli Depozito Ödemesi</p>
+                <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Sanal Test Ödemesi</p>
               </div>
             </div>
 
@@ -234,19 +277,27 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
                     <span>Sipariş Miktarı</span>
                     <span className="text-white">{adet} ADET</span>
                   </div>
+                  
+                  {/* 🚀 TESLİMAT BİLGİSİ ÖZETİ */}
+                  <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-gray-400 border-b border-white/10 pb-4">
+                    <span>Teslimat Türü</span>
+                    <span className={teslimatTuru === 'MINGAX_NOKTA' ? "text-orange-400" : "text-blue-400"}>
+                      {teslimatTuru === 'MINGAX_NOKTA' ? 'Mingax Noktası' : 'Adrese Kargo'}
+                    </span>
+                  </div>
 
                   <div className="flex justify-between items-center py-4">
                     <div className="leading-tight">
                       <span className="block font-black text-white text-3xl italic uppercase tracking-tighter">Depozito</span>
-                      <span className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em]">Toplamın %{ilan.depozitoOrani || 30}'u</span>
+                      <span className="text-[10px] text-green-400 font-black uppercase tracking-[0.2em]">Toplamın %{ilan.depozitoOrani || 30}'u</span>
                     </div>
-                    <span className="text-4xl font-black text-blue-400 tracking-tighter italic">₺{depozitoTutari.toLocaleString()}</span>
+                    <span className="text-4xl font-black text-green-400 tracking-tighter italic">₺{depozitoTutari.toLocaleString()}</span>
                   </div>
 
                   <div className="bg-white/5 p-4 rounded-2xl flex items-start gap-3 border border-white/5">
-                    <Info size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                    <Info size={16} className="text-green-400 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-gray-300 font-medium leading-relaxed italic">
-                      Kalan ₺{(toplamTutar - depozitoTutari).toLocaleString()} tutarı, ihale kapandıktan ve barem kesinleştikten sonra 48 saat içinde ödemeniz gerekecektir.
+                      Bu bir sanal test ödemesidir. Gerçek kredi kartı tahsilatı yapılmaz. İşlem onaylandığında siparişiniz oluşturulur ve QR kodunuz üretilir.
                     </p>
                   </div>
                </div>
@@ -256,11 +307,11 @@ export default function KatilimFormu({ barem, ilan, adresler: ilkAdresler, satic
                <button 
                 onClick={handleFinalSubmit}
                 disabled={yukleniyor}
-                className="w-full bg-green-500 text-white py-6 rounded-[2rem] font-black uppercase italic tracking-[0.3em] text-lg hover:bg-gray-900 shadow-2xl shadow-green-100 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:bg-gray-200"
+                className="w-full bg-green-500 text-white py-6 rounded-[2rem] font-black uppercase italic tracking-[0.3em] text-lg hover:bg-green-600 shadow-2xl shadow-green-100 transition-all flex items-center justify-center gap-4 active:scale-95 disabled:bg-gray-200"
               >
-                {yukleniyor ? <Loader2 className="animate-spin" /> : "GÜVENLİ ÖDEME YAP"}
+                {yukleniyor ? <Loader2 className="animate-spin" /> : "TEST ÖDEMESİNİ TAMAMLA"}
               </button>
-              <button onClick={() => setStep(2)} className="w-full py-2 text-[10px] text-gray-400 font-black uppercase italic hover:text-blue-600 transition-colors">Teslimat Adresini Düzenle</button>
+              <button onClick={() => setStep(2)} className="w-full py-2 text-[10px] text-gray-400 font-black uppercase italic hover:text-blue-600 transition-colors">Teslimat Yöntemine Geri Dön</button>
             </div>
           </div>
         )}

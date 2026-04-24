@@ -18,7 +18,11 @@ import {
   Hash,
   Tag,
   Zap,
-  ChevronRight
+  ChevronRight,
+  QrCode,    // 🚀 EKLENDİ
+  MapPin,    // 🚀 EKLENDİ
+  Truck,     // 🚀 EKLENDİ
+  Loader2
 } from "lucide-react"
 
 export default async function PanelPage() {
@@ -30,16 +34,20 @@ export default async function PanelPage() {
   const user = session.user as any
   const isSatici = user?.hesapTuru === "SATICI"
   const isApproved = user?.onayDurumu === "APPROVED"
-  const saticiId = Number(user?.id)
+  const kullaniciId = Number(user?.id)
 
-  // 🚀 PRISMA MOTORU (Sadece Satıcı ise verileri çek)
+  // 🚀 Kullanıcının güncel bakiyesi için Prisma'dan kendi kaydını çek
+  const dbUser = await prisma.user.findUnique({ where: { id: kullaniciId } })
+
+  // 🚀 PRISMA MOTORU
   let aktifIlanlar: any[] = []
   let bekleyenIlanlar: any[] = []
   let toplamSiparis = 0
+  let aliciKatilimlar: any[] = [] // 🚀 ALICI İÇİN EKLENDİ
 
   if (isSatici) {
     const ilanlar = await prisma.listing.findMany({
-      where: { saticiId: saticiId },
+      where: { saticiId: kullaniciId },
       include: {
         baremler: { orderBy: { miktar: 'asc' } }, 
         katilimlar: true 
@@ -50,7 +58,24 @@ export default async function PanelPage() {
     aktifIlanlar = ilanlar.filter((i: any) => i.durum === "ACTIVE")
     bekleyenIlanlar = ilanlar.filter((i: any) => i.durum === "PENDING")
     toplamSiparis = aktifIlanlar.reduce((toplam: number, ilan: any) => toplam + ilan.katilimlar.length, 0)
+  } else {
+    // 🚀 EĞER ALICIYSA SİPARİŞ VE PAKETLERİNİ ÇEK
+    aliciKatilimlar = await prisma.participant.findMany({
+      where: { kullaniciId: kullaniciId },
+      include: {
+        ilan: true,
+        paket: {
+          include: { nokta: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
   }
+
+  // Alıcı İstatistikleri Hesaplanıyor
+  const aktifTeslimatlar = aliciKatilimlar.filter(k => k.paket && k.paket.durum !== 'TESLIM_EDILDI').length
+  const tamamlananTeslimatlar = aliciKatilimlar.filter(k => k.paket && k.paket.durum === 'TESLIM_EDILDI').length
+  const cuzdanBakiyesi = dbUser?.pointsBalance || 0
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
@@ -91,7 +116,7 @@ export default async function PanelPage() {
         </div>
       </div>
 
-      {/* --- ÖZET KARTLARI (Tıklanabilir Yapıldı & Dinamik Veri Eklendi) --- */}
+      {/* --- ÖZET KARTLARI --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {isSatici ? (
           <>
@@ -115,10 +140,26 @@ export default async function PanelPage() {
             />
           </>
         ) : (
+          // 🚀 ALICI KARTLARI DİNAMİKLEŞTİRİLDİ
           <>
-            <StatCard href={null} icon={<Package className="text-blue-600" />} label="AKTİF TALEPLERİM" value="0" />
-            <StatCard href={null} icon={<Wallet className="text-green-600" />} label="CÜZDAN BAKİYESİ" value="₺0,00" />
-            <StatCard href={null} icon={<Settings className="text-purple-600" />} label="TAMAMLANAN TALEPLER" value="0" />
+            <StatCard 
+              href="/profil/paketlerim" 
+              icon={<Package className="text-blue-600" />} 
+              label="TESLİMAT BEKLEYEN" 
+              value={aktifTeslimatlar.toString()} 
+            />
+            <StatCard 
+              href={null} 
+              icon={<Wallet className="text-green-600" />} 
+              label="CÜZDAN BAKİYESİ" 
+              value={`₺${cuzdanBakiyesi.toFixed(2)}`} 
+            />
+            <StatCard 
+              href="/profil/paketlerim" 
+              icon={<CheckCircle className="text-purple-600" />} 
+              label="TAMAMLANAN SİPARİŞLER" 
+              value={tamamlananTeslimatlar.toString()} 
+            />
           </>
         )}
       </div>
@@ -281,6 +322,63 @@ export default async function PanelPage() {
         </div>
       )}
 
+      {/* 🚀 DETAYLI LİSTELER (Sadece Alıcı Görebilir - Teslimat Ağı Entegrasyonu) */}
+      {!isSatici && (
+        <div className="space-y-12">
+          <div className="space-y-6 pt-6 animate-in fade-in slide-in-from-bottom-4">
+            <div className="flex items-center justify-between border-b-2 border-gray-100 pb-4">
+               <div className="flex items-center gap-3">
+                 <div className="bg-blue-100 p-2 rounded-xl text-blue-600"><Truck size={24} /></div>
+                 <h2 className="text-2xl font-black uppercase italic text-gray-800">Aktif Teslimatlar</h2>
+               </div>
+               <Link href="/profil/paketlerim" className="text-blue-600 font-bold text-sm hover:underline flex items-center gap-1 uppercase tracking-widest">
+                 Tümünü Gör <ChevronRight size={16}/>
+               </Link>
+            </div>
+
+            {aliciKatilimlar.filter(k => k.paket && k.paket.durum !== 'TESLIM_EDILDI').length === 0 ? (
+              <div className="bg-gray-50 p-12 rounded-[3.5rem] text-center border-2 border-dashed border-gray-200">
+                 <Package size={64} className="mx-auto text-gray-300 mb-6" />
+                 <h3 className="text-xl font-black uppercase text-gray-400">Bekleyen Teslimatınız Yok</h3>
+                 <p className="text-sm font-bold text-gray-400 mt-2">Mingax topluluğundaki avantajlı ilanlara katılıp alışverişe başlayabilirsiniz.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {aliciKatilimlar.filter(k => k.paket && k.paket.durum !== 'TESLIM_EDILDI').map((katilim: any) => (
+                    <div key={katilim.id} className="bg-white p-6 md:p-8 rounded-[2rem] border-2 border-blue-50 shadow-sm flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                       <div>
+                         <div className="flex justify-between items-start mb-4">
+                           <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Sipariş #{katilim.id}</span>
+                           <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase flex items-center gap-1 ${katilim.paket.durum === 'NOKTADA' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                             <Clock size={12}/> {katilim.paket.durum.replace('_', ' ')}
+                           </span>
+                         </div>
+                         <h3 className="text-lg md:text-xl font-black text-gray-900 uppercase italic line-clamp-2 mb-4">{katilim.ilan.baslik}</h3>
+                         {katilim.paket.nokta && (
+                           <div className="flex items-center gap-2 text-sm font-bold text-gray-500 mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                             <MapPin size={18} className="text-orange-500 shrink-0" />
+                             <span className="line-clamp-1">{katilim.paket.nokta.ad} ({katilim.paket.nokta.ilce}/{katilim.paket.nokta.il})</span>
+                           </div>
+                         )}
+                       </div>
+                       
+                       {katilim.paket.durum === 'NOKTADA' ? (
+                         <Link href="/profil/paketlerim" className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-black transition-all shadow-xl active:scale-95">
+                           <QrCode size={20} /> Teslimat Kodunu Aç
+                         </Link>
+                       ) : (
+                         <div className="w-full bg-gray-50 text-gray-400 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-2 italic">
+                           <Loader2 size={18} className="animate-spin" /> Hazırlanıyor
+                         </div>
+                       )}
+                    </div>
+                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -303,7 +401,7 @@ function StatCard({ icon, label, value, href }: { icon: any, label: string, valu
   )
 
   return href ? (
-    <a href={href} className="block h-full cursor-pointer">{CardContent}</a>
+    <Link href={href} className="block h-full cursor-pointer">{CardContent}</Link>
   ) : (
     <div className="h-full">{CardContent}</div>
   )
